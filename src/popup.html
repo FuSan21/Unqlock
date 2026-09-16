@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Unqlock</title><link rel="stylesheet" href="popup.css"></head>
+<body><header><img src="icons/icon-48.png" width="40" height="40" alt=""><div><h1>Unqlock</h1><p>Your Unqork toolkit.</p></div></header>
+<main><nav id="feature-menu" aria-label="Features"><button id="open-appearance" class="feature-entry" type="button" aria-controls="appearance-page"><span class="sample" aria-hidden="true">ƒ</span><span><strong>Component appearance</strong><span class="feature-description">Colors, icons, backgrounds and borders</span></span><span aria-hidden="true">›</span></button>
+<button id="open-quick" class="feature-entry" type="button" aria-controls="quick-page"><span class="sample" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m13 2-9 12h7l-1 8 10-12h-7z"></path></svg></span><span><strong>Debug tools</strong><span class="feature-description">Inspect data, edit values and run components</span></span><span aria-hidden="true">›</span></button></nav>
+<section id="appearance-page" aria-labelledby="appearance-title" hidden><button id="back-to-menu" type="button">‹ All features</button><h2 id="appearance-title" tabindex="-1">Component appearance</h2><p class="note">Customize component colors, icons and accents in the sidebar and canvas.</p><form id="appearance"><fieldset disabled id="controls"><label class="master"><span>Enable component styling</span><input type="checkbox" name="enabled" role="switch"></label>
+<h3 class="settings-heading">Apply styling to</h3>
+<label><span>Style sidebar components</span><input type="checkbox" name="tray"></label>
+<label><span>Style canvas components</span><input type="checkbox" name="canvas"></label>
+<h3 class="settings-heading">Icons &amp; labels</h3>
+<label><span>Colored icons</span><input type="checkbox" name="icons"></label>
+<label><span>Tinted icon backgrounds</span><input type="checkbox" name="tiles"></label>
+<label><span>Colored sidebar names</span><input type="checkbox" name="trayLabels"></label>
+<label><span>Colored canvas type labels</span><input type="checkbox" name="labels"></label>
+<label><span>Distinct icon shapes</span><input type="checkbox" name="symbols"></label>
+<p class="note">Distinct shapes apply when Colored icons is on. Icon backgrounds can be enabled independently.</p>
+<h3 class="settings-heading">Component frames</h3>
+<label><span>Subtle left accents</span><input type="checkbox" name="accents"></label>
+<label><span>Full background accents</span><input type="checkbox" name="backgrounds"></label>
+<label><span>Full colored borders</span><input type="checkbox" name="borders"></label>
+</fieldset></form><p class="note">Follows Unqork’s light or dark appearance.<br>Available in builders across Unqork subdomains.</p><details><summary>Color guide</summary><div id="legend"></div></details>
+<footer><button id="reset" type="button">Reset appearance</button><span id="status" role="status" aria-live="polite">Loading…</span></footer></section>
+<section id="quick-page" aria-labelledby="quick-title" hidden>
+<button id="quick-back" type="button">‹ All features</button><h2 id="quick-title" tabindex="-1">Debug tools</h2>
+<p class="debug-subtitle">Inspect data and test component behavior.</p>
+<fieldset id="quick-controls">
+<div class="debug-tabs" role="tablist" aria-label="Debug tools">
+<button type="button" role="tab" id="tab-inspect" aria-controls="panel-inspect" aria-selected="true">Inspect</button>
+<button type="button" role="tab" id="tab-data" aria-controls="panel-data" aria-selected="false" tabindex="-1">Data</button>
+<button type="button" role="tab" id="tab-execute" aria-controls="panel-execute" aria-selected="false" tabindex="-1">Execute</button>
+</div>
+<section role="tabpanel" id="panel-inspect" aria-labelledby="tab-inspect">
+<p class="note">Log submission and cache data to the page’s DevTools Console. Output may contain sensitive information.</p>
+<label for="log-style">Console output</label><select id="log-style"><option value="grouped">Grouped</option><option value="object">Single object</option></select>
+<button class="debug-primary" type="button" data-quick-action="log">Log page data</button>
+<p class="debug-feedback" role="status" aria-live="polite"></p></section>
+<section role="tabpanel" id="panel-data" aria-labelledby="tab-data" hidden>
+<p class="note">Edit in-memory submission data. Changes are not saved by Unqlock.</p>
+<label for="property-key">Property name (exact key)</label><input id="property-key" type="text" placeholder="customerId" autocomplete="off">
+<fieldset class="value-types"><legend>Value type</legend><div class="segments">
+<label><input type="radio" name="value-type" value="text" checked><span>Text</span></label>
+<label><input type="radio" name="value-type" value="number"><span>Number</span></label>
+<label><input type="radio" name="value-type" value="object"><span>JSON</span></label>
+</div></fieldset>
+<label for="property-value">Value</label><textarea id="property-value" rows="3" spellcheck="false" placeholder="Enter a value"></textarea>
+<div class="action-row"><button class="debug-primary" type="button" data-quick-action="set">Update property</button><button type="button" data-quick-action="remove">Remove property</button></div>
+<p class="debug-feedback" role="status" aria-live="polite"></p></section>
+<section role="tabpanel" id="panel-execute" aria-labelledby="tab-execute" hidden>
+<p class="note">Run a component by its exact key. This may save data or call external integrations.</p>
+<label for="component-key">Component key</label><input id="component-key" type="text" autocomplete="off" placeholder="calculatePremium">
+<button class="debug-primary" type="button" data-quick-action="trigger">Run component</button>
+<p class="debug-feedback" role="status" aria-live="polite"></p></section>
+<div id="debug-confirmation" class="debug-confirmation" hidden><p id="confirmation-text"></p><div class="action-row"><button id="confirm-action" type="button">Confirm</button><button id="cancel-action" type="button">Cancel</button></div></div>
+</fieldset><p id="quick-status" role="status" aria-live="polite"></p></section>
+</main><script src="quick-actions.js"></script><script src="popup.js"></script><script src="quick-popup.js"></script></body></html>

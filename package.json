@@ -1,0 +1,31 @@
+{
+  "name": "unqlock",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Shared source and reproducible builds for Chrome and Firefox",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "version:bump": "node scripts/version.cjs bump",
+    "version:check": "node scripts/version.cjs check",
+    "icons": "node scripts/render-icons.cjs",
+    "build": "node scripts/build.cjs",
+    "test": "node scripts/test.cjs",
+    "test:chrome": "node tests/chrome.cjs",
+    "lint:firefox": "web-ext lint --source-dir dist/firefox --warnings-as-errors",
+    "test:firefox": "node tests/behavior.cjs --firefox",
+    "package:source": "node scripts/package-source.cjs"
+  },
+  "overrides": {
+    "addons-linter": {
+      "image-size": "2.0.4"
+    }
+  },
+  "devDependencies": {
+    "fflate": "0.8.3",
+    "web-ext": "10.6.0",
+    "jsdom": "^29.0.0",
+    "playwright": "^1.58.0"
+  }
+}

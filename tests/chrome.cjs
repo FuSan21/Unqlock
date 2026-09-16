@@ -1,0 +1,138 @@
+const { chromium } = require('playwright');
+const path = require('node:path');
+const fs = require('node:fs');
+const assert = require('node:assert/strict');
+(async () => {
+  fs.mkdirSync(path.resolve(__dirname, '../artifacts'), { recursive:true });
+  const extension = path.resolve(__dirname, '../dist/chrome');
+  const context = await chromium.launchPersistentContext(fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'unqlock-chrome-')), {
+    ...(process.env.CHROME_PATH ? { executablePath:process.env.CHROME_PATH } : { channel:'chromium' }), headless:true,
+    args:[`--disable-extensions-except=${extension}`, `--load-extension=${extension}`],
+    viewport:{width:420,height:740}
+  });
+  try {
+    const page = await context.newPage();
+    await page.goto('chrome://extensions');
+    const extensions = await page.evaluate(() => new Promise(resolve => chrome.developerPrivate.getExtensionsInfo({}, resolve)));
+    const installed = extensions.find(item => item.name === 'Unqlock');
+    assert(installed, 'Unpacked extension loaded');
+    assert.equal(installed.manifestErrors.length, 0);
+    const builder = await context.newPage();
+    await builder.route('https://another-tenant.unqork.io/**', route => route.fulfill({contentType:'text/html',body:'<html class="dark"><body><div data-tray-type="number"><svg viewBox="0 0 24 24"><path d="M3 9h18"/></svg>Number</div></body></html>'}));
+    await builder.goto('https://another-tenant.unqork.io/ide/builder/test');
+    await builder.waitForSelector('[data-uq-family="inputs"]');
+    assert.equal(await builder.locator('svg').evaluate(element => getComputedStyle(element).color),'rgb(147, 197, 253)');
+    await page.goto(`chrome-extension://${installed.id}/popup.html`);
+    await page.waitForFunction(() => document.getElementById('status').textContent === 'Ready');
+    assert.equal(await page.locator('#appearance-page').isVisible(), false);
+    await page.emulateMedia({colorScheme:'light'});
+    await page.screenshot({path:path.resolve(__dirname, '../artifacts/menu-light.png')});
+    await page.emulateMedia({colorScheme:'dark'});
+    await page.screenshot({path:path.resolve(__dirname, '../artifacts/menu-dark.png')});
+    await page.getByRole('button', {name:'Component appearance'}).click();
+    assert.equal(await page.locator('#appearance-title').evaluate(element => element === document.activeElement), true);
+    for (const name of ['icons', 'tiles', 'trayLabels', 'labels', 'symbols', 'accents', 'backgrounds', 'borders']) {
+      await page.locator(`input[name="${name}"]`).uncheck();
+    }
+    await builder.waitForFunction(() => !document.querySelector('[data-uq-family],[data-uq-icon],[data-uq-icon-background],[data-uq-tile],[data-uq-label],[data-uq-symbol]'));
+    await page.getByLabel('Colored icons', {exact:true}).check();
+    await builder.waitForSelector('[data-uq-icon]');
+    assert.equal(await builder.locator('svg').evaluate(element => getComputedStyle(element).backgroundColor), 'rgba(0, 0, 0, 0)');
+    await page.getByLabel('Colored icons', {exact:true}).uncheck();
+    await page.getByLabel('Tinted icon backgrounds', {exact:true}).check();
+    await builder.waitForSelector('[data-uq-icon-background]');
+    assert.equal(await builder.locator('[data-uq-icon]').count(), 0);
+    await builder.evaluate(() => {
+      const name = document.createElement('span');
+      name.dataset.slot = 'tooltip-trigger';
+      name.textContent = 'Number';
+      document.querySelector('[data-tray-type]').append(name);
+    });
+    await page.getByLabel('Tinted icon backgrounds', {exact:true}).uncheck();
+    await page.getByLabel('Colored sidebar names', {exact:true}).check();
+    await builder.waitForSelector('[data-uq-label]');
+    assert.equal(await builder.locator('[data-uq-label]').evaluate(element => getComputedStyle(element).color), 'rgb(147, 197, 253)');
+    assert.equal(await builder.locator('[data-uq-icon],[data-uq-icon-background]').count(), 0);
+    await page.getByRole('button', {name:'Reset appearance'}).click();
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('#open-appearance').evaluate(element => element === document.activeElement), true);
+    await page.keyboard.press('Enter');
+    await page.getByRole('button', {name:'All features'}).click();
+    assert.equal(await page.locator('#appearance-page').isVisible(), false);
+    assert.equal(await builder.locator('[data-uq-family="inputs"]').count(), 1);
+    await page.getByRole('button', {name:'Component appearance'}).click();
+    await page.getByRole('switch').uncheck();
+    await builder.waitForFunction(() => !document.querySelector('[data-uq-family]'));
+    await page.reload();
+    await page.waitForFunction(() => document.getElementById('status').textContent === 'Ready');
+    await page.getByRole('button', {name:'Component appearance'}).click();
+    assert.equal(await page.getByRole('switch').isChecked(), false);
+    await page.getByRole('button', {name:'Reset appearance'}).click();
+    await builder.waitForSelector('[data-uq-family="inputs"]');
+    await builder.evaluate(() => {
+      const group = document.createElement('div');
+      group.id = 'group';
+      group.setAttribute('aria-roledescription', 'draggable');
+      group.innerHTML = '<div data-component-key="group" data-slot="collapsible-trigger"><div><svg viewBox="0 0 24 24"></svg></div><div class="text-2xs">FIELD GROUP</div></div><div data-component-key="child"><div><svg viewBox="0 0 24 24"></svg></div><div class="text-2xs">NUMBER</div></div>';
+      document.body.append(group);
+    });
+    await page.emulateMedia({colorScheme:'dark'});
+    await page.getByLabel('Full background accents').check();
+    await builder.waitForSelector('[data-uq-background]');
+    assert.equal(await builder.locator('[data-tray-type]').evaluate(element => getComputedStyle(element).backgroundColor), 'rgb(23, 37, 84)');
+    await builder.waitForSelector('#group[data-uq-background]');
+    assert.equal(await builder.locator('#group').evaluate(element => getComputedStyle(element).backgroundColor), 'rgb(30, 27, 75)');
+    await page.getByLabel('Full colored borders').check();
+    await builder.waitForSelector('#group[data-uq-border]');
+    assert.equal(await builder.locator('[data-tray-type]').evaluate(element => getComputedStyle(element).borderTopColor), 'rgb(147, 197, 253)');
+    await page.getByLabel('Full background accents').uncheck();
+    await builder.waitForFunction(() => !document.querySelector('[data-uq-background]'));
+    assert(await builder.locator('#group').getAttribute('data-uq-border') !== null);
+    await page.reload();
+    await page.waitForFunction(() => document.getElementById('status').textContent === 'Ready');
+    await page.getByRole('button', {name:'Component appearance'}).click();
+    assert.equal(await page.getByLabel('Full colored borders').isChecked(), true);
+    assert.equal(await page.getByLabel('Full background accents').isChecked(), false);
+    await page.getByLabel('Full background accents').check();
+    await builder.waitForSelector('[data-uq-background]');
+    await builder.evaluate(() => document.documentElement.classList.remove('dark'));
+    assert.equal(await builder.locator('[data-tray-type]').evaluate(element => getComputedStyle(element).backgroundColor), 'rgb(239, 246, 255)');
+    assert.equal(await builder.locator('[data-tray-type]').evaluate(element => getComputedStyle(element).borderTopColor), 'rgb(29, 78, 216)');
+    await page.getByRole('switch').uncheck();
+    await builder.waitForFunction(() => !document.querySelector('[data-uq-background],[data-uq-border]'));
+    await page.getByRole('button', {name:'Reset appearance'}).click();
+    await builder.waitForSelector('[data-uq-family="inputs"]');
+    assert.equal(await page.getByLabel('Full colored borders').isChecked(), false);
+    assert.equal(await page.getByLabel('Full background accents').isChecked(), false);
+    await page.screenshot({path:path.resolve(__dirname, '../artifacts/popup-dark.png')});
+    await page.emulateMedia({colorScheme:'light'});
+    await page.screenshot({path:path.resolve(__dirname, '../artifacts/popup-light.png')});
+    await builder.evaluate(() => {
+      document.body.insertAdjacentHTML('beforeend', '<div class="unqorkio-form"></div>');
+      window.testSubmission = { data:{} };
+      window.angular = { element:() => ({ scope:() => ({ submission:window.testSubmission, form:{} }) }) };
+    });
+    const executeQuickAction = require('node:vm').runInNewContext(fs.readFileSync(path.join(extension, 'quick-actions.js'), 'utf8') + '\nrunQuickAction;');
+    await page.exposeFunction('fixtureQuickAction', request => builder.evaluate(executeQuickAction, request));
+    await page.evaluate(() => {
+      chrome.tabs.query = async () => [{ id:7, url:'https://another-tenant.unqork.io/ide/builder/test' }];
+      chrome.scripting.executeScript = async injection => [{ result:await window.fixtureQuickAction(injection.args[0]) }];
+    });
+    await page.getByRole('button', {name:'All features'}).click();
+    await page.getByRole('button', {name:'Debug tools'}).click();
+    await page.getByRole('tab', {name:'Data', exact:true}).click();
+    await page.getByLabel('Property name (exact key)').fill('premium');
+    await page.getByLabel('Value', {exact:true}).fill('42');
+    await page.getByRole('radio', {name:'Number', exact:true}).check();
+    await page.getByRole('button', {name:'Update property', exact:true}).click();
+    await page.getByRole('button', {name:'Confirm update', exact:true}).click();
+    await page.waitForFunction(() => document.querySelector('#panel-data .debug-feedback').textContent.includes('updated in memory'));
+    assert.equal(await builder.evaluate(() => window.testSubmission.data.premium), 42);
+    await page.screenshot({path:path.resolve(__dirname, '../artifacts/quick-light.png')});
+    await page.emulateMedia({colorScheme:'dark'});
+    await page.screenshot({path:path.resolve(__dirname, '../artifacts/quick-dark.png')});
+    console.log('PASS: packaged quick-actions UI and page function with fixture-provided tab and scripting APIs; toolbar permission grant requires manual verification.');
+    console.log('PASS: unpacked extension loads with no manifest errors; actual content-script injection, popup storage persistence, live disable and reset, and light/dark popup rendering.');
+    console.log('PASS: independent background/border controls, light/dark computed colors, nested group frames, persistence, disable cleanup and reset defaults.');
+  } finally { await context.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });
