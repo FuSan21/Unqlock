@@ -6,6 +6,36 @@ Unqlock combines Unqork + Unlock: make builder components easier to recognize.
 
 One source tree, two Manifest V3 builds. Includes all 52 component types, custom icons, light/dark palettes, separate full background/border controls, and support across Unqork subdomains. The current version is recorded in package.json.
 
+## Screenshots
+
+### Builder styling
+
+Colored icons and component type labels:
+
+![Unqork builder with colored icons and type labels](docs/screenshots/colored-builder.png)
+
+Full background accents and colored borders:
+
+![Unqork builder with full background accents and colored borders](docs/screenshots/colored-builder-2.png)
+
+### Menu and appearance settings
+
+<p>
+  <img src="docs/screenshots/main-menu.png" width="280" alt="Unqlock main menu with Component appearance and Debug tools">
+  <img src="docs/screenshots/component-appearance.png" width="280" alt="Component appearance master switches and icon controls">
+  <img src="docs/screenshots/component-appearance-2.png" width="280" alt="Component appearance label, background and border controls">
+</p>
+
+### Debug tools
+
+Inspect page data, edit properties, or execute a component:
+
+<p>
+  <img src="docs/screenshots/debug-tool.png" width="280" alt="Debug tools Inspect tab with console logging options">
+  <img src="docs/screenshots/debug-tool-2.png" width="280" alt="Debug tools Data tab with property name, value type and value editor">
+  <img src="docs/screenshots/debug-tool-3.png" width="280" alt="Debug tools Execute tab with component key and Run component button">
+</p>
+
 ## Build
 
 The popup opens to a feature menu. Choose **Component appearance** for all color, icon, label, accent, background and border controls, the color guide, and reset. Use **All features** or Escape to return to the menu. Existing preferences are preserved; navigation does not toggle the feature.
