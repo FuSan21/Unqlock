@@ -1,0 +1,1 @@
+Unqlock processes Unqork page content and the current page URL locally in the browser to provide component styling and debugging functionality. Unqlock does not transmit, sell, share, or remotely store this information. Extension preferences are stored locally in the browser. Unqlock does not use analytics, advertising, or tracking services.
