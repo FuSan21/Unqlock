@@ -37,9 +37,75 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  sign:
+    name: Submit Firefox add-on to AMO
+    needs: check
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    concurrency:
+      group: sign-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: extension-packages
+          path: artifacts
+      - name: Submit the tested Firefox package with AMO credentials
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+          AMO_CHANNEL: ${{ vars.AMO_CHANNEL || 'listed' }}
+        run: npm run sign:firefox
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: firefox-signed
+          path: artifacts/unqlock-firefox-*.xpi
+          if-no-files-found: ignore
+          retention-days: 14
+
+  publish-chrome:
+    name: Publish Chrome package to the Web Store
+    needs: check
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    concurrency:
+      group: publish-chrome-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: extension-packages
+          path: artifacts
+      - name: Upload and publish the tested Chrome package
+        env:
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
+          CWS_PUBLISH_TARGET: ${{ vars.CWS_PUBLISH_TARGET || 'default' }}
+        run: npm run publish:chrome
+
   release:
     name: Publish tagged release
-    needs: check
+    needs: [check, sign, publish-chrome]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -53,12 +119,20 @@ jobs:
         with:
           name: extension-packages
           path: artifacts
+      - name: Collect the signed add-on when Mozilla returned one
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        continue-on-error: true
+        with:
+          name: firefox-signed
+          path: artifacts
       - name: Create release with tested packages
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          gh release create "$RELEASE_TAG" artifacts/unqlock-*.zip \
+          shopt -s nullglob
+          assets=(artifacts/unqlock-*.zip artifacts/unqlock-firefox-*.xpi)
+          gh release create "$RELEASE_TAG" "${assets[@]}" \
             --verify-tag --title "Unqlock $RELEASE_TAG" --generate-notes \
-            --notes "Chrome ZIP: extract and load unpacked. Firefox ZIP: unsigned; temporary installation only until Mozilla signing. Source ZIP included."
+            --notes "Submitted to the Chrome Web Store and to addons.mozilla.org; both listings go live after store review. Chrome ZIP: extract and load unpacked. Firefox ZIP: unsigned, temporary installation only. A signed Firefox XPI is attached only when Mozilla returns one at submission. Source ZIP included."

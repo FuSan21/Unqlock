@@ -12,7 +12,7 @@ const chromeManifest = JSON.parse(Buffer.from(archives.chrome['manifest.json']).
 const firefoxManifest = JSON.parse(Buffer.from(archives.firefox['manifest.json']).toString());
 assert.equal(chromeManifest.browser_specific_settings, undefined);
 assert.equal(firefoxManifest.minimum_chrome_version, undefined);
-assert.equal(firefoxManifest.browser_specific_settings.gecko.id, 'unqlock@extensions.local');
+assert.equal(firefoxManifest.browser_specific_settings.gecko.id, 'unqlock@fusan.me');
 assert.equal(firefoxManifest.browser_specific_settings.gecko.strict_min_version, '142.0');
 assert.deepEqual(firefoxManifest.browser_specific_settings.gecko.data_collection_permissions.required, ['none']);
 for (const [target, manifest] of [['chrome', chromeManifest], ['firefox', firefoxManifest]]) {

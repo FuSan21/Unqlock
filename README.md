@@ -6,6 +6,17 @@ Unqlock combines Unqork + Unlock: make builder components easier to recognize.
 
 One source tree, two Manifest V3 builds. Includes all 52 component types, custom icons, light/dark palettes, separate full background/border controls, and support across Unqork subdomains. The current version is recorded in package.json.
 
+## Installation
+
+Requires Chrome 111 or newer, or Firefox desktop 142 or newer.
+
+- Chrome: [Unqlock on the Chrome Web Store](https://chromewebstore.google.com/detail/unqlock/mcjjmjlohiadneoaielnigjjlbibfcja)
+- Firefox: [Unqlock on addons.mozilla.org](https://addons.mozilla.org/en-US/firefox/addon/unqlock)
+
+Install from either listing, then refresh any open Unqork tab. Both listings update the extension automatically.
+
+If Firefox has not granted access to your Unqork site, allow it from the extension's permissions controls. Preferences are local to each browser and do not synchronize between Chrome and Firefox. If you previously loaded the unqlock@extensions.local prototype, remove it first to avoid duplicate styling; its saved preferences do not transfer.
+
 ## Screenshots
 
 ### Builder styling
@@ -36,7 +47,7 @@ Inspect page data, edit properties, or execute a component:
   <img src="docs/screenshots/debug-tool-3.png" width="280" alt="Debug tools Execute tab with component key and Run component button">
 </p>
 
-## Build
+## Popup menu
 
 The popup opens to a feature menu. Choose **Component appearance** for all color, icon, label, accent, background and border controls, the color guide, and reset. Use **All features** or Escape to return to the menu. Existing preferences are preserved; navigation does not toggle the feature.
 
@@ -57,11 +68,17 @@ Open Unqlock from the browser toolbar on an Angular Unqork application page, the
 
 Confirm your intent before each edit, removal or execution. Edits affect in-memory submission data only; they do not save submissions or force an Angular digest. Component execution can have external effects, including saving data or calling integrations. Actions target the tab and URL captured when entering Debug tools, and refuse a changed URL. Only one top-level Angular form is supported, not embedded forms or the modern builder. No automatic actions run. Typed values are not persisted. Console output style lasts only for the current popup session.
 
-Debug tools use temporary active-tab access instead of blanket host permissions, including for custom-domain application pages. Browser API reference: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/scripting/executeScript
+Debug tools use temporary active-tab access instead of blanket host permissions, including for custom-domain application pages. Real application compatibility and Firefox MAIN-world injection have not yet been verified against a live Unqork page.
 
-Quick-action tests use synthetic Angular objects and test doubles for tab selection and script injection. Before release, verify the real toolbar permission flow in both browsers on a disposable Unqork application: log data, set/remove a test property, and trigger a harmless component. Real application compatibility and Firefox MAIN-world injection have not yet been verified against a live Unqork page.
+## Scope and privacy
 
-Requires Node.js 22 or newer and npm. Run all commands from the repository root (the folder containing package.json):
+Targets the modern Unqork Config builder across HTTPS *.unqork.io subdomains. The script is registered on /ide/* pages so navigation into /ide/builder/ works. Appearance styling does not run on unrelated domains or application pages. Unknown component types are untouched. Legacy canvas, Logic view and UI preview are not supported or verified. Appearance changes do not modify module definitions or submit/save anything.
+
+The full privacy notice is in [docs/PRIVACY.md](docs/PRIVACY.md). Permissions are storage (appearance preferences), activeTab and scripting (user-invoked debug tools). Unqlock makes no external requests or telemetry transmissions; executed application components may do so. Submission/cache data is logged in the page, not returned to extension storage. Firefox explicitly declares no data collection. Full borders replace native border colors while enabled; focus outlines are retained. Disabling or resetting removes decorations. The app's root dark class controls the page palette; the popup follows system appearance.
+
+## Building from source
+
+Requires Node.js 22 or newer and npm. Run both commands from the repository root, the folder containing package.json:
 
 ```sh
 npm ci
@@ -70,92 +87,20 @@ npm run build
 
 Outputs:
 
-- dist/chrome/ — load unpacked in Chrome.
-- dist/firefox/ — temporarily load manifest.json in Firefox.
+- dist/chrome/ — unpacked Chrome build.
+- dist/firefox/ — unpacked Firefox build.
 - artifacts/unqlock-chrome.zip — Chrome package.
-- artifacts/unqlock-firefox.zip — unsigned Firefox package for temporary loading or submission for signing.
+- artifacts/unqlock-firefox.zip — unsigned Firefox package.
 
-Extension code lives in src/ and browser-specific manifest settings live in manifests/. Both packages use identical JavaScript, CSS, HTML and icons; the build merges manifest.base.json with the appropriate browser overrides. The runtime chooses Firefox's promise-based browser API when available, otherwise Chrome's API. No polyfill or runtime dependency is needed.
+### Loading a local build
 
-Build tools are development-only. ZIP files contain no npm packages or tests. Archives use fixed timestamps for repeatable builds. npm run package:source creates a source ZIP including the lockfile, scripts and tests.
+Chrome: open chrome://extensions, enable Developer mode, choose Load unpacked and select dist/chrome. Refresh Unqork. To update an existing manual installation, replace the files in the same folder and click Reload; keeping the path retains its identity and preferences.
 
-## Chrome installation / update
+Firefox: open about:debugging#/runtime/this-firefox, choose Load Temporary Add-on and select dist/firefox/manifest.json or artifacts/unqlock-firefox.zip. Refresh Unqork. Local builds are unsigned, so Firefox removes them when it restarts; permanent installation needs the signed version from [addons.mozilla.org](https://addons.mozilla.org/en-US/firefox/addon/unqlock).
 
-Open chrome://extensions, enable Developer mode and Load unpacked from dist/chrome. For an existing installation, replace files in the same installed folder, click Reload on the extension, and refresh Unqork. Keeping the installation path retains its identity and preferences. Chrome 111+ is declared; current Chrome is recommended.
-
-## Firefox installation
-
-Requires Firefox desktop 142 or newer. Open about:debugging#/runtime/this-firefox, choose Load Temporary Add-on, and select dist/firefox/manifest.json or the Firefox ZIP. Refresh Unqork. If Firefox has not granted access to the staging site, allow the Unqork site from the extension's permissions controls.
-
-Temporary add-ons are removed when Firefox restarts. Permanent installation in standard Firefox requires Mozilla signing; the package is unsigned and has not been submitted to Mozilla. The stable add-on ID is unqlock@extensions.local. Keep it unchanged for future releases of this add-on. This replaces the unpublished prototype ID: remove the old temporary add-on before loading Unqlock; its saved preferences do not transfer. Preferences are local to each browser and do not synchronize between Chrome and Firefox.
-
-## Source layout
-
-```text
-unqork-scripts/
-  src/                  Shared extension code, base manifest and icons
-  manifests/            Chrome and Firefox manifest overrides
-  scripts/              Build, icon rendering, packaging and test commands
-  tests/                Behavior, browser integration and package checks
-  docs/                 Component catalog, design notes and icon preview
-  .github/workflows/    Push/PR checks and tag-triggered releases
-  package.json          Project commands and development dependencies
-  package-lock.json     Locked dependency versions
-  .gitignore            Excludes dependencies and generated files
-  .gitattributes        Consistent text line endings and binary handling
-  .editorconfig         Basic editor formatting conventions
-  README.md             Setup, build, installation and testing
-```
-
-Commit the files shown above, including the PNG icons and package-lock.json. Do not commit node_modules/, dist/ or artifacts/; they are generated locally and ignored by Git. Build scripts resolve paths from their location, so they do not depend on a machine-specific checkout path.
-
-## Automated builds and releases
-
-Once pushed to a GitHub repository with Actions enabled, every push and pull request runs the full build and browser tests, Firefox lint, and source packaging on Ubuntu with Node.js 22. Successful runs retain downloadable ZIP artifacts for 14 days. Pull requests never publish releases. Actions are pinned to commit hashes; only the release job receives repository write permission.
-
-Pushing a tag beginning with v additionally validates that it exactly matches the numeric package, lockfile and manifest version, such as v1.0.0. After all checks pass, the workflow creates a GitHub Release with generated notes and the exact tested Chrome, Firefox and source ZIPs. Other tags only run checks. Failed checks or mismatched tags prevent publishing. Existing releases are not overwritten; rerunning an already published release fails safely.
-
-Version bumps are manual: patch for fixes, minor for features, major for breaking changes. The helper updates package.json, package-lock.json and src/manifest.base.json together without committing or tagging. Both browsers always share one version. Numeric major.minor.patch versions only; prerelease suffixes are not supported.
-
-Example next patch release from 1.0.0 (run after committing other changes):
-
-```sh
-npm run version:bump -- patch
-npm test
-npm run lint:firefox
-git add package.json package-lock.json src/manifest.base.json
-git commit -m "Release 1.0.1"
-git tag -a v1.0.1 -m "Unqlock 1.0.1"
-git push origin HEAD
-git push origin v1.0.1
-```
-
-Use minor, major or an explicit higher version instead of patch as needed; adjust the commit and tag accordingly. Run npm run version:check -- v1.0.1 to verify a proposed tag. To release the unchanged initial 1.0.0 version, omit the bump and create v1.0.0 on the committed workflow instead. Do not move published tags; fix issues in a new version. Configure origin before running push commands.
-
-Releases are GitHub downloads only: no Chrome Web Store upload, Mozilla signing, automatic store publication or installed-extension updates. Firefox ZIPs remain unsigned. The workflow uses GitHub's built-in token and needs no store credentials or personal access token. No release is created until you push a matching version tag.
-
-The component catalog in docs/component-catalog.json is also used by the behavior tests. Design notes are historical proposal material, not generated build inputs.
-
-To edit the extension icon, change src/icons/unqlock.svg and run npm run icons after installing Playwright's Chromium. This regenerates the committed PNG icons and documentation preview. Regular builds use the committed images and do not need a browser installation.
-
-## Tests
-
-```sh
-npx playwright install chromium firefox
-npm test
-npm run lint:firefox
-```
-
-Optionally set CHROME_PATH to an installed Chrome for Testing executable for the Chromium tests. Otherwise Playwright's Chromium is used. Tests run in isolated profiles using synthetic builder fixtures and do not access your real module data. The Firefox behavior test supplies a browser API test double; it verifies Firefox rendering and the Firefox API branch, not Mozilla signing or live-site permission prompts. An additional web-ext test installs and reloads the actual Firefox package in an isolated temporary profile (optionally set FIREFOX_PATH to override its executable). Chrome integration loads the actual unpacked extension and exercises persistent popup settings. No tests install an extension into your normal browser profile.
-
-## Scope and privacy
-
-Targets the modern Unqork Config builder across HTTPS *.unqork.io subdomains. The script is registered on /ide/* pages so navigation into /ide/builder/ works. Appearance styling does not run on unrelated domains or application pages. Unknown component types are untouched. Legacy canvas, Logic view and UI preview are not supported or verified. Appearance changes do not modify module definitions or submit/save anything.
-
-Permissions are storage (appearance preferences), activeTab and scripting (user-invoked debug tools). Unqlock makes no external requests or telemetry transmissions; executed application components may do so. Submission/cache data is logged in the page, not returned to extension storage. Firefox explicitly declares no data collection. Full borders replace native border colors while enabled; focus outlines are retained. Disabling or resetting removes decorations. The app's root dark class controls the page palette; the popup follows system appearance.
+Tests, versioning and store publishing are documented in [.claude/development.md](.claude/development.md).
 
 ## References
 
 - Cross-browser APIs: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Chrome_incompatibilities
-- Firefox temporary installation and signing: https://extensionworkshop.com/documentation/develop/temporary-installation-in-firefox/
 - Firefox no-data declaration: https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/

@@ -15,6 +15,8 @@
     "test:chrome": "node tests/chrome.cjs",
     "lint:firefox": "web-ext lint --source-dir dist/firefox --warnings-as-errors",
     "test:firefox": "node tests/behavior.cjs --firefox",
+    "sign:firefox": "node scripts/sign.cjs",
+    "publish:chrome": "node scripts/publish-chrome.cjs",
     "package:source": "node scripts/package-source.cjs"
   },
   "overrides": {
