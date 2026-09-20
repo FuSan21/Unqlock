@@ -6,6 +6,7 @@ const project = path.resolve(__dirname, '..');
 const dist = path.join(project, 'dist', 'firefox');
 const artifacts = path.join(project, 'artifacts');
 const webExt = path.join(project, 'node_modules', 'web-ext', 'bin', 'web-ext.js');
+const metadata = path.join(project, 'amo-metadata.json');
 
 function unpackTestedPackage(archive) {
   for (const [name, data] of Object.entries(unzipSync(fs.readFileSync(archive)))) {
@@ -37,7 +38,9 @@ function sign(channel) {
   const options = ['sign', '--source-dir', dist, '--artifacts-dir', artifacts, '--channel', channel, '--no-input', '--timeout', '900000'];
   if (channel === 'listed') {
     if (!fs.existsSync(source)) throw new Error('Run npm run package:source first; listed submissions upload the source archive');
-    options.push('--upload-source-code', source, '--approval-timeout', '0');
+    const declared = JSON.parse(fs.readFileSync(metadata, 'utf8')).version || {};
+    if (!declared.license && !declared.custom_license) throw new Error('amo-metadata.json must set version.license; AMO rejects listed versions without one');
+    options.push('--upload-source-code', source, '--amo-metadata', metadata, '--approval-timeout', '0');
   }
   const result = spawnSync(process.execPath, [webExt, ...options], { stdio:'inherit', env:{ ...process.env, WEB_EXT_API_KEY:issuer, WEB_EXT_API_SECRET:secret } });
   if (result.status !== 0) throw new Error(`web-ext sign failed with ${result.status === null ? result.signal : 'status ' + result.status}`);

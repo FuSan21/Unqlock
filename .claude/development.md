@@ -28,6 +28,8 @@ unqork-scripts/
   .claude/              Maintainer documentation and design notes
   .github/workflows/    Push/PR checks, tag-triggered store publishing and releases
   CLAUDE.md             Project context and pointers
+  LICENSE               MIT license, matching the AMO listing
+  amo-metadata.json     Listing metadata sent with AMO submissions
   package.json          Project commands and development dependencies
   package-lock.json     Locked dependency versions
   .gitignore            Excludes dependencies and generated files
@@ -92,6 +94,8 @@ Beyond these two stores a release adds nothing: no other update channel, and the
 Firefox releases go to the public addons.mozilla.org listing through Mozilla's add-on submission API. Create API credentials at https://addons.mozilla.org/developers/addon/api/key/ and store them as repository secrets: AMO_JWT_ISSUER for the JWT issuer and AMO_JWT_SECRET for the JWT secret. Both are required for a tagged release; without them the submission job fails and no release is published. The secret is shown once, is tied to your AMO account, and should be revoked and replaced if exposed.
 
 As with Chrome, the API submits versions but does not write listing metadata. Set the add-on's name, summary, categories and license in the AMO developer hub, either beforehand or right after the first automated submission; until then the listing stays incomplete and invisible.
+
+Listed submissions also send amo-metadata.json, whose version object is merged into the submission payload. AMO rejects a listed version that declares no license, so version.license must stay set; it is MIT, matching the LICENSE file. The same file carries approval_notes, the build instructions Mozilla reviewers see. Listing fields such as name, summary and categories can be added there too, or set in the developer hub.
 
 The default channel is listed: the version is submitted to the public listing under the add-on ID unqlock@fusan.me, together with artifacts/unqlock-source.zip for source review, and Mozilla signs and publishes it after review. Submission does not wait for that review, so a listed run usually returns no XPI and the release simply omits it; users install from the AMO listing. Set the repository variable AMO_CHANNEL to unlisted for self-distribution instead, which signs immediately, returns the XPI and publishes nothing on AMO. A given add-on ID cannot be used on both channels.
 

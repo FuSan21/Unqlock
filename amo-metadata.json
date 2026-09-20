@@ -1,0 +1,6 @@
+{
+  "version": {
+    "license": "MIT",
+    "approval_notes": "Unqlock is plain, unminified JavaScript, CSS and HTML with no bundler, minifier or runtime dependency. To reproduce this package: install Node.js 22, then run npm ci followed by npm run build. dist/firefox then contains exactly the files in this submission, and artifacts/unqlock-firefox.zip is the same package. The source archive includes the build scripts, tests and maintainer documentation in .claude/development.md."
+  }
+}

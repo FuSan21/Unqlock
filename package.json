@@ -2,6 +2,7 @@
   "name": "unqlock",
   "version": "1.0.1",
   "private": true,
+  "license": "MIT",
   "description": "Shared source and reproducible builds for Chrome and Firefox",
   "engines": {
     "node": ">=22"
