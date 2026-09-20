@@ -1,4 +1,14 @@
 {
+  "categories": [
+    "web-development",
+    "appearance"
+  ],
+  "summary": {
+    "en-US": "Color-code and label Unqork builder components, and inspect or edit page data with built-in debug tools."
+  },
+  "description": {
+    "en-US": "Unqlock makes the Unqork Config builder easier to read. Every one of the 52 component types gets its own color, icon and optional type label, with light and dark palettes and separate controls for icon tints, left accents, full backgrounds and borders. Each effect can be turned on or off for the sidebar and the canvas independently.\n\nDebug tools add three optional actions on Unqork application pages: log submission and cache data to the DevTools console, add, update or remove a top-level submission property, and execute a single component by key. Every mutation and execution asks for confirmation first, and nothing runs automatically.\n\nUnqlock makes no external requests and collects no data. Appearance preferences are stored locally in the browser. Debug tools use temporary access to the active tab rather than standing host permissions."
+  },
   "version": {
     "license": "MIT",
     "approval_notes": "Unqlock is plain, unminified JavaScript, CSS and HTML with no bundler, minifier or runtime dependency. To reproduce this package: install Node.js 22, then run npm ci followed by npm run build. dist/firefox then contains exactly the files in this submission, and artifacts/unqlock-firefox.zip is the same package. The source archive includes the build scripts, tests and maintainer documentation in .claude/development.md."
