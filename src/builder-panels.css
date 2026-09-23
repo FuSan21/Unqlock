@@ -1,0 +1,2 @@
+[data-unqlock-panel-locked] { opacity:.45; cursor:not-allowed !important; }
+#unqlock-panel-tooltip { position:fixed; z-index:2147483647; max-width:280px; padding:9px 12px; border:1px solid #64748b; border-radius:6px; background:#172033; color:#fff; font:12px/1.5 system-ui,sans-serif; box-shadow:0 4px 16px #0004; pointer-events:none; }

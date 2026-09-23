@@ -29,7 +29,8 @@ h2 { font-size:14px; margin:0 0 12px; }
 #quick-page h3 { font-size:13px; margin:18px 0 0; border-top:1px solid var(--line); padding-top:12px; }
 #quick-status { margin-top:14px; font-size:12px; }
 .action-row { display:flex; gap:8px; }
-button:disabled { opacity:.6; cursor:wait; }
+button:disabled, input:disabled, select:disabled { opacity:.6; cursor:not-allowed; }
+fieldset:disabled { cursor:wait; }
 #appearance-title { margin:16px 0 6px; }
 .feature-entry { display:flex; align-items:center; gap:10px; width:100%; padding:14px 10px; text-align:left; }
 .feature-entry:hover { border-color:var(--accent); background:var(--tint); }
@@ -58,6 +59,20 @@ header { display:flex; gap:12px; padding:22px 20px 18px; border-bottom:1px solid
 #general-title { margin-top:16px; }
 #floating-position { width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; background:var(--paper); color:var(--ink); font:inherit; }
 #general-status { font-size:12px; margin-top:10px; }
+#panels-status { font-size:12px; margin-top:10px; }
+.panel-settings-card { margin:12px 0; padding:12px; border:1px solid var(--line); border-radius:8px; }
+.panel-settings-card summary { font-weight:600; color:var(--ink); }
+.panel-settings-summary { display:block; margin:3px 0 0 16px; font-size:11px; font-weight:400; color:var(--muted); }
+.panel-settings-card label { font-size:12px; }
+.panel-settings-card select, .panel-settings-card input[type="number"] { width:100%; height:auto; padding:8px; border:1px solid var(--line); border-radius:6px; background:var(--paper); color:var(--ink); font:inherit; font-size:12px; }
+.panel-settings-card .action-row { flex-wrap:wrap; }
+.disabled-explanation { position:relative; display:inline-flex; max-width:100%; }
+.disabled-explanation:has(select), .disabled-explanation:has(input[type="number"]) { display:flex; width:100%; }
+.disabled-explanation.has-reason { cursor:not-allowed; }
+.disabled-explanation.has-reason > :disabled { pointer-events:none; }
+.disabled-explanation .disabled-hint { display:none; position:fixed; z-index:5; width:240px; max-width:calc(100vw - 24px); padding:8px 10px; border:1px solid var(--line); border-radius:6px; color:var(--ink); background:var(--paper); box-shadow:0 3px 12px #0003; font:12px/1.5 "Segoe UI",sans-serif; }
+.disabled-explanation.has-reason:is(:hover,:focus-visible) > .disabled-hint { display:block; }
+.panel-settings-card input[aria-invalid="true"] { border-color:#dc2626; }
 .embedded { width:100%; min-width:0; }
 .embedded header { padding-right:48px; }
 #floating-close { position:absolute; top:12px; right:12px; padding:2px 9px; font-size:20px; }

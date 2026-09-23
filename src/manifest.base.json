@@ -43,10 +43,13 @@
         "https://*.unqork.io/ide/*"
       ],
       "js": [
-        "content.js"
+        "content.js",
+        "panel-settings.js",
+        "builder-panels.js"
       ],
       "css": [
-        "content.css"
+        "content.css",
+        "builder-panels.css"
       ],
       "run_at": "document_idle"
     },
@@ -59,6 +62,12 @@
         "environment-badge.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://*.unqork.io/ide/*"],
+      "js": ["panel-resize-bridge.js"],
+      "world": "MAIN",
+      "run_at": "document_start"
     }
   ]
 }

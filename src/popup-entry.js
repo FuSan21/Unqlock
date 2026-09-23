@@ -12,7 +12,7 @@
       close.hidden = false;
       close.addEventListener('click', () => parent.postMessage({ type:'unqlock.close' }, new URL(result.tab.url).origin));
     }
-    for (const file of ['environment.js', 'quick-actions.js', 'popup.js', 'quick-popup.js', 'environment-popup.js', 'general-popup.js']) {
+    for (const file of ['environment.js', 'panel-settings.js', 'disabled-controls.js', 'quick-actions.js', 'popup.js', 'quick-popup.js', 'environment-popup.js', 'general-popup.js', 'panels-popup.js']) {
       await new Promise((resolve, reject) => {
         const script = document.createElement('script');
         script.src = file;

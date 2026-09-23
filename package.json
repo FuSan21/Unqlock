@@ -26,9 +26,13 @@
     }
   },
   "devDependencies": {
+    "esbuild": "0.28.2",
     "fflate": "0.8.3",
-    "web-ext": "10.6.0",
     "jsdom": "^29.0.0",
-    "playwright": "^1.58.0"
+    "playwright": "^1.58.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-resizable-panels": "4.13.2",
+    "web-ext": "10.6.0"
   }
 }

@@ -15,7 +15,7 @@ let quickEnvironmentSettings;
 function applyProductionPolicy() {
   const blocked = quickEnvironment?.kind === 'production' && quickEnvironmentSettings?.blockProduction;
   for (const id of ['panel-data', 'panel-execute']) {
-    for (const control of document.getElementById(id).querySelectorAll('input, textarea, button')) control.disabled = !!blocked;
+    for (const control of document.getElementById(id).querySelectorAll('input, textarea, button')) UnqlockDisabled.set(control, blocked ? 'Disabled by Environment → Disable Data and Execute in production.' : '');
   }
   quickStatus.textContent = (quickEnvironment?.label || 'UNKNOWN') + (blocked ? ' · Data and Execute tools are disabled in production.' : ' · For Angular Unqork application pages.');
 }

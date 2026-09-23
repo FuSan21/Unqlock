@@ -54,6 +54,8 @@ Quick-action tests use synthetic Angular objects and test doubles for tab select
 
 Before a release, verify both permission flows in both browsers on a disposable Unqork application. From the toolbar: log data, set and remove a test property, and trigger a harmless component. From the floating badge: confirm the menu opens, Environment reports the right host, and Debug tools offers the per-hostname site-access request, then accept it and repeat the three actions. Declining must leave Appearance, Environment and General usable.
 
+`tests/builder-panels.cjs` bundles a nested-layout fixture using the native `react-resizable-panels` library. It tests the installed Chrome extension and the Firefox API branch against native collapse, imperative resize and real pointer/keyboard input. React, React DOM and esbuild are test-only dependencies; none enter either extension package. The sizing adapter in `panel-resize-bridge.js` runs in MAIN and locates the public `panelRef` on the React wrapper; if Unqork changes that integration, it reports unsupported sizing instead of overriding CSS or mutating React state. A live Unqork smoke test is still required before publishing.
+
 ## Icons and generated documentation
 
 To edit the extension icon, change src/icons/unqlock.svg and run npm run icons after installing Playwright's Chromium. This regenerates the committed PNG icons and the documentation preview. Regular builds use the committed images and do not need a browser installation.

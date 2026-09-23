@@ -86,7 +86,7 @@ const settle = () => new Promise(resolve => setTimeout(resolve, 0));
       permissions:{ request:async () => false },
       scripting:{ executeScript:async injection => { calls.push(injection); return [{ result:{ ok:true, message:'Done' } }]; } }
     };
-    page.eval(['environment.js', 'quick-actions.js', 'popup.js', 'quick-popup.js', 'environment-popup.js'].map(source).join('\n'));
+    page.eval(['environment.js', 'disabled-controls.js', 'quick-actions.js', 'popup.js', 'quick-popup.js', 'environment-popup.js'].map(source).join('\n'));
     const click = id => page.document.getElementById(id).click();
     click('open-quick'); await settle();
     click('tab-execute');

@@ -48,7 +48,7 @@ function editGroup(id) {
   editRevision++;
   editingGroup = environmentConfig.groups.find(group => group.id === id) || { id:crypto.randomUUID(), name:'', domains:[] };
   document.getElementById('environment-group-name').value = editingGroup.name;
-  document.getElementById('environment-delete-group').disabled = !environmentConfig.groups.some(group => group.id === editingGroup.id);
+  UnqlockDisabled.set(document.getElementById('environment-delete-group'), environmentConfig.groups.some(group => group.id === editingGroup.id) ? '' : 'This group has not been saved yet. Enter a valid group name and hostname to save it.');
   domainRows.replaceChildren();
   for (const domain of editingGroup.domains) addDomain(domain);
   if (!editingGroup.domains.length) addDomain();
@@ -62,7 +62,7 @@ function renderEnvironment(selectedId, preserveEditor = false) {
   if (preserveEditor) {
     const saved = environmentConfig.groups.some(group => group.id === editingGroup.id);
     groupSelect.value = saved ? editingGroup.id : '';
-    document.getElementById('environment-delete-group').disabled = !saved;
+    UnqlockDisabled.set(document.getElementById('environment-delete-group'), saved ? '' : 'This group has not been saved yet. Enter a valid group name and hostname to save it.');
   }
   else editGroup(selectedId ?? current?.groupId ?? environmentConfig.groups[0]?.id);
   const links = document.getElementById('environment-links');

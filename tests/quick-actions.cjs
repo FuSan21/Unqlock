@@ -61,7 +61,7 @@ const source = file => fs.readFileSync(path.join(__dirname, '../src', file), 'ut
         return [{ result:{ ok:true, message:'Done' } }];
       } }
     };
-    page.eval(['environment.js', 'quick-actions.js', 'popup.js', 'quick-popup.js', 'environment-popup.js'].map(source).join('\n'));
+    page.eval(['environment.js', 'disabled-controls.js', 'quick-actions.js', 'popup.js', 'quick-popup.js', 'environment-popup.js'].map(source).join('\n'));
     const settle = () => new Promise(resolve => setTimeout(resolve, 0));
     page.document.querySelector('[aria-controls="quick-page"]').click();
     await settle();

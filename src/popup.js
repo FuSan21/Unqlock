@@ -36,6 +36,14 @@ document.addEventListener("keydown", event => {
 const families = [["Inputs","1D4ED8","93C5FD"],["Contact & identity","0F766E","5EEAD4"],["Layout","4338CA","A5B4FC"],["Content","6D28D9","C4B5FD"],["Data & storage","0E7490","67E8F9"],["Calculation & workflows","7E22CE","D8B4FE"],["Decisions","92400E","FCD34D"],["Actions & execution","166534","86EFAC"],["Integrations","9A3412","FDBA74"],["Charts & maps","9D174D","FDA4AF"],["Hidden & protected","475569","CBD5E1"]];
 function show(value) {
   for (const [key, fallback] of Object.entries(defaults)) form.elements[key].checked = typeof value?.[key] === "boolean" ? value[key] : fallback;
+  for (const key of Object.keys(defaults)) {
+    let reason = key !== 'enabled' && !form.elements.enabled.checked ? 'Turn on Enable component styling to use this setting.' : '';
+    if (!reason && !['enabled','tray','canvas'].includes(key) && !form.elements.tray.checked && !form.elements.canvas.checked) reason = 'Turn on sidebar or canvas styling to use this setting.';
+    if (!reason && key === 'trayLabels' && !form.elements.tray.checked) reason = 'Turn on Style sidebar components to color sidebar names.';
+    if (!reason && key === 'labels' && !form.elements.canvas.checked) reason = 'Turn on Style canvas components to color canvas labels.';
+    if (!reason && key === 'symbols' && !form.elements.icons.checked) reason = 'Turn on Colored icons to use distinct icon shapes.';
+    UnqlockDisabled.set(form.elements[key], reason);
+  }
 }
 async function save(value) {
   controls.disabled = true;

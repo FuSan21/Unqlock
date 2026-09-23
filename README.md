@@ -70,6 +70,16 @@ Confirm your intent before each edit, removal or execution. Edits affect in-memo
 
 Debug tools use temporary active-tab access instead of blanket host permissions, including for custom-domain application pages. Opening Unqlock from the floating badge spends no toolbar click, so it cannot use active-tab access; Debug tools then offers **Enable debug tools on this site** and requests access for that one hostname when you choose it. Appearance, Environment and General settings need no grant from the badge. Grants persist until revoked in browser extension settings; you can decline and use the toolbar button instead. Real application compatibility and Firefox MAIN-world injection have not yet been verified against a live Unqork page.
 
+## Builder panels
+
+In **General settings → Builder panels**, configure **Build Agent**, **Explore**, **Properties**, and **Component tray** (including Outline) independently. **Use Unqork default** preserves native behavior. **Start collapsed** closes the panel once each time you enter a module or reload; you can open it afterward. Changing to Start collapsed takes effect on your next module visit. **Always collapsed** closes it immediately and prevents reopening, including keyboard and resize-handle expansion. Its expand icon remains visible with a hover/focus explanation pointing back to General settings.
+
+For each panel, choose native sizing, a **custom default width** in pixels, or **Remember my last width**. Custom widths apply on module entry and manual expansion; dragging can override the width during that visit. Remembered widths update after a deliberate drag or keyboard resize, not after collapse or a window resize. **Use current width** captures the open panel in the active module as a custom default. Widths are constrained by Unqork's native limits and available canvas space; the saved preference is retained on smaller screens. Sizes are inactive while Always collapsed is selected, but their preferences are preserved.
+
+Preferences apply across supported modern builder modules in this browser profile and persist after browser restarts. Each panel has Reset, plus **Reset all builder panels** to remove Unqlock's collapse policies and width preferences. Native controls resume without forcing panels open. This feature is independent of component styling and does not modify module definitions. If Unqork changes its panel implementation, unavailable default sizing is reported in settings and native dragging remains available.
+
+Disabled settings explain their dependencies on hover and keyboard focus, including floating-window position, appearance master switches and production-blocked Debug tools. Turning a parent setting off preserves its dependent preferences.
+
 ## Environment badge, guard and switcher
 
 Choose **General settings** to turn **Show Floating window** on or off and place it at the top left, top right, bottom left or bottom right. The floating launcher shows the Unqlock icon by default. Click it to open the same menu as the toolbar button; browsers that cannot open the toolbar popup directly use a small extension window linked to the original tab.

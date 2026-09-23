@@ -49,7 +49,7 @@ const assert = require('node:assert/strict');
     await page.screenshot({path:path.resolve(__dirname, '../artifacts/menu-dark.png')});
     await page.getByRole('button', {name:'Component appearance'}).click();
     assert.equal(await page.locator('#appearance-title').evaluate(element => element === document.activeElement), true);
-    for (const name of ['icons', 'tiles', 'trayLabels', 'labels', 'symbols', 'accents', 'backgrounds', 'borders']) {
+    for (const name of ['symbols', 'icons', 'tiles', 'trayLabels', 'labels', 'accents', 'backgrounds', 'borders']) {
       await page.locator(`input[name="${name}"]`).uncheck();
     }
     await builder.waitForFunction(() => !document.querySelector('[data-uq-family],[data-uq-icon],[data-uq-icon-background],[data-uq-tile],[data-uq-label],[data-uq-symbol]'));
