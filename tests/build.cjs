@@ -32,6 +32,7 @@ for (const [target, manifest] of [['chrome', chromeManifest], ['firefox', firefo
 const amo = JSON.parse(fs.readFileSync(path.join(project, 'amo-metadata.json'), 'utf8'));
 // AMO caps the listing summary at 250 characters and rejects a listed version with no license.
 assert(amo.summary['en-US'].length > 0 && amo.summary['en-US'].length <= 250, `AMO summary is ${amo.summary['en-US'].length} characters`);
-assert(amo.description['en-US'].length > 0);
+// AMO renders a limited Markdown subset; keep the description in blocks, not one wall of text.
+assert(/\n\s*\n/.test(amo.description['en-US']), 'AMO description needs blank-line separated sections');
 assert(amo.version.license || amo.version.custom_license);
 console.log('PASS: browser manifests, archive contents, permissions, store listing limits and identical shared runtime assets.');
