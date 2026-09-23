@@ -23,8 +23,15 @@ for (const [target, manifest] of [['chrome', chromeManifest], ['firefox', firefo
   for (const script of manifest.background.scripts || [manifest.background.service_worker]) assert(archives[target][script], `Missing background script ${script}`);
   for (const script of manifest.content_scripts[1].js) assert(archives[target][script], `Missing ${script}`);
   assert.equal(manifest.action.default_title, 'Unqlock');
+  // The Chrome Web Store rejects a manifest description over 132 characters.
+  assert(manifest.description.length > 0 && manifest.description.length <= 132, `${target} description is ${manifest.description.length} characters`);
   assert.deepEqual(manifest.permissions, ['storage', 'activeTab', 'scripting']);
   for (const entry of [...manifest.content_scripts[0].js, ...manifest.content_scripts[0].css, manifest.action.default_popup, ...Object.values(manifest.icons)]) assert(archives[target][entry], `Missing ${entry}`);
   assert(!Object.keys(archives[target]).some(name => name.includes('node_modules') || name.startsWith('tests/')));
 }
-console.log('PASS: browser manifests, archive contents, permissions and identical shared runtime assets.');
+const amo = JSON.parse(fs.readFileSync(path.join(project, 'amo-metadata.json'), 'utf8'));
+// AMO caps the listing summary at 250 characters and rejects a listed version with no license.
+assert(amo.summary['en-US'].length > 0 && amo.summary['en-US'].length <= 250, `AMO summary is ${amo.summary['en-US'].length} characters`);
+assert(amo.description['en-US'].length > 0);
+assert(amo.version.license || amo.version.custom_license);
+console.log('PASS: browser manifests, archive contents, permissions, store listing limits and identical shared runtime assets.');
