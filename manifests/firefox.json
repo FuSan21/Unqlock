@@ -1,4 +1,5 @@
 {
+  "background": { "scripts":["environment.js", "environment-background.js"] },
   "browser_specific_settings": {
     "gecko": {
       "id": "unqlock@fusan.me",

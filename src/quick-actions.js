@@ -24,6 +24,7 @@ async function runQuickAction(request) {
       return { ok:true, message:"Logged to the page’s DevTools Console. Data may contain sensitive information." };
     }
     if (request.confirmed !== true) return { ok:false, message:"Confirm that you intend to change or execute this page." };
+    if (request.production === true && (request.blockProduction === true || request.productionConfirmed !== true)) return { ok:false, message:"Production action blocked. Review environment settings and confirm explicitly." };
     const key = request.key;
     if (typeof key !== 'string' || !key.trim() || ['__proto__', 'constructor', 'prototype'].includes(key)) return { ok:false, message:"Enter a valid, non-reserved property or component key." };
     if (request.action === 'trigger') {

@@ -10,7 +10,7 @@ h2 { font-size:14px; margin:0 0 12px; }
 .debug-tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); padding-bottom:6px; }
 .debug-tabs button { flex:1; border-color:transparent; }
 .debug-tabs button[aria-selected="true"] { color:var(--accent); background:var(--tint); border-color:var(--accent); }
-#quick-page .debug-primary { background:var(--accent); color:var(--paper); border-color:var(--accent); font-weight:600; }
+.primary, #quick-page .debug-primary { background:var(--accent); color:var(--paper); border-color:var(--accent); font-weight:600; }
 #panel-inspect > button, #panel-execute > button { width:100%; }
 .value-types { margin-top:12px; }
 .value-types legend { margin-bottom:6px; }
@@ -40,3 +40,24 @@ button:disabled { opacity:.6; cursor:wait; }
 @media(prefers-color-scheme:dark) { :root { --paper:#0b0e13; --ink:#cbd2da; --muted:#a2abb6; --line:#262d38; --accent:#c4b5fd; --tint:#2e1065; } }
 * { box-sizing:border-box; } body { width:354px; margin:0; background:var(--paper); color:var(--ink); font:13px/1.5 "Segoe UI",sans-serif; }
 header { display:flex; gap:12px; padding:22px 20px 18px; border-bottom:1px solid var(--line); align-items:center; } .brand-mark { color:var(--accent); font-size:34px; } h1 { margin:0; font-size:19px; letter-spacing:-.5px; } p { margin:3px 0 0; color:var(--muted); } main { padding:16px 20px; } fieldset { border:0; margin:0; padding:0; } label { display:flex; justify-content:space-between; align-items:center; padding:9px 0; gap:12px; cursor:pointer; } .master { font-weight:650; } input { accent-color:var(--accent); width:17px; height:17px; } .preview { display:flex; align-items:center; gap:12px; border:1px solid var(--line); border-radius:8px; padding:12px; margin:10px 0; } .sample { width:34px; height:34px; background:var(--tint); color:var(--accent); display:grid; place-items:center; border-radius:6px; font:22px Georgia,serif; } small { display:block; font:10px/1.6 Consolas,monospace; color:var(--accent); } .note { font-size:11px; margin:14px 0; } summary { cursor:pointer; color:var(--muted); } #legend { margin-top:10px; display:grid; gap:7px; font-size:12px; } .swatch { display:inline-block; width:12px; height:12px; margin-right:8px; border-radius:3px; } footer { display:flex; align-items:center; justify-content:space-between; gap:8px; border-top:1px solid var(--line); margin-top:16px; padding-top:14px; } button { font:inherit; color:var(--ink); background:transparent; border:1px solid var(--line); border-radius:6px; padding:7px 10px; cursor:pointer; } :focus-visible { outline:2px solid var(--accent); outline-offset:3px; } #status { color:var(--muted); font-size:11px; }
+#environment-title { margin-top:16px; }
+#environment-current { overflow-wrap:anywhere; font-size:12px; }
+#environment-links { display:grid; gap:6px; margin:12px 0; }
+#environment-links a { color:var(--accent); }
+#environment-status { font-size:12px; margin-top:10px; }
+.debug-confirmation[data-production="true"] { border-color:#dc2626; background:light-dark(#fff1f2,#450a0a); }
+.debug-confirmation[data-production="true"] p { white-space:pre-line; color:light-dark(#991b1b,#fecaca); }
+
+#environment-page input[type="text"], #environment-page select { width:100%; height:auto; padding:8px; border:1px solid var(--line); border-radius:6px; background:var(--paper); color:var(--ink); font:inherit; font-size:12px; }
+.environment-domain { display:grid; grid-template-columns:1fr auto; gap:6px; margin:12px 0; padding:10px; border:1px solid var(--line); border-radius:6px; }
+.environment-domain input { grid-column:1 / -1; }
+#environment-page .action-row { margin-top:8px; }
+#environment-access { margin-top:12px; border-color:var(--accent); }
+#quick-access { margin-bottom:14px; border-color:var(--accent); }
+
+#general-title { margin-top:16px; }
+#floating-position { width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; background:var(--paper); color:var(--ink); font:inherit; }
+#general-status { font-size:12px; margin-top:10px; }
+.embedded { width:100%; min-width:0; }
+.embedded header { padding-right:48px; }
+#floating-close { position:absolute; top:12px; right:12px; padding:2px 9px; font-size:20px; }

@@ -23,6 +23,9 @@ const source = file => fs.readFileSync(path.join(__dirname, '../src', file), 'ut
   for (const value of ['null', 'true', '{bad}']) assert.equal((await run({ value, type:'object' })).ok, false);
   for (const key of ['', ' ', '__proto__', 'constructor', 'prototype']) assert.equal((await run({ key })).ok, false);
   assert.equal((await run({ confirmed:false })).ok, false);
+  assert.equal((await run({ production:true })).ok, false);
+  assert.equal((await run({ production:true, productionConfirmed:true, blockProduction:true })).ok, false);
+  assert((await run({ production:true, productionConfirmed:true })).ok);
   assert.equal((await run({ url:'https://example.test/changed' })).ok, false);
   assert((await run({ key:'literal.dot', value:'yes' })).ok);
   assert.equal(submission.data['literal.dot'], 'yes');
@@ -58,7 +61,7 @@ const source = file => fs.readFileSync(path.join(__dirname, '../src', file), 'ut
         return [{ result:{ ok:true, message:'Done' } }];
       } }
     };
-    page.eval(['quick-actions.js', 'popup.js', 'quick-popup.js'].map(source).join('\n'));
+    page.eval(['environment.js', 'quick-actions.js', 'popup.js', 'quick-popup.js', 'environment-popup.js'].map(source).join('\n'));
     const settle = () => new Promise(resolve => setTimeout(resolve, 0));
     page.document.querySelector('[aria-controls="quick-page"]').click();
     await settle();

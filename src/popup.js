@@ -8,6 +8,14 @@ const reset = document.getElementById("reset");
 const menu = document.getElementById("feature-menu");
 const appearancePage = document.getElementById("appearance-page");
 const openAppearance = document.getElementById("open-appearance");
+async function getTargetTab() {
+  if (window.top !== window) {
+    const result = await extensionAPI.runtime.sendMessage({ type:'floating.target' });
+    if (!result?.ok) throw new Error(result?.error || 'Could not identify this page.');
+    return result.tab;
+  }
+  return (await extensionAPI.tabs.query({ active:true, currentWindow:true }))[0];
+}
 function showMenu() {
   appearancePage.hidden = true;
   menu.hidden = false;

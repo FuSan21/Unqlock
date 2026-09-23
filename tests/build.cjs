@@ -18,6 +18,10 @@ assert.deepEqual(firefoxManifest.browser_specific_settings.gecko.data_collection
 for (const [target, manifest] of [['chrome', chromeManifest], ['firefox', firefoxManifest]]) {
   assert.equal(manifest.name, 'Unqlock');
   assert.deepEqual(manifest.content_scripts[0].matches, ['https://*.unqork.io/ide/*']);
+  assert.deepEqual(manifest.content_scripts[1].matches, ['https://*.unqork.io/*']);
+  assert.deepEqual(manifest.optional_host_permissions, ['*://*/*']);
+  for (const script of manifest.background.scripts || [manifest.background.service_worker]) assert(archives[target][script], `Missing background script ${script}`);
+  for (const script of manifest.content_scripts[1].js) assert(archives[target][script], `Missing ${script}`);
   assert.equal(manifest.action.default_title, 'Unqlock');
   assert.deepEqual(manifest.permissions, ['storage', 'activeTab', 'scripting']);
   for (const entry of [...manifest.content_scripts[0].js, ...manifest.content_scripts[0].css, manifest.action.default_popup, ...Object.values(manifest.icons)]) assert(archives[target][entry], `Missing ${entry}`);

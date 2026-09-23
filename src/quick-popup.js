@@ -4,11 +4,34 @@ const quickStatus = document.getElementById('quick-status');
 const quickControls = document.getElementById('quick-controls');
 const quickEntry = document.getElementById('open-quick');
 const confirmation = document.getElementById('debug-confirmation');
+const quickAccess = document.getElementById('quick-access');
 const debugTabs = [...quickPage.querySelectorAll('[role="tab"]')];
 let quickTarget;
 let pendingAction;
 let pendingButton;
 let busy = false;
+let quickEnvironment;
+let quickEnvironmentSettings;
+function applyProductionPolicy() {
+  const blocked = quickEnvironment?.kind === 'production' && quickEnvironmentSettings?.blockProduction;
+  for (const id of ['panel-data', 'panel-execute']) {
+    for (const control of document.getElementById(id).querySelectorAll('input, textarea, button')) control.disabled = !!blocked;
+  }
+  quickStatus.textContent = (quickEnvironment?.label || 'UNKNOWN') + (blocked ? ' · Data and Execute tools are disabled in production.' : ' · For Angular Unqork application pages.');
+}
+function pageOrigin() {
+  return new URL(quickTarget.url).origin + '/*';
+}
+async function hasPageAccess() {
+  // The toolbar spends an activeTab grant on click; an embedded menu has no gesture to spend.
+  if (window.top === window) return true;
+  try { return await extensionAPI.permissions.contains({ origins:[pageOrigin()] }); } catch { return false; }
+}
+function enableQuickControls() {
+  quickAccess.hidden = true;
+  quickControls.disabled = false;
+  applyProductionPolicy();
+}
 function cancelConfirmation(focus = false) {
   confirmation.hidden = true;
   pendingAction = undefined;
@@ -42,13 +65,20 @@ quickEntry.addEventListener('click', async () => {
   cancelConfirmation();
   quickControls.disabled = true;
   quickTarget = undefined;
+  quickAccess.hidden = true;
   quickStatus.textContent = 'Checking active tab…';
   try {
-    const [tab] = await extensionAPI.tabs.query({ active:true, currentWindow:true });
+    const tab = await getTargetTab();
     if (!tab?.id || !/^https?:\/\//.test(tab.url || '')) throw new Error('Unsupported tab');
     quickTarget = { id:tab.id, url:tab.url };
-    quickControls.disabled = false;
-    quickStatus.textContent = 'For Angular Unqork application pages.';
+    quickEnvironmentSettings = UnqlockEnvironment.settings((await extensionAPI.storage.local.get('environment')).environment);
+    quickEnvironment = UnqlockEnvironment.detect(tab.url, quickEnvironmentSettings);
+    if (await hasPageAccess()) enableQuickControls();
+    else {
+      quickAccess.hidden = false;
+      quickAccess.title = pageOrigin();
+      quickStatus.textContent = (quickEnvironment?.label || 'UNKNOWN') + ' · Debug tools need one-time access to this site.';
+    }
   } catch {
     quickStatus.textContent = 'Open Unqork, then open Unqlock from the browser toolbar.';
   }
@@ -67,6 +97,17 @@ document.addEventListener('keydown', event => {
     else closeQuickActions();
   }
 });
+quickAccess.addEventListener('click', () => {
+  if (!quickTarget) return;
+  // Call directly from the gesture, before awaits (required by Firefox).
+  const request = extensionAPI.permissions.request({ origins:[pageOrigin()] });
+  quickAccess.disabled = true;
+  request.then(granted => {
+    if (granted) enableQuickControls();
+    else quickStatus.textContent = 'Site access was not granted. Open Unqlock from the browser toolbar to use debug tools once.';
+  }, error => { quickStatus.textContent = 'Could not request site access: ' + (error.message || 'open Unqlock from the browser toolbar instead.'); })
+    .finally(() => { quickAccess.disabled = false; });
+});
 quickControls.addEventListener('input', () => cancelConfirmation());
 document.getElementById('cancel-action').addEventListener('click', () => cancelConfirmation(true));
 async function executeAction(request, button) {
@@ -77,13 +118,21 @@ async function executeAction(request, button) {
   feedback.dataset.state = 'pending';
   feedback.textContent = 'Running…';
   try {
+    const config = UnqlockEnvironment.settings((await extensionAPI.storage.local.get('environment')).environment);
+    const current = UnqlockEnvironment.detect(request.url, config);
+    if (request.action !== 'log') {
+      if (current.kind === 'production' && config.blockProduction) throw new Error('Production actions are disabled.');
+      if (current.kind === 'production' && request.productionConfirmed !== true) throw new Error('Environment settings changed. Review and confirm the action again.');
+    }
+    request.production = current.kind === 'production';
+    request.blockProduction = config.blockProduction;
     const results = await extensionAPI.scripting.executeScript({ target:{ tabId:quickTarget.id }, world:'MAIN', func:runQuickAction, args:[request] });
     const result = results[0]?.result;
     feedback.dataset.state = result?.ok ? 'success' : 'error';
     feedback.textContent = result?.message || 'No result returned. Check the page before retrying.';
-  } catch {
+  } catch (error) {
     feedback.dataset.state = 'error';
-    feedback.textContent = 'Could not access the page. Reopen from the toolbar; check the page before retrying.';
+    feedback.textContent = error.message || 'Could not access the page. Reopen from the toolbar; check the page before retrying.';
   } finally {
     busy = false;
     quickControls.disabled = false;
@@ -99,6 +148,7 @@ quickControls.addEventListener('click', event => {
   const action = button.dataset.quickAction;
   const request = {
     action, confirmed:action !== 'log', url:quickTarget.url,
+    productionConfirmed:quickEnvironment?.kind === 'production',
     key:document.getElementById(action === 'trigger' ? 'component-key' : 'property-key').value,
     value:document.getElementById('property-value').value,
     type:quickPage.querySelector('input[name="value-type"]:checked').value,
@@ -119,6 +169,21 @@ quickControls.addEventListener('click', event => {
     ? 'Run “' + request.key + '”? This may save data or call integrations.'
     : (action === 'remove' ? 'Remove' : 'Update') + ' “' + request.key + '” in this page’s in-memory data?';
   document.getElementById('confirm-action').textContent = action === 'trigger' ? 'Confirm run' : action === 'remove' ? 'Confirm removal' : 'Confirm update';
+  const production = quickEnvironment?.kind === 'production';
+  confirmation.dataset.production = String(production);
+  if (production) {
+    document.getElementById('confirmation-text').textContent = '⚠ PRODUCTION ENVIRONMENT\nThis action can trigger integrations or save data.\n' + document.getElementById('confirmation-text').textContent;
+    document.getElementById('confirm-action').textContent = action === 'trigger' ? 'Run anyway' : 'Change anyway';
+  }
   confirmation.hidden = false;
-  document.getElementById('confirm-action').focus();
+  document.getElementById(production ? 'cancel-action' : 'confirm-action').focus();
+});
+extensionAPI.storage.onChanged?.addListener((changes, area) => {
+  if (area !== 'local' || !changes.environment || !quickTarget) return;
+  cancelConfirmation();
+  try {
+    quickEnvironmentSettings = UnqlockEnvironment.settings(changes.environment.newValue);
+    quickEnvironment = UnqlockEnvironment.detect(quickTarget.url, quickEnvironmentSettings);
+    applyProductionPolicy();
+  } catch { quickControls.disabled = true; }
 });

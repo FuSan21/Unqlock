@@ -14,6 +14,21 @@
     "activeTab",
     "scripting"
   ],
+  "optional_host_permissions": [
+    "*://*/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/icon-32.png",
+        "popup.html"
+      ],
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ]
+    }
+  ],
   "action": {
     "default_icon": {
       "16": "icons/icon-16.png",
@@ -32,6 +47,16 @@
       ],
       "css": [
         "content.css"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://*.unqork.io/*"
+      ],
+      "js": [
+        "environment.js",
+        "environment-badge.js"
       ],
       "run_at": "document_idle"
     }

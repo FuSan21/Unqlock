@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Unqlock</title><link rel="stylesheet" href="popup.css"></head>
-<body><header><img src="icons/icon-48.png" width="40" height="40" alt=""><div><h1>Unqlock</h1><p>Your Unqork toolkit.</p></div></header>
+<body><button id="floating-close" type="button" aria-label="Close Unqlock menu" hidden>×</button><header><img src="icons/icon-48.png" width="40" height="40" alt=""><div><h1>Unqlock</h1><p>Your Unqork toolkit.</p></div></header>
 <main><nav id="feature-menu" aria-label="Features"><button id="open-appearance" class="feature-entry" type="button" aria-controls="appearance-page"><span class="sample" aria-hidden="true">ƒ</span><span><strong>Component appearance</strong><span class="feature-description">Colors, icons, backgrounds and borders</span></span><span aria-hidden="true">›</span></button>
-<button id="open-quick" class="feature-entry" type="button" aria-controls="quick-page"><span class="sample" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m13 2-9 12h7l-1 8 10-12h-7z"></path></svg></span><span><strong>Debug tools</strong><span class="feature-description">Inspect data, edit values and run components</span></span><span aria-hidden="true">›</span></button></nav>
+<button id="open-quick" class="feature-entry" type="button" aria-controls="quick-page"><span class="sample" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m13 2-9 12h7l-1 8 10-12h-7z"></path></svg></span><span><strong>Debug tools</strong><span class="feature-description">Inspect data, edit values and run components</span></span><span aria-hidden="true">›</span></button><button id="open-environment" class="feature-entry" type="button" aria-controls="environment-page"><span class="sample" aria-hidden="true">◎</span><span><strong>Environment</strong><span class="feature-description">Badge, production guard and page switcher</span></span><span aria-hidden="true">›</span></button><button id="open-general" class="feature-entry" type="button" aria-controls="general-page"><span class="sample" aria-hidden="true">⚙</span><span><strong>General settings</strong><span class="feature-description">Floating window and position</span></span><span aria-hidden="true">›</span></button></nav>
 <section id="appearance-page" aria-labelledby="appearance-title" hidden><button id="back-to-menu" type="button">‹ All features</button><h2 id="appearance-title" tabindex="-1">Component appearance</h2><p class="note">Customize component colors, icons and accents in the sidebar and canvas.</p><form id="appearance"><fieldset disabled id="controls"><label class="master"><span>Enable component styling</span><input type="checkbox" name="enabled" role="switch"></label>
 <h3 class="settings-heading">Apply styling to</h3>
 <label><span>Style sidebar components</span><input type="checkbox" name="tray"></label>
@@ -23,6 +23,7 @@
 <section id="quick-page" aria-labelledby="quick-title" hidden>
 <button id="quick-back" type="button">‹ All features</button><h2 id="quick-title" tabindex="-1">Debug tools</h2>
 <p class="debug-subtitle">Inspect data and test component behavior.</p>
+<button id="quick-access" type="button" hidden>Enable debug tools on this site</button>
 <fieldset id="quick-controls">
 <div class="debug-tabs" role="tablist" aria-label="Debug tools">
 <button type="button" role="tab" id="tab-inspect" aria-controls="panel-inspect" aria-selected="true">Inspect</button>
@@ -52,4 +53,25 @@
 <p class="debug-feedback" role="status" aria-live="polite"></p></section>
 <div id="debug-confirmation" class="debug-confirmation" hidden><p id="confirmation-text"></p><div class="action-row"><button id="confirm-action" type="button">Confirm</button><button id="cancel-action" type="button">Cancel</button></div></div>
 </fieldset><p id="quick-status" role="status" aria-live="polite"></p></section>
-</main><script src="quick-actions.js"></script><script src="popup.js"></script><script src="quick-popup.js"></script></body></html>
+<section id="environment-page" aria-labelledby="environment-title" hidden>
+<button id="environment-back" type="button">‹ All features</button><h2 id="environment-title" tabindex="-1">Environment</h2>
+<p id="environment-current"></p><div id="environment-links"></div>
+<form id="environment-form"><fieldset id="environment-fields" disabled>
+<label><span>Show in floating badge</span><input type="checkbox" name="badge"></label>
+<label><span>Disable Data and Execute in production</span><input type="checkbox" name="blockProduction"></label>
+<label><span>Discover Unqork domain groups automatically</span><input type="checkbox" name="autoDiscover"></label>
+<label for="environment-group">Domain group</label><select id="environment-group"></select>
+<div class="action-row"><button id="environment-new-group" type="button">New group</button><button id="environment-delete-group" type="button">Delete group</button></div>
+<label for="environment-group-name">Group name</label><input id="environment-group-name" type="text" maxlength="80" placeholder="Organization or project">
+<p class="note">Visited Unqork hosts are grouped automatically. Edit detected labels or add your own domains. Unknown does not mean non-production. Valid changes save automatically.</p>
+<div id="environment-hosts"></div><button id="environment-add-domain" type="button">Add domain</button>
+</fieldset></form><p id="environment-status" role="status" aria-live="polite"></p>
+<button id="environment-access" type="button" hidden>Enable automatic badges on saved custom domains</button><p class="note">Custom domains need a one-time browser site-access grant. Group mappings are stored locally. Switch links open a new tab with the same path, query and fragment; review URL parameters before switching.</p>
+</section><section id="general-page" aria-labelledby="general-title" hidden>
+<button id="general-back" type="button">‹ All features</button><h2 id="general-title" tabindex="-1">General settings</h2>
+<form id="general-form"><fieldset id="general-fields" disabled>
+<label><span>Show Floating window</span><input type="checkbox" name="enabled"></label>
+<label for="floating-position">Position</label><select id="floating-position" name="position">
+<option value="top-left">Top left</option><option value="top-right">Top right</option><option value="bottom-left">Bottom left</option><option value="bottom-right">Bottom right</option>
+</select></fieldset></form><p class="note">Click the floating Unqlock icon to open the menu. Enable “Show in floating badge” in Environment to include the environment label. Changes save automatically.</p><p id="general-status" role="status" aria-live="polite"></p>
+</section></main><script src="popup-entry.js"></script></body></html>
