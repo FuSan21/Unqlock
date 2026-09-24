@@ -18,6 +18,7 @@
   let pointerResize = null;
   let resizeTimer;
   let generation = 0;
+  let nativeLockSignature;
   const visits = new Map();
   const locks = new Map();
   let descriptionSequence = 0;
@@ -95,7 +96,17 @@
   }
   function guard(event) {
     if (!moduleRoute()) return;
-    const target = event.target.closest?.('[data-unqlock-panel-locked]');
+    let target = event.target.closest?.('[data-unqlock-panel-locked]');
+    if (!target && ['pointerdown','mousedown','touchstart'].includes(event.type)) {
+      const point = event.touches?.[0] || event;
+      const minimum = event.type === 'touchstart' || event.pointerType === 'touch' || matchMedia('(pointer: coarse)').matches ? 20 : 10;
+      target = [...locks.keys()].find(element => {
+        if (!element.matches(handleSelector)) return false;
+        const rect = element.getBoundingClientRect();
+        const padding = Math.max(0, (minimum - rect.width) / 2);
+        return rect.height > 0 && point.clientX >= rect.left - padding && point.clientX <= rect.right + padding && point.clientY >= rect.top && point.clientY <= rect.bottom;
+      });
+    }
     if (!target) return;
     if (event.type === 'keydown' && !['Enter', ' ', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
     event.preventDefault();
@@ -111,6 +122,22 @@
   document.addEventListener('focusout', hideTooltip);
   document.addEventListener('keydown', event => { if (event.key === 'Escape') hideTooltip(); });
   const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+  async function syncNativeLocks() {
+    const items = moduleRoute() ? Object.keys(model.panels).filter(id => config[id].visibility === 'always').map(find).filter(Boolean) : [];
+    const signature = moduleRoute() + ':' + items.map(item => item.panel.id).join(',');
+    if (signature === nativeLockSignature && items.every(item => !item.close && item.panel.getAttribute('data-unqlock-native-locked') === 'true')) return;
+    const request = crypto.randomUUID();
+    const ok = await new Promise(resolve => {
+      const finish = ok => { clearTimeout(timer); window.removeEventListener('message', listener); resolve(ok); };
+      const listener = event => {
+        if (event.source === window && event.origin === location.origin && event.data?.type === 'unqlock.panel.locked' && event.data.request === request) finish(event.data.ok === true);
+      };
+      const timer = setTimeout(() => finish(false), 800);
+      window.addEventListener('message', listener);
+      window.postMessage({type:'unqlock.panel.locks', request, panels:items.map(item => item.panel.id)}, location.origin);
+    });
+    if (ok) nativeLockSignature = signature;
+  }
   // Keep native layout state, ARIA values and future drags in agreement.
   async function resize(item, target, token) {
     if (resizing || userResize || !item.close || target === null) return;
@@ -140,6 +167,9 @@
     if (!ready) return;
     const nextRoute = moduleRoute();
     if (nextRoute !== route) { route = nextRoute; visits.clear(); generation++; }
+    const lockGeneration = generation;
+    await syncNativeLocks();
+    if (lockGeneration !== generation || moduleRoute() !== route) { schedule(); return; }
     const wantedLocks = new Set();
     if (!route) { for (const element of locks.keys()) unlock(element); return; }
     const renderGeneration = generation;
@@ -162,7 +192,7 @@
       visit.groupWidth = groupWidth;
       if (!item.close) visit.sized = false;
       if (pref.visibility === 'always' || (!visit.entered && pref.visibility === 'start')) {
-        if (item.close) { item.close.click(); await frame(); }
+        if (item.close && !(pref.visibility === 'always' && item.panel.getAttribute('data-unqlock-native-locked') === 'true')) { item.close.click(); await frame(); }
       }
       const initiallyCollapsed = !visit.entered && pref.visibility === 'start';
       visit.entered = true;

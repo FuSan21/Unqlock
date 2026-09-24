@@ -58,7 +58,9 @@ Before a release, verify both permission flows in both browsers on a disposable 
 
 `tests/firefox-panel-bridge.cjs` installs the actual Firefox extension in a temporary profile and verifies isolated-content-script to MAIN-world resizing against the native fixture. Only that test copy of the manifest receives localhost access. `tests/panel-popup.cjs` checks queued saves and resets, focus retention, saving cursors and changing panel availability in Chromium and Firefox.
 
-Live Chrome verification on 2026-09-24 confirmed the bridge's public panel reference at depth 1 for all four side panels. Requests resized Build Agent and Explore to 472 px, Component tray to 210 px, and Properties to 240 px; original widths and collapsed state were restored. This verifies the current builder integration, not future Unqork releases. The automatic-reopen flicker under Always collapsed remains deferred at the user's request; native reopening is still followed by the controller's close action.
+Live Chrome verification on 2026-09-24 confirmed the bridge's public panel reference at depth 1 for all four side panels. Requests resized Build Agent and Explore to 472 px, Component tray to 210 px, and Properties to 240 px; original widths and collapsed state were restored. This verifies the current builder integration, not future Unqork releases.
+
+Always collapsed guards the native public `expand` and `resize` methods in MAIN. Accessors retain native method replacements during rerenders and restore the latest implementation on unlock. The bridge collapses once through the native API, avoiding repeated close-button clicks when component selection requests expansion. If the builder no longer exposes configurable public methods, the existing close-after-reopen behavior remains the fallback. The panel tests sample widths across animation frames and check rerenders, all four panels and restored expansion; the installed Firefox bridge test covers the actual world boundary.
 
 ## Icons and generated documentation
 

@@ -22,12 +22,14 @@ const handle = id => <Separator id={'handle-' + id} data-slot="resizable-handle"
 function App() {
   const agent = useSide('agent', true), explore = useSide('explore', true), properties = useSide('properties'), tray = useSide('tray');
   const [propertiesMounted, setPropertiesMounted] = useState(!location.search.includes('late-properties'));
+  const [revision, setRevision] = useState(0);
   return <>
     <button id="navigate" onClick={() => history.pushState({}, '', '/ide/builder/workspaces/test/modules/second')}>Another module</button>
     <button id="home" onClick={() => history.pushState({}, '', '/ide/workspaces/test')}>Leave builder</button>
     <button id="auto-properties" onClick={() => properties.ref.current.expand()}>Select component</button>
     <button onClick={() => setPropertiesMounted(true)}>Mount properties</button>
-    <button id="rerender" onClick={event => event.currentTarget.textContent = 'Updated'}>Rerender</button>
+    <button id="rerender" onClick={() => setRevision(revision + 1)}>Rerender</button><span>{revision}</span>
+    <button id="open-all" onClick={() => [agent,explore,tray,properties].forEach(side => side.ref.current.expand())}>Open all panels</button>
     <Group data-slot="resizable-panel-group" style={{height:650}}>
       {agent.panel}{handle('agent')}
       <Panel data-slot="resizable-panel" minSize={320}>

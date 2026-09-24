@@ -81,7 +81,28 @@ async function run(firefoxMode) {
     assert(await page.getByRole('button',{name:'Collapse left',exact:true}).isVisible(), 'Start collapsed does not interrupt current visit');
     await page.getByRole('button',{name:'Expand properties panel',exact:true}).click({force:true});
     assert(await page.getByRole('button',{name:'Expand properties panel',exact:true}).isVisible());
+    await page.locator('#properties[data-unqlock-native-locked="true"]').waitFor({state:'attached'});
+    const collapsedWidth = await width('properties');
+    await page.evaluate(() => {
+      window.reopenFrames = [];
+      window.closeClicks = 0;
+      document.addEventListener('click', event => {
+        if (event.target.closest('[aria-label="Collapse properties panel"]')) window.closeClicks++;
+      }, true);
+      document.getElementById('auto-properties').addEventListener('click', () => {
+        window.reopenFrames = [];
+        const sample = () => {
+          window.reopenFrames.push(document.getElementById('properties').getBoundingClientRect().width);
+          if (window.reopenFrames.length < 4) requestAnimationFrame(sample);
+        };
+        requestAnimationFrame(sample);
+      });
+    });
+    await page.getByRole('button',{name:'Rerender',exact:true}).click();
     await page.getByRole('button',{name:'Select component',exact:true}).click();
+    await page.waitForFunction(() => window.reopenFrames.length === 4);
+    assert((await page.evaluate(() => window.reopenFrames)).every(value => Math.abs(value - collapsedWidth) < 1), 'Properties never opens at frame boundaries');
+    assert.equal(await page.evaluate(() => window.closeClicks),0,'Automatic reopen does not trigger a close button action');
     await page.getByRole('button',{name:'Expand properties panel',exact:true}).waitFor();
     await page.locator('#handle-properties').press('ArrowLeft');
     assert(await page.getByRole('button',{name:'Expand properties panel',exact:true}).isVisible());
@@ -140,8 +161,17 @@ async function run(firefoxMode) {
       await page.getByRole('button',{name:names[id][1],exact:true}).press('Enter');
       assert(await page.getByRole('button',{name:names[id][1],exact:true}).isVisible());
     }
+    const collapsedWidths = Object.fromEntries(await Promise.all(Object.keys(names).map(async id => [id,await width(id)])));
+    await page.getByRole('button',{name:'Rerender',exact:true}).click();
+    await page.getByRole('button',{name:'Open all panels',exact:true}).click();
+    for (const id of Object.keys(names)) assert.equal(await width(id),collapsedWidths[id],id + ' stays collapsed after a native expansion request');
+    const lockedHandle = await page.locator('#handle-agent').boundingBox();
+    await page.mouse.move(lockedHandle.x - 3,lockedHandle.y + 50); await page.mouse.down();
+    await page.mouse.move(lockedHandle.x + 80,lockedHandle.y + 50,{steps:5}); await page.mouse.up();
+    assert.equal(await width('agent'),collapsedWidths.agent,'The native hit area beside a locked separator cannot reopen the panel');
     await page.getByRole('button',{name:'Leave builder'}).click();
     await page.waitForFunction(() => !document.querySelector('[data-unqlock-panel-locked]'));
+    await page.waitForFunction(() => !document.querySelector('[data-unqlock-native-locked]'));
     await page.getByRole('button',{name:'Expand left',exact:true}).click();
     await page.getByRole('button',{name:'Collapse left',exact:true}).waitFor();
     await set({builderPanels:{properties:{visibility:'start'}}});

@@ -47,6 +47,40 @@ const { buildSync } = require('esbuild');
             } catch (error) { result = {ok:false,error:String(error)}; }
             await new Promise(resolve => setTimeout(resolve,100));
           }
+          if (!result?.ok) throw new Error(JSON.stringify(result));
+          await browser.storage.local.set({builderPanels:{properties:{visibility:'always'}}});
+          let locked = false;
+          const lockEnd = Date.now() + 10000;
+          while (Date.now() < lockEnd) {
+            const checks = await browser.scripting.executeScript({target:{tabId:tab.id},func:() => document.getElementById('properties')?.getAttribute('data-unqlock-native-locked') === 'true'});
+            if (checks[0].result) {locked = true; break;}
+            await new Promise(resolve => setTimeout(resolve,100));
+          }
+          if (!locked) throw new Error('Native collapse guard did not install');
+          const frames = await browser.scripting.executeScript({target:{tabId:tab.id},world:'MAIN',func:async () => {
+            document.getElementById('auto-properties').click();
+            const widths = [];
+            for (let i = 0; i < 4; i++) {
+              await new Promise(resolve => requestAnimationFrame(resolve));
+              widths.push(document.getElementById('properties').getBoundingClientRect().width);
+            }
+            return widths;
+          }});
+          if (frames[0].result.some(width => width > 1)) throw new Error('Properties reopened: ' + frames[0].result);
+          await browser.storage.local.set({builderPanels:{}});
+          const unlockEnd = Date.now() + 10000;
+          while (Date.now() < unlockEnd) {
+            const checks = await browser.scripting.executeScript({target:{tabId:tab.id},func:() => !document.querySelector('[data-unqlock-native-locked]')});
+            if (checks[0].result) {locked = false; break;}
+            await new Promise(resolve => setTimeout(resolve,100));
+          }
+          if (locked) throw new Error('Native collapse guard did not release');
+          const expanded = await browser.scripting.executeScript({target:{tabId:tab.id},world:'MAIN',func:async () => {
+            document.getElementById('auto-properties').click();
+            await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            return document.getElementById('properties').getBoundingClientRect().width;
+          }});
+          if (expanded[0].result < 120) throw new Error('Native expansion was not restored');
         } catch (error) { result = {ok:false,error:String(error)}; }
         await fetch(${JSON.stringify(origin + '/report')},{method:'POST',body:JSON.stringify(result)});
       })();
@@ -55,7 +89,7 @@ const { buildSync } = require('esbuild');
     runner = await webExt.cmd.run({sourceDir,firefox:process.env.FIREFOX_PATH || firefox.executablePath(),target:['firefox-desktop'],args:['-headless'],noInput:true,noReload:true,startUrl:['about:blank']});
     const result = await Promise.race([completed,new Promise((_,reject) => {timer=setTimeout(() => reject(new Error('Firefox bridge test timed out')),30000);})]);
     assert.equal(result.ok,true,JSON.stringify(result));
-    console.log('PASS: installed Firefox extension resizes through the isolated-to-MAIN bridge.');
+    console.log('PASS: installed Firefox extension resizes, prevents reopen flicker and restores expansion through the isolated-to-MAIN bridge.');
   } finally {
     clearTimeout(timer);
     if (runner) await runner.exit();
