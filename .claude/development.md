@@ -56,6 +56,10 @@ Before a release, verify both permission flows in both browsers on a disposable 
 
 `tests/builder-panels.cjs` bundles a nested-layout fixture using the native `react-resizable-panels` library. It tests the installed Chrome extension and the Firefox API branch against native collapse, imperative resize and real pointer/keyboard input. React, React DOM and esbuild are test-only dependencies; none enter either extension package. The sizing adapter in `panel-resize-bridge.js` runs in MAIN and locates the public `panelRef` on the React wrapper; if Unqork changes that integration, it reports unsupported sizing instead of overriding CSS or mutating React state. A live Unqork smoke test is still required before publishing.
 
+`tests/firefox-panel-bridge.cjs` installs the actual Firefox extension in a temporary profile and verifies isolated-content-script to MAIN-world resizing against the native fixture. Only that test copy of the manifest receives localhost access. `tests/panel-popup.cjs` checks queued saves and resets, focus retention, saving cursors and changing panel availability in Chromium and Firefox.
+
+Live Chrome verification on 2026-09-24 confirmed the bridge's public panel reference at depth 1 for all four side panels. Requests resized Build Agent and Explore to 472 px, Component tray to 210 px, and Properties to 240 px; original widths and collapsed state were restored. This verifies the current builder integration, not future Unqork releases. The automatic-reopen flicker under Always collapsed remains deferred at the user's request; native reopening is still followed by the controller's close action.
+
 ## Icons and generated documentation
 
 To edit the extension icon, change src/icons/unqlock.svg and run npm run icons after installing Playwright's Chromium. This regenerates the committed PNG icons and the documentation preview. Regular builds use the committed images and do not need a browser installation.

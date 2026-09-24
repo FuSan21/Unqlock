@@ -5,6 +5,7 @@
   const panelSelector = '[data-slot="resizable-panel"]';
   const groupSelector = '[data-slot="resizable-panel-group"]';
   const handleSelector = '[data-slot="resizable-handle"]';
+  const toggleSelector = Object.values(model.panels).flatMap(meta => [meta.open, meta.close]).map(label => 'button[aria-label="' + label + '"]').join(',');
   let config = model.settings();
   let stored = {};
   let ready = false;
@@ -14,10 +15,12 @@
   let queued = false;
   let resizing = false;
   let userResize = null;
+  let pointerResize = null;
   let resizeTimer;
   let generation = 0;
   const visits = new Map();
   const locks = new Map();
+  let descriptionSequence = 0;
   const resizeErrors = {};
   const groups = new Set();
   const groupObserver = new ResizeObserver(schedule);
@@ -25,8 +28,12 @@
   const moduleRoute = () => location.pathname.match(/^\/ide\/builder\/workspaces\/[^/]+\/modules\/[^/]+/)?.[0] || '';
   function find(id) {
     const meta = model.panels[id];
-    const close = document.querySelector('button[aria-label="' + meta.close + '"]');
-    const open = document.querySelector('button[aria-label="' + meta.open + '"]');
+    const closeMatches = document.querySelectorAll('button[aria-label="' + meta.close + '"]');
+    const openMatches = document.querySelectorAll('button[aria-label="' + meta.open + '"]');
+    // An ambiguous match must never close or lock an unrelated panel.
+    if (closeMatches.length + openMatches.length !== 1) return null;
+    const close = closeMatches[0];
+    const open = openMatches[0];
     const toggle = close || open;
     if (!toggle) return null;
     const group = toggle.closest(groupSelector);
@@ -34,6 +41,14 @@
     const panels = [...group.children].filter(e => e.matches(panelSelector));
     const panel = close?.closest(panelSelector) || (meta.side === 'left' ? panels[0] : panels.at(-1));
     const handles = [...group.children].filter(e => e.matches(handleSelector));
+    const outer = id === 'agent' || id === 'explore';
+    if (panels.length !== (outer ? 3 : 2) || handles.length !== (outer ? 2 : 1)) return null;
+    if (panel !== (meta.side === 'left' ? panels[0] : panels.at(-1))) return null;
+    if (!outer) {
+      const ancestor = group.parentElement?.closest(groupSelector);
+      const siblings = ancestor && [...ancestor.children].filter(e => e.matches(panelSelector));
+      if (!siblings || !siblings.some(e => e.contains(group))) return null;
+    }
     const handle = meta.side === 'left' ? handles[0] : handles.at(-1);
     return panel && handle ? { id, meta, panel, group, handle, close, open } : null;
   }
@@ -46,6 +61,7 @@
     tooltip = document.createElement('div');
     tooltip.id = 'unqlock-panel-tooltip';
     tooltip.setAttribute('role', 'tooltip');
+    tooltip.setAttribute('aria-hidden', 'true');
     tooltip.textContent = record.reason;
     document.body.append(tooltip);
     const rect = element.getBoundingClientRect();
@@ -55,11 +71,16 @@
   function lock(element, reason) {
     if (!element || locks.has(element)) return;
     const attrs = Object.fromEntries(['aria-disabled', 'aria-describedby', 'title'].map(name => [name, element.getAttribute(name)]));
-    locks.set(element, { reason, attrs });
+    const description = document.createElement('span');
+    description.id = 'unqlock-panel-description-' + ++descriptionSequence;
+    description.hidden = true;
+    description.textContent = reason;
+    document.body.append(description);
+    locks.set(element, { reason, attrs, description });
     element.setAttribute('data-unqlock-panel-locked', '');
     element.setAttribute('aria-disabled', 'true');
-    element.setAttribute('title', reason);
-    element.setAttribute('aria-describedby', [attrs['aria-describedby'], 'unqlock-panel-tooltip'].filter(Boolean).join(' '));
+    element.removeAttribute('title');
+    element.setAttribute('aria-describedby', [attrs['aria-describedby'], description.id].filter(Boolean).join(' '));
   }
   function unlock(element) {
     const record = locks.get(element);
@@ -68,6 +89,7 @@
       if (value === null) element.removeAttribute(name); else element.setAttribute(name, value);
     }
     element.removeAttribute('data-unqlock-panel-locked');
+    record.description.remove();
     locks.delete(element);
     hideTooltip();
   }
@@ -125,7 +147,11 @@
     for (const id of Object.keys(model.panels)) {
       if (moduleRoute() !== route || renderGeneration !== generation) { schedule(); return; }
       const item = find(id);
-      if (!item) continue;
+      if (!item) {
+        // A lazily mounted Properties panel is a user action, not module entry.
+        if (id === 'properties' && find('tray') && !visits.has(id)) visits.set(id, {entered:true, sized:false});
+        continue;
+      }
       for (const element of [item.group, item.panel]) if (!groups.has(element)) { groups.add(element); groupObserver.observe(element); }
       const pref = config[id];
       let visit = visits.get(id);
@@ -170,6 +196,20 @@
   }
   function beginUserResize(event) {
     if (!event.isTrusted || !moduleRoute() || (event.type === 'keydown' && !['ArrowLeft','ArrowRight','Home','End'].includes(event.key))) return;
+    if (event.type === 'pointerdown') {
+      if (event.button !== 0) return;
+      // Commit a just-finished keyboard resize before another pointer action.
+      if (userResize && !pointerResize) recordUserResize(userResize);
+      clearTimeout(resizeTimer);
+      userResize = null;
+      // The native library accepts presses outside the separator's DOM box.
+      // Capture the starting widths, then let its active state identify the drag.
+      pointerResize = Object.keys(model.panels).map(find).filter(Boolean).map(item => ({
+        id:item.id, handle:item.handle, before:measured(item), route:moduleRoute(), sizing:config[item.id].sizing
+      }));
+      adoptPointerResize();
+      return;
+    }
     const handle = event.target.closest?.(handleSelector);
     if (!handle || handle.hasAttribute('data-unqlock-panel-locked')) return;
     const item = Object.keys(model.panels).map(find).find(item => item?.handle === handle);
@@ -179,12 +219,25 @@
     generation++;
     if (event.type === 'keydown') { clearTimeout(resizeTimer); resizeTimer = setTimeout(finishUserResize, 250); }
   }
+  function adoptPointerResize() {
+    if (!pointerResize || userResize) return;
+    const pending = pointerResize.find(item => item.handle.getAttribute('data-separator') === 'active');
+    if (!pending || config[pending.id].visibility === 'always' || pending.handle.hasAttribute('data-unqlock-panel-locked')) return;
+    clearTimeout(resizeTimer);
+    userResize = pending;
+    generation++;
+  }
   async function finishUserResize() {
+    adoptPointerResize();
+    pointerResize = null;
     const pending = userResize;
     if (!pending) return;
     await frame();
     if (userResize !== pending) return;
     userResize = null;
+    await recordUserResize(pending);
+  }
+  async function recordUserResize(pending) {
     const item = find(pending.id);
     if (!item?.close || pending.route !== moduleRoute()) return;
     const value = model.width(measured(item));
@@ -196,11 +249,22 @@
   document.addEventListener('pointerdown', beginUserResize, true);
   document.addEventListener('keydown', beginUserResize, true);
   document.addEventListener('pointerup', finishUserResize, true);
-  document.addEventListener('pointercancel', () => { userResize = null; }, true);
-  new MutationObserver(schedule).observe(document.documentElement, { childList:true, subtree:true, attributes:true, attributeFilter:['aria-label'] });
+  document.addEventListener('pointercancel', () => { pointerResize = null; userResize = null; }, true);
+  new MutationObserver(adoptPointerResize).observe(document.documentElement, { subtree:true, attributes:true, attributeFilter:['data-separator'] });
+  function relevantNode(node) {
+    return node.nodeType === 1 && (node.matches(groupSelector + ',' + panelSelector + ',' + handleSelector + ',' + toggleSelector)
+      || node.querySelector(groupSelector + ',' + toggleSelector));
+  }
+  new MutationObserver(records => {
+    if (!records.some(record => record.type === 'attributes'
+      ? record.target.matches(toggleSelector)
+      : [...record.addedNodes, ...record.removedNodes].some(relevantNode))) return;
+    schedule();
+  }).observe(document.documentElement, { childList:true, subtree:true, attributes:true, attributeFilter:['aria-label'] });
   window.addEventListener('popstate', schedule);
   // pushState has no browser event in the isolated world. A light URL check also covers persistent outer panels.
-  setInterval(() => { if (moduleRoute() !== route) schedule(); }, 300);
+  if (window.navigation) window.navigation.addEventListener('currententrychange', schedule);
+  else setInterval(() => { if (moduleRoute() !== route) schedule(); }, 1000);
   api.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
     for (const id of Object.keys(model.panels)) {
@@ -208,7 +272,7 @@
       if (changes[key]) stored[key] = changes[key].newValue;
     }
     if (changes.builderPanels) {
-      userResize = null; clearTimeout(resizeTimer);
+      userResize = null; pointerResize = null; clearTimeout(resizeTimer);
       for (const element of locks.keys()) unlock(element);
       const next = model.settings(changes.builderPanels.newValue);
       for (const id of Object.keys(model.panels)) {

@@ -10,6 +10,9 @@
   let remembered = {};
   let target;
   let busy = false;
+  let saveQueue = Promise.resolve();
+  let pendingSaves = 0;
+  let refreshing = false;
   const controls = new Map();
   function select(id, label, options) {
     const wrapper = document.createElement('label');
@@ -72,8 +75,10 @@
     for (const [id, c] of controls) {
       const pref = config[id];
       c.visibility.value = pref.visibility; c.sizing.value = pref.sizing;
-      c.input.value = pref.width ?? '';
-      c.input.removeAttribute('aria-invalid');
+      if (document.activeElement !== c.input) {
+        c.input.value = pref.width ?? '';
+        c.input.removeAttribute('aria-invalid');
+      }
       c.badge.textContent = { native:'Unqork default', start:'Start collapsed', always:'Always collapsed' }[pref.visibility];
       const locked = pref.visibility === 'always' ? 'Choose another visibility option to change this panel’s size.' : '';
       UnqlockDisabled.set(c.sizing, locked);
@@ -96,22 +101,53 @@
     widths = result?.widths || {};
     sizingErrors = result?.errors || {};
   }
-  async function save(id, patch, reset = false) {
-    if (busy) return;
-    busy = true; fields.disabled = true;
+  function save(id, patch, reset = false) {
+    // Keep keyboard focus and serialize every change, including reset requests.
+    config = id ? { ...config, [id]:{ ...config[id], ...patch } } : model.settings();
+    show();
+    pendingSaves++;
+    busy = true;
+    form.setAttribute('aria-busy', 'true');
+    status.textContent = 'Saving…';
+    saveQueue = saveQueue.then(() => persist(id, patch, reset));
+    return saveQueue;
+  }
+  async function persist(id, patch, reset) {
     try {
       const latest = model.settings((await extensionAPI.storage.local.get('builderPanels')).builderPanels);
       const next = id ? { ...latest, [id]:{ ...latest[id], ...patch } } : model.settings();
       const update = { builderPanels:next };
       if (reset) for (const key of id ? [id] : Object.keys(model.panels)) update[model.rememberedKey(key)] = null;
       await extensionAPI.storage.local.set(update);
-      config = next;
+      if (pendingSaves === 1) config = next;
       if (reset) for (const key of id ? [id] : Object.keys(model.panels)) remembered[model.rememberedKey(key)] = null;
-      status.textContent = 'Saved. Start collapsed applies on the next module visit. Widths fit the available space.';
-      show();
+      if (pendingSaves === 1) {
+        status.textContent = 'Saved. Start collapsed applies on the next module visit. Widths fit the available space.';
+        show();
+      }
     } catch { status.textContent = 'Could not save. Try again.'; }
-    finally { busy = false; fields.disabled = false; }
+    finally {
+      pendingSaves--;
+      busy = pendingSaves > 0;
+      form.setAttribute('aria-busy', String(busy));
+    }
   }
+  async function refreshWidths() {
+    if (refreshing || busy || !form.getClientRects().length || fields.disabled) return;
+    refreshing = true;
+    try {
+      await measure();
+      for (const [id, c] of controls) {
+        UnqlockDisabled.set(c.current, config[id].visibility === 'always'
+          ? 'Choose another visibility option to change this panel’s size.'
+          : !widths[id] ? 'Open this panel in the active module to use its current width.' : '');
+      }
+    } catch { /* A closed or navigating module will be measured again on the next refresh. */ }
+    finally { refreshing = false; }
+  }
+  // The floating settings can stay open while panels change behind it.
+  setInterval(refreshWidths, 1000);
+  window.addEventListener('focus', refreshWidths);
   form.addEventListener('submit', event => event.preventDefault());
   document.getElementById('panels-reset').addEventListener('click', () => save(null, null, true));
   document.getElementById('open-general').addEventListener('click', async () => {

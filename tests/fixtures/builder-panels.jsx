@@ -21,10 +21,12 @@ function useSide(id, outer = false) {
 const handle = id => <Separator id={'handle-' + id} data-slot="resizable-handle" style={{width:2,background:'#64748b'}} />;
 function App() {
   const agent = useSide('agent', true), explore = useSide('explore', true), properties = useSide('properties'), tray = useSide('tray');
+  const [propertiesMounted, setPropertiesMounted] = useState(!location.search.includes('late-properties'));
   return <>
     <button id="navigate" onClick={() => history.pushState({}, '', '/ide/builder/workspaces/test/modules/second')}>Another module</button>
     <button id="home" onClick={() => history.pushState({}, '', '/ide/workspaces/test')}>Leave builder</button>
     <button id="auto-properties" onClick={() => properties.ref.current.expand()}>Select component</button>
+    <button onClick={() => setPropertiesMounted(true)}>Mount properties</button>
     <button id="rerender" onClick={event => event.currentTarget.textContent = 'Updated'}>Rerender</button>
     <Group data-slot="resizable-panel-group" style={{height:650}}>
       {agent.panel}{handle('agent')}
@@ -36,7 +38,7 @@ function App() {
               <Panel data-slot="resizable-panel" minSize={320}><h1>Canvas</h1></Panel>
             </Group>
           </Panel>
-          {handle('properties')}{properties.panel}{properties.expand}
+          {propertiesMounted && <>{handle('properties')}{properties.panel}{properties.expand}</>}
         </Group>
       </Panel>
       {handle('explore')}{explore.panel}

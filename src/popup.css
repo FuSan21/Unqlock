@@ -31,6 +31,7 @@ h2 { font-size:14px; margin:0 0 12px; }
 .action-row { display:flex; gap:8px; }
 button:disabled, input:disabled, select:disabled { opacity:.6; cursor:not-allowed; }
 fieldset:disabled { cursor:wait; }
+fieldset:disabled :is(button,input,select), form[aria-busy="true"], form[aria-busy="true"] :is(button,input,select) { cursor:wait; }
 #appearance-title { margin:16px 0 6px; }
 .feature-entry { display:flex; align-items:center; gap:10px; width:100%; padding:14px 10px; text-align:left; }
 .feature-entry:hover { border-color:var(--accent); background:var(--tint); }

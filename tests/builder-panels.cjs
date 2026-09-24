@@ -88,6 +88,10 @@ async function run(firefoxMode) {
     await page.getByRole('button',{name:'Expand properties panel',exact:true}).focus();
     await page.locator('#unqlock-panel-tooltip').waitFor();
     assert.match(await page.locator('#unqlock-panel-tooltip').innerText(), /Properties is always collapsed/);
+    const lockedProperties = page.getByRole('button',{name:'Expand properties panel',exact:true});
+    assert.equal(await lockedProperties.getAttribute('title'),null,'Only the custom tooltip is shown');
+    const descriptionId = await lockedProperties.getAttribute('aria-describedby');
+    assert.match(await page.locator('#' + descriptionId).textContent(),/Properties is always collapsed/);
     await page.getByRole('button',{name:'Another module'}).click();
     await page.getByRole('button',{name:'Expand left',exact:true}).waitFor();
     await page.getByRole('button',{name:'Expand left',exact:true}).click();
@@ -105,10 +109,11 @@ async function run(firefoxMode) {
     all.agent = {visibility:'native',sizing:'remember'};
     await set({builderPanels:all});
     const handle = await page.locator('#handle-agent').boundingBox();
-    await page.mouse.move(handle.x + 1,handle.y + 50); await page.mouse.down();
+    await page.mouse.move(handle.x - 3,handle.y + 50); await page.mouse.down();
     await page.mouse.move(handle.x + 75,handle.y + 50,{steps:5}); await page.mouse.up();
     const draggedWidth = await width('agent');
     assert(Number.isFinite(draggedWidth));
+    assert(draggedWidth > handle.x + 30, 'A drag beginning beside the separator resizes the panel');
     const remembered = (await storedWhen(values => values.panelWidth_agent === draggedWidth)).panelWidth_agent;
     await page.getByRole('button',{name:'Collapse left',exact:true}).click();
     assert.equal((await get()).panelWidth_agent,remembered,'Collapse does not save zero');
@@ -117,6 +122,17 @@ async function run(firefoxMode) {
     await page.setViewportSize({width:1200,height:800});
     assert.equal((await get()).panelWidth_agent,remembered,'Viewport adjustment does not overwrite preference');
     await page.setViewportSize({width:2560,height:800});
+    all.agent = {visibility:'native',sizing:'custom',width:300};
+    await set({builderPanels:all});
+    await waitWidth('agent',300);
+    const customHandle = await page.locator('#handle-agent').boundingBox();
+    await page.mouse.move(customHandle.x - 3,customHandle.y + 50); await page.mouse.down();
+    await page.mouse.move(customHandle.x + 75,customHandle.y + 50,{steps:5}); await page.mouse.up();
+    const manualWidth = await width('agent');
+    assert(manualWidth > 330);
+    await page.getByRole('button',{name:'Collapse left',exact:true}).click();
+    await page.getByRole('button',{name:'Expand left',exact:true}).click();
+    await waitWidth('agent',manualWidth);
     for (const id of Object.keys(names)) {
       all[id] = {visibility:'always',sizing:'custom',width:300};
       await set({builderPanels:all});
@@ -128,6 +144,17 @@ async function run(firefoxMode) {
     await page.waitForFunction(() => !document.querySelector('[data-unqlock-panel-locked]'));
     await page.getByRole('button',{name:'Expand left',exact:true}).click();
     await page.getByRole('button',{name:'Collapse left',exact:true}).waitFor();
+    await set({builderPanels:{properties:{visibility:'start'}}});
+    await load(fixtureUrl + '?late-properties');
+    // Let initial module discovery settle before the user mounts Properties.
+    await page.getByRole('button',{name:'Close component tray',exact:true}).waitFor();
+    await page.waitForTimeout(100);
+    await page.getByRole('button',{name:'Mount properties',exact:true}).click();
+    await page.getByRole('button',{name:'Collapse properties panel',exact:true}).waitFor();
+    await page.waitForTimeout(100);
+    assert(await page.getByRole('button',{name:'Collapse properties panel',exact:true}).isVisible(), 'Late Properties is not treated as module entry');
+    await set({builderPanels:all});
+    await page.getByRole('button',{name:'Leave builder'}).click();
     if (popup) {
       await popup.getByRole('button',{name:'General settings'}).click();
       await popup.locator('#panels-fields').waitFor({state:'visible'});
@@ -158,6 +185,9 @@ async function run(firefoxMode) {
     }
     assert.deepEqual(errors,[]);
     console.log('PASS: native nested panel sizing, collapse policy, drag persistence, navigation and settings (' + (firefoxMode ? 'Firefox' : 'Chrome extension') + ').');
-  } finally { await context.close(); await context.closeBrowser?.(); }
+  } finally {
+    if (context.closeBrowser) await context.closeBrowser();
+    else await context.close();
+  }
 }
 run(process.argv.includes('--firefox')).catch(error => {console.error(error);process.exitCode=1;});
