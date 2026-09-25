@@ -49,6 +49,16 @@ const assert = require('node:assert/strict');
     await page.screenshot({path:path.resolve(__dirname, '../artifacts/menu-dark.png')});
     await page.getByRole('button', {name:'Component appearance'}).click();
     assert.equal(await page.locator('#appearance-title').evaluate(element => element === document.activeElement), true);
+    assert.equal(await page.getByLabel('Compact components', {exact:true}).isChecked(), false);
+    await page.getByLabel('Compact components', {exact:true}).check();
+    await builder.waitForSelector('[data-uq-compact="tray"]');
+    await page.reload();
+    await page.waitForFunction(() => document.getElementById('status').textContent === 'Ready');
+    await page.getByRole('button', {name:'Component appearance'}).click();
+    assert.equal(await page.getByLabel('Compact components', {exact:true}).isChecked(), true);
+    await page.getByRole('button', {name:'Reset appearance'}).click();
+    await builder.waitForFunction(() => !document.querySelector('[data-uq-compact]'));
+    assert.equal(await page.getByLabel('Compact components', {exact:true}).isChecked(), false);
     for (const name of ['symbols', 'icons', 'tiles', 'trayLabels', 'labels', 'accents', 'backgrounds', 'borders']) {
       await page.locator(`input[name="${name}"]`).uncheck();
     }

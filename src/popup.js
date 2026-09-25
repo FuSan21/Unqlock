@@ -1,6 +1,6 @@
 "use strict";
   const extensionAPI = typeof browser !== "undefined" ? browser : chrome;
-const defaults = { enabled: true, tray: true, canvas: true, icons: true, tiles: true, trayLabels: false, accents: false, backgrounds: false, borders: false, labels: true, symbols: true };
+const defaults = { enabled: true, tray: true, canvas: true, icons: true, tiles: true, trayLabels: false, accents: false, backgrounds: false, borders: false, labels: true, symbols: true, compact: false };
 const form = document.getElementById("appearance");
 const status = document.getElementById("status");
 const controls = document.getElementById("controls");

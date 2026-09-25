@@ -368,7 +368,7 @@
     "family": "charts"
   }
 ];
-  const defaults = { enabled: true, tray: true, canvas: true, icons: true, tiles: true, trayLabels: false, accents: false, backgrounds: false, borders: false, labels: true, symbols: true };
+  const defaults = { enabled: true, tray: true, canvas: true, icons: true, tiles: true, trayLabels: false, accents: false, backgrounds: false, borders: false, labels: true, symbols: true, compact: false };
   const normalize = value => value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
   const byType = new Map(components.map(component => [component.type, component]));
   const byLabel = new Map(components.map(component => [normalize(component.label), component]));
@@ -397,7 +397,7 @@
     const mark = (element, attributes) => {
       if (element) next.set(element, { ...next.get(element), ...attributes });
     };
-    const hasEffects = settings.icons || settings.tiles || settings.trayLabels || settings.labels || settings.accents || settings.backgrounds || settings.borders;
+    const hasEffects = settings.compact || settings.icons || settings.tiles || settings.trayLabels || settings.labels || settings.accents || settings.backgrounds || settings.borders;
     if (settings.enabled && hasEffects && location.pathname.startsWith("/ide/builder/")) {
       for (const card of document.querySelectorAll(selector)) {
         const isTray = card.hasAttribute("data-tray-type");
@@ -406,6 +406,26 @@
         const icon = [...card.querySelectorAll("svg")].find(owned);
         if (!icon) continue;
         const label = isTray ? null : [...card.querySelectorAll(".text-2xs")].find(owned);
+        if (settings.compact) {
+          if (isTray) {
+            mark(card, { "data-uq-compact": "tray" });
+            mark(icon, { "data-uq-compact-icon": "" });
+          } else {
+            const tile = icon.parentElement;
+            const header = tile?.parentElement;
+            const identity = label?.parentElement;
+            // Only compress the owned header; never the nested group contents.
+            if (header && owned(header) && identity?.parentElement === header && identity !== tile && identity.firstElementChild !== label) {
+              mark(card, { "data-uq-compact": "canvas" });
+              mark(header, { "data-uq-compact-header": "" });
+              mark(tile, { "data-uq-compact-tile": "" });
+              mark(icon, { "data-uq-compact-icon": "" });
+              mark(identity, { "data-uq-compact-identity": "" });
+              mark(identity.firstElementChild, { "data-uq-compact-name": "" });
+              mark(label, { "data-uq-compact-type": "" });
+            }
+          }
+        }
         const component = isTray ? byType.get(card.getAttribute("data-tray-type")) : byLabel.get(normalize(label?.textContent || ""));
         if (!component) continue;
         mark(card, { "data-uq-family": component.family, "data-uq-surface": isTray ? "tray" : "canvas" });

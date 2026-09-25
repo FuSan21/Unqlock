@@ -49,7 +49,9 @@ Inspect page data, edit properties, or execute a component:
 
 ## Popup menu
 
-The popup opens to a feature menu. Choose **Component appearance** for all color, icon, label, accent, background and border controls, the color guide, and reset. Use **All features** or Escape to return to the menu. Existing preferences are preserved; navigation does not toggle the feature.
+The popup opens to a feature menu. Choose **Component appearance** for compact layout, color, icon, label, accent, background and border controls, the color guide, and reset. Use **All features** or Escape to return to the menu. Existing preferences are preserved; navigation does not toggle the feature.
+
+**Compact components**, under Layout, fits more components in the sidebar and canvas using shorter rows, smaller icon tiles and inline type badges. Names and actions remain available, and narrow headers wrap their type badge when needed. It follows the sidebar/canvas switches, works independently of color effects, and defaults off. Reset appearance restores the normal layout.
 
 ## Appearance controls
 
