@@ -81,10 +81,9 @@
     } finally { opening = false; }
     if (frame) return;
     frame = document.createElement('iframe');
-    frame.src = api.runtime.getURL('popup.html');
+    frame.src = api.runtime.getURL('popup.html') + '?input=' + (event.detail === 0 ? 'keyboard' : 'pointer');
     frame.title = 'Unqlock menu';
     frame.setAttribute('role', 'dialog');
-    frame.addEventListener('load', () => frame?.focus());
     shadow.append(frame);
     button.setAttribute('aria-expanded', 'true');
   });

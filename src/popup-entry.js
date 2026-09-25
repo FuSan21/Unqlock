@@ -25,7 +25,15 @@
       document.addEventListener('keydown', event => {
         if (event.key === 'Escape' && !event.defaultPrevented) document.getElementById('floating-close').click();
       });
-      document.getElementById('open-appearance').focus();
+      if (new URL(location.href).searchParams.get('input') === 'keyboard') {
+        document.getElementById('open-appearance').focus();
+      } else {
+        // Keep keyboard input inside the popup without selecting a menu item.
+        const container = document.querySelector('main');
+        container.tabIndex = -1;
+        container.classList.add('initial-focus');
+        container.focus();
+      }
     }
     document.body.classList.add('ready');
   } catch {
