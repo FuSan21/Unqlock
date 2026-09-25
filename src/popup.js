@@ -9,7 +9,7 @@ const menu = document.getElementById("feature-menu");
 const appearancePage = document.getElementById("appearance-page");
 const openAppearance = document.getElementById("open-appearance");
 async function getTargetTab() {
-  if (window.top !== window) {
+  if (window.top !== window || new URL(location.href).searchParams.has('targetTab')) {
     const result = await extensionAPI.runtime.sendMessage({ type:'floating.target' });
     if (!result?.ok) throw new Error(result?.error || 'Could not identify this page.');
     return result.tab;

@@ -14,7 +14,7 @@ Build tools are development-only. ZIP files contain no npm packages or tests. Ar
 
 ## Add-on identity
 
-The add-on ID is unqlock@fusan.me. It replaces unqlock@extensions.local, which was used for an earlier Mozilla submission; changing a listing slug does not change the internal ID, so this identity is submitted as a new add-on rather than an update. Keep the ID unchanged for subsequent releases.
+The add-on ID is unqlock@fusan.me. Keep the ID unchanged for subsequent releases.
 
 ## Source layout
 

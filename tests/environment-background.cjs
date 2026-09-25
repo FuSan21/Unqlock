@@ -14,6 +14,8 @@ const source = file => fs.readFileSync(path.join(__dirname, '../src', file), 'ut
     let session = {};
     let pageUrl = 'https://first-prod.unqork.io/app';
     let popupWindows = [];
+    let temporaryAccess = false;
+    let injection;
     const events = {};
     const event = key => ({ addListener:fn => { events[key] = fn; } });
     const api = {
@@ -26,6 +28,7 @@ const source = file => fs.readFileSync(path.join(__dirname, '../src', file), 'ut
         }
       },
       runtime:{
+        ...(apiName === 'browser' ? { getBrowserInfo:async () => ({ name:'Firefox' }) } : {}),
         getURL:file => 'extension://test/' + file,
         onMessage:{ addListener:fn => { messageListener = fn; } },
         onStartup:event('startup'), onInstalled:event('installed')
@@ -36,7 +39,12 @@ const source = file => fs.readFileSync(path.join(__dirname, '../src', file), 'ut
         registerContentScripts:async scripts => { assert.equal(registrations.length, 0); registrations = scripts; },
         updateContentScripts:async scripts => { assert.equal(registrations.length, 1); registrations = scripts; },
         unregisterContentScripts:async () => { registrations = []; },
-        executeScript:async () => []
+        executeScript:async options => {
+          injection = options;
+          if (options.world === 'MAIN') return [{ result:{ ok:true, message:'Done' } }];
+          if (!temporaryAccess) throw new Error('Missing host permission');
+          return [{ result:true }];
+        }
       },
       // Without host access a real browser omits url, so only the page itself can report it.
       tabs:{
@@ -53,7 +61,7 @@ const source = file => fs.readFileSync(path.join(__dirname, '../src', file), 'ut
       windows:{ create:async options => { popupWindows.push(options); } }
     };
     const context = vm.createContext({ [apiName]:api, URL });
-    vm.runInContext(source('environment.js') + '\n' + source('environment-background.js'), context);
+    vm.runInContext(source('environment.js') + '\n' + source('quick-actions.js') + '\n' + source('environment-background.js'), context);
     const popup = { url:'extension://test/popup.html' };
     const send = (message, sender = popup) => new Promise(resolve => {
       if (messageListener(message, sender, resolve) !== true) resolve(undefined);
@@ -67,6 +75,31 @@ const source = file => fs.readFileSync(path.join(__dirname, '../src', file), 'ut
     assert.equal(await send({type:'floating.target'}, {...embedded, frameId:0}), undefined);
     // Only the page's own top frame may report an address, and it survives a worker restart.
     assert.equal((await send({ type:'floating.open' }, page)).ok, true);
+    assert.equal(popupWindows.length, 0, 'The badge keeps its embedded menu in both browsers');
+    assert.equal((await send({type:'debug.access'}, embedded)).granted, false);
+    temporaryAccess = true;
+    assert.equal((await send({type:'debug.access'}, embedded)).granted, true);
+    assert.equal((await send({type:'debug.permission'}, embedded)).granted, true);
+    assert.equal(popupWindows.length, 0, 'Temporary access needs no permission window');
+    temporaryAccess = false;
+    granted.add('https://first-prod.unqork.io/*');
+    assert.equal((await send({type:'debug.permission'}, embedded)).granted, true);
+    assert.equal(popupWindows.length, 0, 'Saved access needs no permission window');
+    granted.clear();
+    assert.equal((await send({type:'debug.permission'}, embedded)).granted, false);
+    assert.equal(popupWindows[0].url, 'extension://test/popup.html?targetTab=7&permission=debug');
+    const request = { action:'log', url:pageUrl };
+    assert.equal((await send({type:'debug.execute', request}, embedded)).result.ok, true);
+    assert.equal(injection.target.tabId, 7);
+    assert.equal(injection.world, 'MAIN');
+    assert.equal(injection.func.name, 'runQuickAction');
+    assert.equal((await send({type:'debug.execute', request:{...request, url:'https://evil.test/'}}, embedded)).ok, false);
+    assert.equal((await send({type:'debug.execute', request:{...request, action:'set'}}, embedded)).ok, false);
+    assert.equal(await send({type:'debug.execute', request}, page), undefined);
+    const detached = { url:'extension://test/popup.html?targetTab=7', frameId:0, tab:{id:99} };
+    assert.equal((await send({type:'floating.target'}, detached)).tab.id, 7);
+    assert.equal(await send({type:'floating.target'}, {...detached, frameId:2}), undefined);
+    assert.equal(await send({type:'floating.target'}, {...detached, url:'extension://test/popup.html?targetTab=bad'}), undefined);
     assert.equal(session['floating.source.7'], pageUrl);
     assert.equal(await send({ type:'floating.open' }, { ...page, frameId:2 }), undefined);
     assert.equal(await send({ type:'floating.open' }, { ...page, url:'about:blank' }), undefined);

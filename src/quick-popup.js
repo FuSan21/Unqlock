@@ -24,8 +24,10 @@ function pageOrigin() {
 }
 async function hasPageAccess() {
   // The toolbar spends an activeTab grant on click; an embedded menu has no gesture to spend.
-  if (window.top === window) return true;
-  try { return await extensionAPI.permissions.contains({ origins:[pageOrigin()] }); } catch { return false; }
+  if (window.top === window && !new URL(location.href).searchParams.has('targetTab')) return true;
+  const result = await extensionAPI.runtime.sendMessage({ type:'debug.access' });
+  if (!result?.ok) throw new Error(result?.error || 'Could not check site access.');
+  return result.granted;
 }
 function enableQuickControls() {
   quickAccess.hidden = true;
@@ -97,16 +99,29 @@ document.addEventListener('keydown', event => {
     else closeQuickActions();
   }
 });
-quickAccess.addEventListener('click', () => {
+quickAccess.addEventListener('click', async () => {
   if (!quickTarget) return;
-  // Call directly from the gesture, before awaits (required by Firefox).
-  const request = extensionAPI.permissions.request({ origins:[pageOrigin()] });
   quickAccess.disabled = true;
-  request.then(granted => {
-    if (granted) enableQuickControls();
+  try {
+    if (!extensionAPI.permissions?.request) {
+      const result = await extensionAPI.runtime.sendMessage({ type:'debug.permission' });
+      if (!result?.ok) throw new Error(result?.error || 'Could not open the site access window.');
+      if (result.granted) enableQuickControls();
+      else quickStatus.textContent = 'Approve site access in the Unqlock window, then continue here.';
+      return;
+    }
+    // Call directly from the gesture, before awaits (required by Firefox).
+    const granted = await extensionAPI.permissions.request({ origins:[pageOrigin()] });
+    if (granted) {
+      enableQuickControls();
+      if (new URL(location.href).searchParams.get('permission') === 'debug') {
+        const result = await extensionAPI.runtime.sendMessage({ type:'debug.granted' });
+        if (result?.ok) window.close();
+      }
+    }
     else quickStatus.textContent = 'Site access was not granted. Open Unqlock from the browser toolbar to use debug tools once.';
-  }, error => { quickStatus.textContent = 'Could not request site access: ' + (error.message || 'open Unqlock from the browser toolbar instead.'); })
-    .finally(() => { quickAccess.disabled = false; });
+  } catch (error) { quickStatus.textContent = 'Could not request site access: ' + (error.message || 'open Unqlock from the browser toolbar instead.'); }
+  finally { quickAccess.disabled = false; }
 });
 quickControls.addEventListener('input', () => cancelConfirmation());
 document.getElementById('cancel-action').addEventListener('click', () => cancelConfirmation(true));
@@ -126,8 +141,15 @@ async function executeAction(request, button) {
     }
     request.production = current.kind === 'production';
     request.blockProduction = config.blockProduction;
-    const results = await extensionAPI.scripting.executeScript({ target:{ tabId:quickTarget.id }, world:'MAIN', func:runQuickAction, args:[request] });
-    const result = results[0]?.result;
+    let result;
+    if (window.top !== window) {
+      const response = await extensionAPI.runtime.sendMessage({ type:'debug.execute', request });
+      if (!response?.ok) throw new Error(response?.error || 'Could not access the page.');
+      result = response.result;
+    } else {
+      const results = await extensionAPI.scripting.executeScript({ target:{ tabId:quickTarget.id }, world:'MAIN', func:runQuickAction, args:[request] });
+      result = results[0]?.result;
+    }
     feedback.dataset.state = result?.ok ? 'success' : 'error';
     feedback.textContent = result?.message || 'No result returned. Check the page before retrying.';
   } catch (error) {
@@ -187,3 +209,10 @@ extensionAPI.storage.onChanged?.addListener((changes, area) => {
     applyProductionPolicy();
   } catch { quickControls.disabled = true; }
 });
+window.addEventListener('message', async event => {
+  if (window.top === window || event.source !== parent || event.data?.type !== 'unqlock.debugAccessChanged' || !quickTarget) return;
+  try {
+    if (await hasPageAccess()) enableQuickControls();
+  } catch { quickStatus.textContent = 'Reopen Debug tools to check site access.'; }
+});
+if (new URL(location.href).searchParams.get('permission') === 'debug') quickEntry.click();

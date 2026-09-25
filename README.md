@@ -15,7 +15,7 @@ Requires Chrome 111 or newer, or Firefox desktop 142 or newer.
 
 Install from either listing, then refresh any open Unqork tab. Both listings update the extension automatically.
 
-If Firefox has not granted access to your Unqork site, allow it from the extension's permissions controls. Preferences are local to each browser and do not synchronize between Chrome and Firefox. If you previously loaded the unqlock@extensions.local prototype, remove it first to avoid duplicate styling; its saved preferences do not transfer.
+If Firefox has not granted access to your Unqork site, allow it from the extension's permissions controls. Preferences are local to each browser and do not synchronize between Chrome and Firefox.
 
 ## Screenshots
 

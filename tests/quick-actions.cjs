@@ -45,14 +45,32 @@ const source = file => fs.readFileSync(path.join(__dirname, '../src', file), 'ut
   window.document.body.innerHTML = '';
   assert.equal((await run({})).ok, false);
   dom.window.close();
-  for (const api of ['chrome', 'browser']) {
-    const popup = new JSDOM(source('popup.html'), { runScripts:'outside-only' });
-    const page = popup.window;
+  for (const [api, detached, embedded] of [['chrome', false], ['chrome', true], ['browser', false], ['browser', true], ['browser', false, true]]) {
+    const popup = new JSDOM(source('popup.html'), { runScripts:'outside-only', url:'https://extension.test/popup.html' + (detached ? '?targetTab=7' : '') });
+    let page = popup.window;
+    if (embedded) {
+      const frame = page.document.createElement('iframe');
+      page.document.body.append(frame);
+      page = frame.contentWindow;
+      page.document.write(source('popup.html'));
+      page.document.close();
+    }
     let calls = 0;
     page.matchMedia = () => ({ matches:false, addEventListener:() => {} });
     page[api] = {
       storage:{ local:{ get:async () => ({}), set:async () => {} } },
       tabs:{ query:async () => [{ id:7, url:'https://example.test/app' }] },
+      runtime:{ sendMessage:async message => {
+        if (message.type === 'debug.execute') {
+          calls++;
+          assert.equal(message.request.url, 'https://example.test/app');
+          return { ok:true, result:{ ok:true, message:'Done' } };
+        }
+        if (message.type === 'debug.access') return { ok:true, granted:false };
+        if (message.type === 'debug.permission') return { ok:true, granted:false };
+        assert.equal(message.type, 'floating.target');
+        return { ok:true, tab:{ id:7, url:'https://example.test/app' } };
+      } },
       scripting:{ executeScript:async injection => {
         calls++;
         assert.equal(injection.world, 'MAIN');
@@ -65,6 +83,33 @@ const source = file => fs.readFileSync(path.join(__dirname, '../src', file), 'ut
     const settle = () => new Promise(resolve => setTimeout(resolve, 0));
     page.document.querySelector('[aria-controls="quick-page"]').click();
     await settle();
+    if (detached || embedded) {
+      const access = page.document.getElementById('quick-access');
+      const controls = page.document.getElementById('quick-controls');
+      assert.equal(access.hidden, false);
+      assert.equal(controls.disabled, true);
+      access.click();
+      await settle();
+      assert.match(page.document.getElementById('quick-status').textContent, /Approve site access/);
+      assert.equal(access.disabled, false);
+      page[api].permissions = { request:() => { throw new Error('Request failed'); } };
+      access.click();
+      await settle();
+      assert.match(page.document.getElementById('quick-status').textContent, /Request failed/);
+      assert.equal(access.disabled, false);
+      page[api].permissions.request = async () => false;
+      access.click();
+      await settle();
+      assert.equal(controls.disabled, true);
+      page[api].permissions.request = async ({ origins }) => {
+        assert.equal(origins[0], 'https://example.test/*');
+        return true;
+      };
+      access.click();
+      await settle();
+      assert.equal(controls.disabled, false);
+      assert.equal(access.hidden, true);
+    }
     assert.equal(page.document.getElementById('panel-inspect').hidden, false);
     page.document.getElementById('tab-data').click();
     page.document.getElementById('property-key').value = 'test';

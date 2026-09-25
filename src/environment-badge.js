@@ -70,8 +70,15 @@
     if (frame) { closeMenu(); return; }
     // Tab URLs stay unreadable without host access, so the page reports its own address first.
     opening = true;
-    try { await api.runtime.sendMessage({ type:'floating.open' }); } catch { opening = false; return; }
-    opening = false;
+    try {
+      const result = await api.runtime.sendMessage({ type:'floating.open' });
+      if (!result?.ok) throw new Error(result?.error || 'Could not open Unqlock.');
+      feedback.hidden = true;
+    } catch (error) {
+      feedback.textContent = error.message || 'Could not open Unqlock. Try the browser toolbar.';
+      feedback.hidden = false;
+      return;
+    } finally { opening = false; }
     if (frame) return;
     frame = document.createElement('iframe');
     frame.src = api.runtime.getURL('popup.html');
@@ -82,6 +89,11 @@
     button.setAttribute('aria-expanded', 'true');
   });
   api.runtime.onMessage.addListener((message, _sender, respond) => {
+    if (message?.type === 'debug.accessChanged') {
+      frame?.contentWindow?.postMessage({ type:'unqlock.debugAccessChanged' }, new URL(api.runtime.getURL('popup.html')).origin);
+      respond({ ok:true });
+      return;
+    }
     if (message?.type !== 'floating.source') return;
     respond({ ok:true, url:location.href });
   });
