@@ -115,6 +115,9 @@ jobs:
       group: release-${{ github.ref }}
       cancel-in-progress: false
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: extension-packages
@@ -135,4 +138,4 @@ jobs:
           assets=(artifacts/unqlock-*.zip artifacts/unqlock-firefox-*.xpi)
           gh release create "$RELEASE_TAG" "${assets[@]}" \
             --verify-tag --title "Unqlock $RELEASE_TAG" --generate-notes \
-            --notes "Submitted to the Chrome Web Store and to addons.mozilla.org; both listings go live after store review. Chrome ZIP: extract and load unpacked. Firefox ZIP: unsigned, temporary installation only. A signed Firefox XPI is attached only when Mozilla returns one at submission. Source ZIP included."
+            --notes-file docs/RELEASE-NOTES.md

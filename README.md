@@ -4,7 +4,7 @@ Unqlock combines Unqork + Unlock: make builder components easier to recognize.
 
 <img src="docs/assets/extension-icon.png" width="80" height="80" alt="Unqlock icon">
 
-One source tree, two Manifest V3 builds. Includes all 52 component types, custom icons, light/dark palettes, separate full background/border controls, and support across Unqork subdomains. The current version is recorded in package.json.
+One source tree, two Manifest V3 builds. Includes styling for 52 component types, compact rows, visibility and width controls for four builder panels, environment tools, a floating menu and application debugging. The current version is recorded in package.json.
 
 ## Installation
 
@@ -19,33 +19,37 @@ If Firefox has not granted access to your Unqork site, allow it from the extensi
 
 ## Screenshots
 
-### Builder styling
+### Compact components
 
-Colored icons and component type labels:
-
-![Unqork builder with colored icons and type labels](docs/screenshots/colored-builder.png)
-
-Full background accents and colored borders:
-
-![Unqork builder with full background accents and colored borders](docs/screenshots/colored-builder-2.png)
-
-### Menu and appearance settings
+Compact rows keep component names, icons and inline type badges visible. The same layout supports subtle accents (left) or full colored backgrounds and borders (right).
 
 <p>
-  <img src="docs/screenshots/main-menu.png" width="280" alt="Unqlock main menu with Component appearance and Debug tools">
-  <img src="docs/screenshots/component-appearance.png" width="280" alt="Component appearance master switches and icon controls">
-  <img src="docs/screenshots/component-appearance-2.png" width="280" alt="Component appearance label, background and border controls">
+  <img src="docs/screenshots/SS/compact-builder-subtle-accents.png" width="49%" alt="Compact builder with subtle accents, colored icons and inline type badges">
+  <img src="docs/screenshots/SS/compact-builder-full-colors.png" width="49%" alt="Compact builder with full category-colored backgrounds and borders">
+</p>
+
+### Menu and settings
+
+Open features from the menu, customize component appearance, configure the floating window and four builder panels, or manage environments and production protections.
+
+<p>
+  <img src="docs/screenshots/SS/feature-menu.png" width="280" alt="Unqlock feature menu">
+  <img src="docs/screenshots/SS/component-appearance-settings.png" width="280" alt="Component appearance settings including compact components, scope, icons, labels and frames">
+  <img src="docs/screenshots/SS/general-builder-panel-settings.png" width="280" alt="General settings with floating window position and controls for Build Agent, Explore, Properties and Component tray">
+  <img src="docs/screenshots/SS/environment-settings.png" width="280" alt="Environment settings with badge visibility, production protection and example domain mappings">
 </p>
 
 ### Debug tools
 
-Inspect page data, edit properties, or execute a component:
+Inspect page data, edit in-memory properties, or execute a component by its key on compatible Angular application pages.
 
 <p>
-  <img src="docs/screenshots/debug-tool.png" width="280" alt="Debug tools Inspect tab with console logging options">
-  <img src="docs/screenshots/debug-tool-2.png" width="280" alt="Debug tools Data tab with property name, value type and value editor">
-  <img src="docs/screenshots/debug-tool-3.png" width="280" alt="Debug tools Execute tab with component key and Run component button">
+  <img src="docs/screenshots/SS/debug-inspect.png" width="280" alt="Inspect tab with console output style and Log page data action">
+  <img src="docs/screenshots/SS/debug-data.png" width="280" alt="Data tab with property key, value type, editor and update or remove actions">
+  <img src="docs/screenshots/SS/debug-execute.png" width="280" alt="Execute tab with component key and Run component action">
 </p>
+
+These screenshots use the supplied captures at their original resolution; click a linked source in the [screenshot guide](docs/screenshots/README.md) to view it full-size. The five 1280 × 800 store collages and their upload order are also documented there.
 
 ## Popup menu
 
@@ -55,7 +59,7 @@ The popup opens to a feature menu. Choose **Component appearance** for compact l
 
 ## Appearance controls
 
-Appearance controls are grouped into master switches, icons/labels, and component frames. **Enable component styling** controls the whole appearance feature; **Style sidebar components** and **Style canvas components** control all effects in their respective areas. They do not affect Debug tools. Individual controls include colored icons, tinted icon backgrounds, colored sidebar names, colored canvas type labels, distinct icon shapes, left accents, full backgrounds and borders. Distinct shapes require colored icons; icon backgrounds are independent. Existing settings retain their behavior: icon colors/backgrounds default on, and the new sidebar-name coloring defaults off. Turning a master off preserves the individual preferences.
+Appearance controls are grouped into master switches, layout, icons/labels, and component frames. **Enable component styling** controls the whole appearance feature; **Style sidebar components** and **Style canvas components** control all effects in their respective areas. They do not affect Debug tools. Individual controls include colored icons, tinted icon backgrounds, colored sidebar names, colored canvas type labels, distinct icon shapes, left accents, full backgrounds and borders. Distinct shapes require colored icons; icon backgrounds are independent. Existing settings retain their behavior: icon colors/backgrounds default on, and the new sidebar-name coloring defaults off. Turning a master off preserves the individual preferences.
 
 ## Debug tools
 
@@ -100,9 +104,9 @@ Environment edits save automatically when valid; invalid or incomplete entries l
 
 ## Scope and privacy
 
-Targets the modern Unqork Config builder across HTTPS *.unqork.io subdomains. The script is registered on /ide/* pages so navigation into /ide/builder/ works. Appearance styling does not run on unrelated domains or application pages. Unknown component types are untouched. Legacy canvas, Logic view and UI preview are not supported or verified. Appearance changes do not modify module definitions or submit/save anything.
+Targets the modern Unqork Config builder across HTTPS *.unqork.io subdomains. The script is registered on /ide/* pages so navigation into /ide/builder/ works. Appearance styling does not run on unrelated domains or application pages. Unknown component types keep their native colors and icons; compact layout can apply when their header structure is compatible. Legacy canvas, Logic view and UI preview are not supported or verified. Appearance changes do not modify module definitions or submit/save anything.
 
-The full privacy notice is in [docs/PRIVACY.md](docs/PRIVACY.md). Permissions are storage (appearance and environment preferences), activeTab (user-invoked tools), scripting (debug tools and automatic badge registration), and optional site access (saved custom domains only). Automatic badge access covers HTTPS *.unqork.io pages. Unqlock makes no telemetry transmissions; environment links navigate to the selected hostname with the preserved URL; executed application components may do so. Submission/cache data is logged in the page, not returned to extension storage. Firefox explicitly declares no data collection. Full borders replace native border colors while enabled; focus outlines are retained. Disabling or resetting removes decorations. The app's root dark class controls the page palette; the popup follows system appearance.
+The full privacy notice is in [docs/PRIVACY.md](docs/PRIVACY.md). Permissions are storage (appearance, floating-menu, environment and builder-panel preferences), activeTab (user-invoked tools), scripting (debug tools and automatic badge registration), and optional site access (saved custom domains only). Automatic badge access covers HTTPS *.unqork.io pages. Unqlock makes no telemetry transmissions; environment links navigate to the selected hostname with the preserved URL; executed application components may do so. Submission/cache data is logged in the page, not returned to extension storage. Firefox explicitly declares no data collection. Full borders replace native border colors while enabled; focus outlines are retained. Disabling or resetting removes decorations. The app's root dark class controls the page palette; the popup follows system appearance.
 
 ## Building from source
 
