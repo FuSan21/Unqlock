@@ -24,12 +24,13 @@
 [data-uq-tile] { background-color:var(--uq-tint)!important; }
 [data-uq-surface="tray"] > [data-uq-icon-background] { background-color:var(--uq-tint)!important; border-radius:5px; padding:3px; box-sizing:content-box; width:16px!important; height:16px!important; }
 [data-uq-label] { color:var(--uq-ink)!important; }
-[data-uq-accent] { border-inline-start-color:var(--uq-ink)!important; }
+[data-uq-accent] { box-shadow:inset 3px 0 0 var(--uq-ink)!important; }
 [data-uq-background] { background-color:var(--uq-tint)!important; }
 [data-uq-border] { border:1px solid var(--uq-ink)!important; }
 @media (forced-colors:active) {
   [data-uq-background] { background-color:Canvas!important; }
   [data-uq-border] { border-color:CanvasText!important; }
+  [data-uq-accent] { border-inline-start:3px solid CanvasText!important; }
   [data-uq-icon], [data-uq-label] { color:CanvasText!important; }
   [data-uq-tile] { background:Canvas!important; }
 }
