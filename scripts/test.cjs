@@ -1,6 +1,7 @@
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 for (const [script, args] of [['../tests/version.cjs', []], ['../tests/quick-actions.cjs', []], ['../tests/environment.cjs', []], ['../tests/environment-background.cjs', []], ['build.cjs', []], ['../tests/build.cjs', []], ['../tests/behavior.cjs', []], ['../tests/behavior.cjs', ['--firefox']], ['../tests/chrome.cjs', []], ['../tests/builder-panels.cjs', []], ['../tests/builder-panels.cjs', ['--firefox']], ['../tests/environment-browser.cjs', []], ['../tests/panel-popup.cjs', []], ['../tests/firefox-panel-bridge.cjs', []], ['../tests/firefox-package.cjs', []]]) {
-  const result = spawnSync(process.execPath, [path.resolve(__dirname, script), ...args], { stdio:'inherit' });
+  const result = spawnSync(process.execPath, [path.resolve(__dirname, script), ...args], { stdio:'inherit', timeout:5 * 60 * 1000, killSignal:'SIGKILL' });
+  if (result.error?.code === 'ETIMEDOUT') console.error(`TIMEOUT: ${path.basename(script)} ${args.join(' ')} did not finish within 5 minutes.`);
   if (result.status !== 0) process.exit(result.status || 1);
 }

@@ -111,9 +111,9 @@ const assert = require('node:assert/strict');
     await custom.getByRole('button', {name:'Open Unqlock menu'}).click();
     const reopened = await (await custom.locator('#unqlock-environment iframe').elementHandle()).contentFrame();
     await reopened.waitForSelector('body.ready');
-    // Escape detaches the frame, so send it from the page keyboard rather than an element inside the frame.
+    // Escape detaches the frame, and a real keypress into a detaching frame can hang, so dispatch it after evaluate returns.
     await reopened.getByRole('button', {name:'Component appearance'}).focus();
-    await custom.keyboard.press('Escape');
+    await reopened.evaluate(() => setTimeout(() => document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key:'Escape', bubbles:true, cancelable:true }))));
     await custom.waitForFunction(() => !document.querySelector('#unqlock-environment').shadowRoot.querySelector('iframe'));
     await popup.getByLabel('Position', {exact:true}).selectOption('bottom-right');
 
