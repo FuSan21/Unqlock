@@ -1,14 +1,16 @@
 "use strict";
   const extensionAPI = typeof browser !== "undefined" ? browser : chrome;
 const defaults = { enabled: true, tray: true, canvas: true, icons: true, tiles: true, trayLabels: false, accents: false, backgrounds: false, borders: false, labels: true, symbols: true, compact: false, containerSpacing: false, containerHeaders: false, containerGuides: false, containerDepth: false, containerSticky: false, containerEnd: false };
-const form = document.getElementById("appearance");
-const status = document.getElementById("status");
-const controls = document.getElementById("controls");
-const reset = document.getElementById("reset");
-const menu = document.getElementById("feature-menu");
-const appearancePage = document.getElementById("appearance-page");
-const openAppearance = document.getElementById("open-appearance");
+// Each reset owns the keys shown on its page; the home switch is left alone.
+const layoutKeys = Object.keys(defaults).filter(key => key === "compact" || key.startsWith("container"));
+const styleKeys = Object.keys(defaults).filter(key => key !== "enabled" && !layoutKeys.includes(key));
+const home = document.getElementById("home");
+const appearanceFields = [...document.querySelectorAll(".appearance-fields")];
+const appearanceStatus = [...document.querySelectorAll(".appearance-status")];
+const appearanceControls = [...document.querySelectorAll("input[data-appearance]")];
+const resetButtons = [document.getElementById("reset-style"), document.getElementById("reset-layout")];
 const rowPreset = document.getElementById("row-preset");
+let appearance = { ...defaults };
 let rowLayout = UnqlockRowLayout.settings();
 rowPreset.replaceChildren(...[["native", "Native"], ...Object.entries(UnqlockRowLayout.presets).map(([id, preset]) => [id, preset.label]), ["custom", "Custom"]].map(([value, label]) => new Option(label, value)));
 const rowSections = document.getElementById("row-sections");
@@ -42,71 +44,110 @@ async function getTargetTab() {
   }
   return (await extensionAPI.tabs.query({ active:true, currentWindow:true }))[0];
 }
-function showMenu() {
-  appearancePage.hidden = true;
-  menu.hidden = false;
-  openAppearance.focus();
-}
-openAppearance.addEventListener("click", () => {
-  menu.hidden = true;
-  appearancePage.hidden = false;
-  document.getElementById("appearance-title").focus();
-});
-document.getElementById("back-to-menu").addEventListener("click", showMenu);
-document.addEventListener("keydown", event => {
-  if (event.key === "Escape" && !appearancePage.hidden) {
-    event.preventDefault();
-    showMenu();
+// One page is shown at a time. Opening focuses its title; returning focuses the control that opened it.
+globalThis.UnqlockPages = (() => {
+  const openHooks = {};
+  const leaveHooks = {};
+  let current = null;
+  let origin = null;
+  function open(id, from) {
+    const page = document.getElementById(id);
+    if (current) document.getElementById(current).hidden = true;
+    origin = from || document.querySelector('#feature-menu [data-page="' + id + '"]');
+    current = id;
+    home.hidden = true;
+    page.hidden = false;
+    page.querySelector(".page-title").focus();
+    for (const hook of openHooks[id] || []) hook();
   }
-});
+  function back(options = {}) {
+    if (!current) return;
+    // A leave hook can keep the page open, such as Escape dismissing a pending confirmation.
+    for (const hook of leaveHooks[current] || []) if (hook(options) === false) return;
+    document.getElementById(current).hidden = true;
+    current = null;
+    home.hidden = false;
+    origin?.focus();
+  }
+  const register = hooks => (id, hook) => { (hooks[id] ||= []).push(hook); };
+  document.addEventListener("click", event => {
+    const entry = event.target.closest("[data-page]");
+    if (entry) open(entry.dataset.page, entry);
+    else if (event.target.closest(".page-back")) back();
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && current) {
+      event.preventDefault();
+      back({ escape:true });
+    }
+  });
+  return { open, back, current:() => current, onOpen:register(openHooks), onLeave:register(leaveHooks) };
+})();
 const families = [["Inputs","1D4ED8","93C5FD"],["Contact & identity","0F766E","5EEAD4"],["Layout","4338CA","A5B4FC"],["Content","6D28D9","C4B5FD"],["Data & storage","0E7490","67E8F9"],["Calculation & workflows","7E22CE","D8B4FE"],["Decisions","92400E","FCD34D"],["Actions & execution","166534","86EFAC"],["Integrations","9A3412","FDBA74"],["Charts & maps","9D174D","FDA4AF"],["Hidden & protected","475569","CBD5E1"]];
+function normalize(value) {
+  return Object.fromEntries(Object.entries(defaults).map(([key, fallback]) => [key, typeof value?.[key] === "boolean" ? value[key] : fallback]));
+}
+function reasonFor(key, control) {
+  const onHome = home.contains(control);
+  if (key !== "enabled" && !appearance.enabled) return onHome ? "Turn on Component styling to use this setting." : "Turn on Component styling on the home menu to use this setting.";
+  if (!["enabled", "tray", "canvas"].includes(key) && !appearance.tray && !appearance.canvas) return "Turn on Component style → Style sidebar components or Style canvas components to use this setting.";
+  if (key === "trayLabels" && !appearance.tray) return "Turn on Style sidebar components to color sidebar names.";
+  if (key === "labels" && !appearance.canvas) return "Turn on Style canvas components to color canvas labels.";
+  if (key.startsWith("container") && !appearance.canvas) return "Turn on Component style → Style canvas components to use container settings.";
+  if (key === "symbols" && !appearance.icons) return "Turn on Colored icons to use distinct icon shapes.";
+  return "";
+}
 function show(value) {
-  for (const [key, fallback] of Object.entries(defaults)) form.elements[key].checked = typeof value?.[key] === "boolean" ? value[key] : fallback;
-  for (const key of Object.keys(defaults)) {
-    let reason = key !== 'enabled' && !form.elements.enabled.checked ? 'Turn on Enable component styling to use this setting.' : '';
-    if (!reason && !['enabled','tray','canvas'].includes(key) && !form.elements.tray.checked && !form.elements.canvas.checked) reason = 'Turn on sidebar or canvas styling to use this setting.';
-    if (!reason && key === 'trayLabels' && !form.elements.tray.checked) reason = 'Turn on Style sidebar components to color sidebar names.';
-    if (!reason && key === 'labels' && !form.elements.canvas.checked) reason = 'Turn on Style canvas components to color canvas labels.';
-    if (!reason && key.startsWith('container') && !form.elements.canvas.checked) reason = 'Turn on Style canvas components to use container settings.';
-    if (!reason && key === 'symbols' && !form.elements.icons.checked) reason = 'Turn on Colored icons to use distinct icon shapes.';
-    UnqlockDisabled.set(form.elements[key], reason);
+  appearance = normalize(value);
+  for (const control of appearanceControls) {
+    const key = control.dataset.appearance;
+    control.checked = appearance[key];
+    UnqlockDisabled.set(control, reasonFor(key, control));
   }
   showLayout(rowLayout);
 }
 function showLayout(value) {
   rowLayout = UnqlockRowLayout.settings(value);
   rowPreset.value = UnqlockRowLayout.preset(rowLayout);
-  const reason = !form.elements.enabled.checked ? 'Turn on Enable component styling to arrange canvas rows.' : !form.elements.canvas.checked ? 'Turn on Style canvas components to arrange canvas rows.' : '';
+  const reason = !appearance.enabled ? "Turn on Component styling on the home menu to arrange canvas rows." : !appearance.canvas ? "Turn on Component style → Style canvas components to arrange canvas rows." : "";
   UnqlockDisabled.set(rowPreset, reason);
   // Section controls only appear while a layout applies; the select explains why otherwise.
   rowSections.hidden = Boolean(reason) || !rowLayout.enabled;
   for (const id of Object.keys(UnqlockRowLayout.sections)) {
-    for (const input of form.elements["row-" + id]) input.checked = input.value === rowLayout[id];
+    for (const input of rowSections.querySelectorAll('input[name="row-' + id + '"]')) input.checked = input.value === rowLayout[id];
   }
 }
+function setAppearanceStatus(text) {
+  for (const status of appearanceStatus) status.textContent = text;
+}
+function setAppearanceBusy(busy) {
+  for (const fields of appearanceFields) fields.disabled = busy;
+  for (const button of resetButtons) button.disabled = busy;
+}
 async function save(items) {
-  controls.disabled = true;
-  reset.disabled = true;
+  setAppearanceBusy(true);
   try {
     await extensionAPI.storage.local.set(items);
     if (items.rowLayout) rowLayout = UnqlockRowLayout.settings(items.rowLayout);
     if (items.appearance) show(items.appearance); else showLayout(rowLayout);
-    status.textContent = "Saved";
+    setAppearanceStatus("Saved");
   }
-  catch { status.textContent = "Could not save. Try again."; }
-  finally { controls.disabled = false; reset.disabled = false; }
+  catch { setAppearanceStatus("Could not save. Try again."); }
+  finally { setAppearanceBusy(false); }
 }
-form.addEventListener("change", event => {
-  if (event.target === rowPreset) {
-    const preset = UnqlockRowLayout.presets[rowPreset.value];
-    save({ rowLayout:{ ...rowLayout, ...preset?.positions, enabled:rowPreset.value !== "native" } });
-  } else if (event.target.name?.startsWith("row-")) {
-    save({ rowLayout:{ ...rowLayout, [event.target.name.slice(4)]:event.target.value, enabled:true } });
-  } else {
-    save({ appearance:Object.fromEntries(Object.keys(defaults).map(key => [key, form.elements[key].checked])) });
-  }
+for (const control of appearanceControls) {
+  control.addEventListener("change", () => save({ appearance:{ ...appearance, [control.dataset.appearance]:control.checked } }));
+}
+rowPreset.addEventListener("change", () => {
+  const preset = UnqlockRowLayout.presets[rowPreset.value];
+  save({ rowLayout:{ ...rowLayout, ...preset?.positions, enabled:rowPreset.value !== "native" } });
 });
-reset.addEventListener("click", () => save({ appearance:defaults, rowLayout:UnqlockRowLayout.settings() }));
+rowSections.addEventListener("change", event => {
+  if (event.target.name?.startsWith("row-")) save({ rowLayout:{ ...rowLayout, [event.target.name.slice(4)]:event.target.value, enabled:true } });
+});
+const pick = (source, keys) => Object.fromEntries(keys.map(key => [key, source[key]]));
+document.getElementById("reset-style").addEventListener("click", () => save({ appearance:{ ...appearance, ...pick(defaults, styleKeys) } }));
+document.getElementById("reset-layout").addEventListener("click", () => save({ appearance:{ ...appearance, ...pick(defaults, layoutKeys) }, rowLayout:UnqlockRowLayout.settings() }));
 function drawLegend() {
   document.getElementById("legend").replaceChildren(...families.map(([name, light, dark]) => {
     const row = document.createElement("div");
@@ -119,4 +160,4 @@ function drawLegend() {
 }
 drawLegend();
 matchMedia("(prefers-color-scheme:dark)").addEventListener("change", drawLegend);
-extensionAPI.storage.local.get(["appearance", "rowLayout"]).then(result => { rowLayout = UnqlockRowLayout.settings(result.rowLayout); show(result.appearance); status.textContent = "Ready"; controls.disabled = false; }).catch(() => { show(defaults); status.textContent = "Storage unavailable"; });
+extensionAPI.storage.local.get(["appearance", "rowLayout"]).then(result => { rowLayout = UnqlockRowLayout.settings(result.rowLayout); show(result.appearance); setAppearanceStatus("Ready"); setAppearanceBusy(false); }).catch(() => { show(defaults); setAppearanceStatus("Storage unavailable"); });

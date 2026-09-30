@@ -8,7 +8,7 @@ const source = file => fs.readFileSync(path.join(__dirname,'../src',file),'utf8'
     const browser = await engine.launch({headless:true});
     try {
       const page = await browser.newPage();
-      await page.setContent('<button id="open-general">General settings</button><form id="panels-form"><fieldset id="panels-fields" disabled></fieldset><button type="button" id="panels-reset">Reset all</button></form><p id="panels-status"></p>');
+      await page.setContent('<button id="open-panels">Builder panels</button><form id="panels-form"><fieldset id="panels-fields" disabled></fieldset><button type="button" id="panels-reset">Reset all</button></form><p id="panels-status"></p>');
       await page.addStyleTag({content:source('popup.css')});
       await page.evaluate(() => {
         window.saved = {};
@@ -17,10 +17,12 @@ const source = file => fs.readFileSync(path.join(__dirname,'../src',file),'utf8'
           await new Promise(resolve => setTimeout(resolve,150));
           Object.assign(window.saved,structuredClone(patch));
         }}},tabs:{sendMessage:async () => ({widths:window.panelWidths})}};
+        // Stands in for the popup router: the entry button opens the page.
+        window.UnqlockPages = {onOpen:(id,hook) => document.getElementById('open-panels').addEventListener('click',hook)};
         window.getTargetTab = async () => ({id:1,url:'https://fixture.unqork.io/ide/builder/workspaces/test/modules/first'});
       });
       for (const file of ['panel-settings.js','disabled-controls.js','panels-popup.js']) await page.addScriptTag({content:source(file)});
-      await page.locator('#open-general').click();
+      await page.locator('#open-panels').click();
       await page.locator('summary').filter({hasText:'Build Agent'}).click();
       const visibility = page.locator('#agent-visibility');
       await visibility.focus();

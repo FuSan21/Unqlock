@@ -1,5 +1,4 @@
 "use strict";
-const environmentPage = document.getElementById('environment-page');
 const environmentForm = document.getElementById('environment-form');
 const environmentStatus = document.getElementById('environment-status');
 const environmentFields = document.getElementById('environment-fields');
@@ -56,7 +55,8 @@ function editGroup(id) {
 }
 function renderEnvironment(selectedId, preserveEditor = false) {
   const current = environmentTarget ? UnqlockEnvironment.detect(environmentTarget.url, environmentConfig) : null;
-  document.getElementById('environment-current').textContent = current ? current.label + ' · ' + current.host + ' — ' + current.source : 'Open a web page to identify its environment.';
+  renderStrip(current);
+  document.getElementById('environment-current').textContent = current ? 'Current: ' + current.label + ' · ' + current.host + ' — ' + current.source : 'Open a web page to identify its environment.';
   groupSelect.replaceChildren(new Option('New group', ''));
   for (const group of environmentConfig.groups) groupSelect.add(new Option(group.name, group.id));
   if (preserveEditor) {
@@ -65,13 +65,27 @@ function renderEnvironment(selectedId, preserveEditor = false) {
     UnqlockDisabled.set(document.getElementById('environment-delete-group'), saved ? '' : 'This group has not been saved yet. Enter a valid group name and hostname to save it.');
   }
   else editGroup(selectedId ?? current?.groupId ?? environmentConfig.groups[0]?.id);
+}
+// The home strip shows the current environment and links to the same page on the rest of its group.
+function renderStrip(current) {
+  const summary = document.getElementById('environment-summary');
   const links = document.getElementById('environment-links');
   links.replaceChildren();
-  const currentGroup = environmentConfig.groups.find(group => group.id === current?.groupId);
-  for (const domain of currentGroup?.domains || []) {
-    if (domain.hostname === current.host) continue;
+  if (!current) {
+    summary.textContent = 'Open an Unqork page to see its environment.';
+    return;
+  }
+  const label = document.createElement('strong');
+  label.className = 'environment-kind';
+  label.dataset.kind = current.kind;
+  label.textContent = current.label;
+  summary.replaceChildren(label, document.createTextNode(' · ' + current.host));
+  summary.title = current.source;
+  const domains = (environmentConfig.groups.find(group => group.id === current.groupId)?.domains || []).filter(domain => domain.hostname !== current.host);
+  for (const domain of domains) {
     const link = document.createElement('a');
-    link.textContent = UnqlockEnvironment.labels[domain.environment] + ' · ' + domain.hostname + ' ↗';
+    const shared = domains.some(other => other !== domain && other.environment === domain.environment);
+    link.textContent = 'Open in ' + UnqlockEnvironment.labels[domain.environment] + (shared ? ' · ' + domain.hostname : '') + ' ↗';
     link.href = UnqlockEnvironment.switchUrl(environmentTarget.url, domain.hostname);
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
@@ -79,36 +93,30 @@ function renderEnvironment(selectedId, preserveEditor = false) {
     links.append(link);
   }
 }
-document.getElementById('open-environment').addEventListener('click', async () => {
-  menu.hidden = true;
-  environmentPage.hidden = false;
-  document.getElementById('environment-title').focus();
+async function loadEnvironment() {
+  await saveQueue;
+  const [tab] = await Promise.all([getTargetTab(), environmentMessage({ type:'environment.read' })]);
+  environmentTarget = /^https?:\/\//.test(tab?.url || '') ? tab : null;
+}
+UnqlockPages.onOpen('environment-page', async () => {
   environmentFields.disabled = true;
   environmentStatus.textContent = 'Loading…';
   try {
-    await saveQueue;
-    const [tab] = await Promise.all([getTargetTab(), environmentMessage({ type:'environment.read' })]);
-    environmentTarget = /^https?:\/\//.test(tab?.url || '') ? tab : null;
-    for (const key of ['badge', 'blockProduction', 'autoDiscover']) environmentForm.elements[key].checked = environmentConfig[key];
+    await loadEnvironment();
+    for (const key of ['blockProduction', 'autoDiscover']) environmentForm.elements[key].checked = environmentConfig[key];
     renderEnvironment();
     environmentFields.disabled = false;
     environmentStatus.textContent = missingOrigins.length ? 'Saved custom domains need site access for automatic badges.' : '';
   } catch (error) { environmentStatus.textContent = error.message; }
 });
-function closeEnvironment() {
-  environmentPage.hidden = true;
-  menu.hidden = false;
-  document.getElementById('open-environment').focus();
-}
-document.getElementById('environment-back').addEventListener('click', closeEnvironment);
-document.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && !environmentPage.hidden) { event.preventDefault(); closeEnvironment(); }
+loadEnvironment().then(() => renderStrip(environmentTarget ? UnqlockEnvironment.detect(environmentTarget.url, environmentConfig) : null)).catch(error => {
+  document.getElementById('environment-summary').textContent = error.message || 'Could not identify this page.';
 });
 groupSelect.addEventListener('change', () => editGroup(groupSelect.value));
 document.getElementById('environment-new-group').addEventListener('click', () => { editGroup(''); document.getElementById('environment-group-name').focus(); });
 document.getElementById('environment-add-domain').addEventListener('click', () => addDomain().focus());
 function preferences() {
-  return Object.fromEntries(['badge', 'blockProduction', 'autoDiscover'].map(key => [key, environmentForm.elements[key].checked]));
+  return Object.fromEntries(['blockProduction', 'autoDiscover'].map(key => [key, environmentForm.elements[key].checked]));
 }
 async function injectCurrentBadge() {
   if (!environmentTarget || !environmentConfig.groups.some(group => group.domains.some(domain => domain.hostname === new URL(environmentTarget.url).hostname))) return;

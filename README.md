@@ -30,13 +30,13 @@ Compact rows keep component names, icons and inline type badges visible. The sam
 
 ### Menu and settings
 
-Open features from the menu, customize component appearance, configure the floating window and four builder panels, or manage environments and production protections.
+The home menu shows the current environment, the two most used switches and Log page data; each feature has its own page for component style, canvas layout, builder panels, debug tools, environments and the floating launcher. These captures predate the reorganized home menu, so their headings differ from the current popup.
 
 <p>
-  <img src="docs/screenshots/SS/feature-menu.png" width="280" alt="Unqlock feature menu">
-  <img src="docs/screenshots/SS/component-appearance-settings.png" width="280" alt="Component appearance settings including compact components, scope, icons, labels and frames">
-  <img src="docs/screenshots/SS/general-builder-panel-settings.png" width="280" alt="General settings with floating window position and controls for Build Agent, Explore, Properties and Component tray">
-  <img src="docs/screenshots/SS/environment-settings.png" width="280" alt="Environment settings with badge visibility, production protection and example domain mappings">
+  <img src="docs/screenshots/SS/feature-menu.png" width="280" alt="Unqlock feature menu from an earlier version">
+  <img src="docs/screenshots/SS/component-appearance-settings.png" width="280" alt="Earlier combined appearance page, now split into Component style and Canvas layout">
+  <img src="docs/screenshots/SS/general-builder-panel-settings.png" width="280" alt="Earlier General settings page, now split into Floating launcher and Builder panels with controls for Build Agent, Explore, Properties and Component tray">
+  <img src="docs/screenshots/SS/environment-settings.png" width="280" alt="Environment settings with production protection and example domain mappings">
 </p>
 
 ### Debug tools
@@ -53,11 +53,23 @@ These screenshots use the supplied captures at their original resolution; click 
 
 ## Popup menu
 
-The popup opens to a feature menu. Choose **Component appearance** for compact layout, canvas row layout, container emphasis, color, icon, label, accent, background and border controls, the color guide, and reset. Use **All features** or Escape to return to the menu. Existing preferences are preserved; navigation does not toggle the feature.
+The popup opens to a home menu with the everyday actions on top:
 
-**Compact components**, under Layout, fits more components in the sidebar and canvas using shorter rows, smaller icon tiles and inline type badges. Names and actions remain available, and narrow headers wrap their type badge when needed. It follows the sidebar/canvas switches, works independently of color effects, and defaults off. Reset appearance restores the normal layout.
+- **Environment strip:** the current page's environment and hostname, with **Open in …** links to the same path on the other environments in its group, and **Manage** to edit groups. Pages that are not web pages show *Open an Unqork page to see its environment*.
+- **Component styling** and **Compact components** switches, the same preferences as on the feature pages.
+- **Log page data**, which logs submission and cache data to the page's DevTools Console using the Console output style from Debug tools. When the page needs site access or is not supported, it opens Debug tools, which explains why and offers the access request.
 
-**Canvas row layout**, also under Layout, places each part of a canvas row on the left, in the middle or on the right: the icon, property ID, type badge, dependency count and actions menu. Choose Details right, All left or Details in middle, or pick a position per part for a custom layout. Middle parts sit halfway between the left and right groups; a container's collapse arrow always stays last, and narrow rows wrap. It works with or without Compact components and follows the canvas switch. Native, the default, leaves Unqork's layout untouched, and rows whose structure is not recognized keep it too. Only the visual order changes: keyboard focus follows the original order, and nothing in the module is modified. Reset appearance returns to Native.
+Below them, features are grouped by where they apply:
+
+- **Builder:** **Component style** (sidebar/canvas scope, icons, labels, frames and the color guide), **Canvas layout** (Compact components, canvas row layout and containers) and **Builder panels**.
+- **Tools:** **Debug tools**.
+- **Setup:** **Environments** (production guard, auto-discovery and domain groups) and **Floating launcher** (show, corner and environment label).
+
+Use **‹ Home** or Escape to return; focus goes back to the entry you came from. Component style has **Reset style** and Canvas layout has **Reset layout**; each resets only the settings on its own page. The reorganization kept every stored preference, so existing settings carry over. Navigation does not toggle any feature.
+
+**Compact components**, on the home menu and under Canvas layout, fits more components in the sidebar and canvas using shorter rows, smaller icon tiles and inline type badges. Names and actions remain available, and narrow headers wrap their type badge when needed. It follows the sidebar/canvas switches, works independently of color effects, and defaults off. Reset layout restores the normal layout.
+
+**Canvas row layout**, also under Canvas layout, places each part of a canvas row on the left, in the middle or on the right: the icon, property ID, type badge, dependency count and actions menu. Choose Details right, All left or Details in middle, or pick a position per part for a custom layout. Middle parts sit halfway between the left and right groups; a container's collapse arrow always stays last, and narrow rows wrap. It works with or without Compact components and follows the canvas switch. Native, the default, leaves Unqork's layout untouched, and rows whose structure is not recognized keep it too. Only the visual order changes: keyboard focus follows the original order, and nothing in the module is modified. Reset layout returns to Native.
 
 **Containers** makes panels, field groups, columns, grids and every other collapsible canvas component easier to tell apart. Containers are recognized by their collapsible structure rather than a type list, so new or custom collapsible types are included; collapsible areas outside the canvas, such as sidebar categories, are not affected. Each option is a separate toggle, off by default:
 
@@ -68,11 +80,11 @@ The popup opens to a feature menu. Choose **Component appearance** for compact l
 - **Pin headers while scrolling** keeps a container's header at the top of the canvas while you scroll through it; nested headers stack below their parent.
 - **Mark where containers end** adds a small "End of" line with the container's key at the bottom of its contents.
 
-Header effects still apply while a container is collapsed. The options follow the canvas switch and are cleared by Reset appearance.
+Header effects still apply while a container is collapsed. The options follow the canvas switch and are cleared by Reset layout.
 
 ## Appearance controls
 
-Appearance controls are grouped into master switches, layout, icons/labels, and component frames. **Enable component styling** controls the whole appearance feature; **Style sidebar components** and **Style canvas components** control all effects in their respective areas. They do not affect Debug tools. Individual controls include colored icons, tinted icon backgrounds, colored sidebar names, colored canvas type labels, distinct icon shapes, left accents, full backgrounds and borders. Distinct shapes require colored icons; icon backgrounds are independent. Existing settings retain their behavior: icon colors/backgrounds default on, and the new sidebar-name coloring defaults off. Turning a master off preserves the individual preferences.
+Component style groups scope, icons/labels and component frames. **Component styling** on the home menu controls the whole appearance feature, including Canvas layout; **Style sidebar components** and **Style canvas components** control all effects in their respective areas. They do not affect Debug tools. Individual controls include colored icons, tinted icon backgrounds, colored sidebar names, colored canvas type labels, distinct icon shapes, left accents, full backgrounds and borders. Distinct shapes require colored icons; icon backgrounds are independent. Existing settings retain their behavior: icon colors/backgrounds default on, and the new sidebar-name coloring defaults off. Turning a master off preserves the individual preferences.
 
 ## Debug tools
 
@@ -87,11 +99,11 @@ Open Unqlock from the browser toolbar on an Angular Unqork application page, the
 
 Confirm your intent before each edit, removal or execution. Edits affect in-memory submission data only; they do not save submissions or force an Angular digest. Component execution can have external effects, including saving data or calling integrations. Actions target the tab and URL captured when entering Debug tools, and refuse a changed URL. Only one top-level Angular form is supported, not embedded forms or the modern builder. No automatic actions run. Typed values are not persisted. Console output style lasts only for the current popup session.
 
-Debug tools use temporary active-tab access instead of blanket host permissions, including for custom-domain application pages. Opening Unqlock from the floating badge spends no toolbar click, so it cannot use active-tab access; Debug tools then offers **Enable debug tools on this site** and requests access for that one hostname when you choose it. Appearance, Environment and General settings need no grant from the badge. Grants persist until revoked in browser extension settings; you can decline and use the toolbar button instead. Real application compatibility and Firefox MAIN-world injection have not yet been verified against a live Unqork page.
+Debug tools use temporary active-tab access instead of blanket host permissions, including for custom-domain application pages. Opening Unqlock from the floating badge spends no toolbar click, so it cannot use active-tab access; Debug tools then offers **Enable debug tools on this site** and requests access for that one hostname when you choose it. Component style, Canvas layout, Builder panels, Environments and Floating launcher need no grant from the badge. Grants persist until revoked in browser extension settings; you can decline and use the toolbar button instead. Real application compatibility and Firefox MAIN-world injection have not yet been verified against a live Unqork page.
 
 ## Builder panels
 
-In **General settings → Builder panels**, configure **Build Agent**, **Explore**, **Properties**, and **Component tray** (including Outline) independently. **Use Unqork default** preserves native behavior. **Start collapsed** closes the panel once each time you enter a module or reload; you can open it afterward. Changing to Start collapsed takes effect on your next module visit. **Always collapsed** closes it immediately and prevents reopening, including keyboard and resize-handle expansion. Its expand icon remains visible with a hover/focus explanation pointing back to General settings.
+In **Builder panels**, configure **Build Agent**, **Explore**, **Properties**, and **Component tray** (including Outline) independently. **Use Unqork default** preserves native behavior. **Start collapsed** closes the panel once each time you enter a module or reload; you can open it afterward. Changing to Start collapsed takes effect on your next module visit. **Always collapsed** closes it immediately and prevents reopening, including keyboard and resize-handle expansion. Its expand icon remains visible with a hover/focus explanation pointing back to Builder panels.
 
 For each panel, choose native sizing, a **custom default width** in pixels, or **Remember my last width**. Custom widths apply on module entry and manual expansion; dragging can override the width during that visit. Remembered widths update after a deliberate drag or keyboard resize, not after collapse or a window resize. **Use current width** captures the open panel in the active module as a custom default. Widths are constrained by Unqork's native limits and available canvas space; the saved preference is retained on smaller screens. Sizes are inactive while Always collapsed is selected, but their preferences are preserved.
 
@@ -101,9 +113,9 @@ Disabled settings explain their dependencies on hover and keyboard focus, includ
 
 ## Environment badge, guard and switcher
 
-Choose **General settings** to turn **Show Floating window** on or off and place it at the top left, top right, bottom left or bottom right. The floating launcher shows the Unqlock icon by default. Click it to open the same menu as the toolbar button; browsers that cannot open the toolbar popup directly use a small extension window linked to the original tab.
+Choose **Floating launcher** to turn **Show floating launcher** on or off and choose its **Corner**: top left, top right, bottom left or bottom right. The floating launcher shows the Unqlock icon by default. Click it to open the same menu as the toolbar button; browsers that cannot open the toolbar popup directly use a small extension window linked to the original tab.
 
-Choose **Environment** to manage production protections and domain groups. **Show in floating badge** adds the environment label beside the icon; hiding the label does not disable production safeguards. Settings are stored in extension-local storage and persist across page reloads and browser restarts.
+**Show environment in badge**, also under Floating launcher, adds the environment label beside the icon; hiding the label does not disable production safeguards. Choose **Environments**, or **Manage** in the home strip, to manage production protections and domain groups. Settings are stored in extension-local storage and persist across page reloads and browser restarts.
 
 Visited HTTPS Unqork hosts are collected into organization groups automatically; only hostnames are saved, not page paths, queries or data. Existing open Unqork tabs are also checked when the extension is installed or updated. Creator, Express and standard hostname variants are grouped separately. Auto-discovery adds observed hosts only, never invents destinations and never overwrites your edits. You can disable discovery, rename groups, change environment labels, add/remove domains, or create/delete whole groups. Removed auto-discovered hosts may be collected again on a later visit if discovery is enabled.
 

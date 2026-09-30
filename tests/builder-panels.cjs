@@ -186,7 +186,7 @@ async function run(firefoxMode) {
     await set({builderPanels:all});
     await page.getByRole('button',{name:'Leave builder'}).click();
     if (popup) {
-      await popup.getByRole('button',{name:'General settings'}).click();
+      await popup.locator('#open-panels').click();
       await popup.locator('#panels-fields').waitFor({state:'visible'});
       await popup.locator('summary').filter({hasText:'Build Agent'}).click();
       assert(await popup.getByLabel('Build Agent size behavior',{exact:true}).isDisabled());

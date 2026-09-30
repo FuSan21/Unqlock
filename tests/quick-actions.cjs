@@ -68,6 +68,7 @@ const source = file => fs.readFileSync(path.join(__dirname, '../src', file), 'ut
         }
         if (message.type === 'debug.access') return { ok:true, granted:false };
         if (message.type === 'debug.permission') return { ok:true, granted:false };
+        if (message.type === 'environment.read') return { ok:true, config:{}, missingOrigins:[] };
         assert.equal(message.type, 'floating.target');
         return { ok:true, tab:{ id:7, url:'https://example.test/app' } };
       } },
@@ -81,6 +82,26 @@ const source = file => fs.readFileSync(path.join(__dirname, '../src', file), 'ut
     };
     page.eval(['environment.js', 'row-layout.js', 'disabled-controls.js', 'quick-actions.js', 'popup.js', 'quick-popup.js', 'environment-popup.js'].map(source).join('\n'));
     const settle = () => new Promise(resolve => setTimeout(resolve, 0));
+    await settle();
+    assert.match(page.document.getElementById('environment-summary').textContent, /UNKNOWN · example\.test/);
+    // Home logs directly with access, and otherwise hands over to Debug tools.
+    const homeLog = page.document.getElementById('home-log');
+    homeLog.click();
+    await settle(); await settle();
+    if (detached || embedded) {
+      assert.equal(page.document.getElementById('quick-page').hidden, false);
+      assert.equal(page.document.getElementById('home').hidden, true);
+      assert.equal(page.document.activeElement.id, 'quick-title');
+      assert.equal(calls, 0);
+      page.document.dispatchEvent(new page.KeyboardEvent('keydown', { key:'Escape', bubbles:true, cancelable:true }));
+      assert.equal(page.document.getElementById('home').hidden, false);
+      assert.equal(page.document.activeElement, homeLog, 'Returning focuses the control that opened the page');
+    } else {
+      assert.equal(calls, 1);
+      assert.equal(page.document.getElementById('home-log-status').textContent, 'Done');
+      assert.equal(page.document.getElementById('quick-page').hidden, true);
+      calls = 0;
+    }
     page.document.querySelector('[aria-controls="quick-page"]').click();
     await settle();
     if (detached || embedded) {
@@ -136,8 +157,9 @@ const source = file => fs.readFileSync(path.join(__dirname, '../src', file), 'ut
     page.document.dispatchEvent(new page.KeyboardEvent('keydown', { key:'Escape', bubbles:true }));
     assert.equal(page.document.getElementById('debug-confirmation').hidden, true);
     assert.equal(page.document.getElementById('quick-page').hidden, false);
-    page.document.getElementById('quick-back').click();
+    page.document.querySelector('#quick-page .page-back').click();
     assert.equal(page.document.getElementById('quick-page').hidden, true);
+    assert.equal(page.document.activeElement.id, 'open-quick');
     popup.window.close();
   }
   console.log('PASS: debug tools validation, mutation, execution failures, logging and both popup API branches.');

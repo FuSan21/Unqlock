@@ -12,7 +12,7 @@
       close.hidden = false;
       close.addEventListener('click', () => parent.postMessage({ type:'unqlock.close' }, new URL(result.tab.url).origin));
     }
-    for (const file of ['environment.js', 'panel-settings.js', 'row-layout.js', 'disabled-controls.js', 'quick-actions.js', 'popup.js', 'quick-popup.js', 'environment-popup.js', 'general-popup.js', 'panels-popup.js']) {
+    for (const file of ['environment.js', 'panel-settings.js', 'row-layout.js', 'disabled-controls.js', 'quick-actions.js', 'popup.js', 'quick-popup.js', 'environment-popup.js', 'launcher-popup.js', 'panels-popup.js']) {
       await new Promise((resolve, reject) => {
         const script = document.createElement('script');
         script.src = file;
@@ -26,7 +26,7 @@
         if (event.key === 'Escape' && !event.defaultPrevented) document.getElementById('floating-close').click();
       });
       if (new URL(location.href).searchParams.get('input') === 'keyboard') {
-        document.getElementById('open-appearance').focus();
+        document.getElementById('environment-manage').focus();
       } else {
         // Keep keyboard input inside the popup without selecting a menu item.
         const container = document.querySelector('main');

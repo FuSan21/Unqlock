@@ -200,7 +200,7 @@
       visit.entered = true;
       if (pref.visibility === 'always') {
         const current = find(id);
-        const reason = item.meta.label + ' is always collapsed. Change this in Unqlock → General settings → Builder panels.';
+        const reason = item.meta.label + ' is always collapsed. Change this in Unqlock → Builder panels.';
         for (const element of [current?.open, current?.handle]) {
           if (element) { wantedLocks.add(element); lock(element, reason); }
         }

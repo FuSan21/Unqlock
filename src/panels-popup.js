@@ -150,7 +150,7 @@
   window.addEventListener('focus', refreshWidths);
   form.addEventListener('submit', event => event.preventDefault());
   document.getElementById('panels-reset').addEventListener('click', () => save(null, null, true));
-  document.getElementById('open-general').addEventListener('click', async () => {
+  UnqlockPages.onOpen('panels-page', async () => {
     fields.disabled = true; status.textContent = 'Loading panel settings…'; target = null;
     try {
       const result = await extensionAPI.storage.local.get(['builderPanels', ...Object.keys(model.panels).map(model.rememberedKey)]);

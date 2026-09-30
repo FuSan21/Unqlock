@@ -2,7 +2,8 @@
 const quickPage = document.getElementById('quick-page');
 const quickStatus = document.getElementById('quick-status');
 const quickControls = document.getElementById('quick-controls');
-const quickEntry = document.getElementById('open-quick');
+const homeLog = document.getElementById('home-log');
+const homeLogStatus = document.getElementById('home-log-status');
 const confirmation = document.getElementById('debug-confirmation');
 const quickAccess = document.getElementById('quick-access');
 const debugTabs = [...quickPage.querySelectorAll('[role="tab"]')];
@@ -15,7 +16,7 @@ let quickEnvironmentSettings;
 function applyProductionPolicy() {
   const blocked = quickEnvironment?.kind === 'production' && quickEnvironmentSettings?.blockProduction;
   for (const id of ['panel-data', 'panel-execute']) {
-    for (const control of document.getElementById(id).querySelectorAll('input, textarea, button')) UnqlockDisabled.set(control, blocked ? 'Disabled by Environment → Disable Data and Execute in production.' : '');
+    for (const control of document.getElementById(id).querySelectorAll('input, textarea, button')) UnqlockDisabled.set(control, blocked ? 'Disabled by Environments → Disable Data and Execute in production.' : '');
   }
   quickStatus.textContent = (quickEnvironment?.label || 'UNKNOWN') + (blocked ? ' · Data and Execute tools are disabled in production.' : ' · For Angular Unqork application pages.');
 }
@@ -59,23 +60,24 @@ for (const tab of debugTabs) {
     debugTabs[next].focus();
   });
 }
-quickEntry.addEventListener('click', async () => {
-  menu.hidden = true;
-  quickPage.hidden = false;
-  document.getElementById('quick-title').focus();
+// Resolves the target tab, its environment and whether this popup may run scripts there.
+async function prepareDebugTarget() {
+  quickTarget = undefined;
+  const tab = await getTargetTab();
+  if (!tab?.id || !/^https?:\/\//.test(tab.url || '')) throw new Error('Unsupported tab');
+  quickTarget = { id:tab.id, url:tab.url };
+  quickEnvironmentSettings = UnqlockEnvironment.settings((await extensionAPI.storage.local.get('environment')).environment);
+  quickEnvironment = UnqlockEnvironment.detect(tab.url, quickEnvironmentSettings);
+  return hasPageAccess();
+}
+UnqlockPages.onOpen('quick-page', async () => {
   if (busy) return;
   cancelConfirmation();
   quickControls.disabled = true;
-  quickTarget = undefined;
   quickAccess.hidden = true;
   quickStatus.textContent = 'Checking active tab…';
   try {
-    const tab = await getTargetTab();
-    if (!tab?.id || !/^https?:\/\//.test(tab.url || '')) throw new Error('Unsupported tab');
-    quickTarget = { id:tab.id, url:tab.url };
-    quickEnvironmentSettings = UnqlockEnvironment.settings((await extensionAPI.storage.local.get('environment')).environment);
-    quickEnvironment = UnqlockEnvironment.detect(tab.url, quickEnvironmentSettings);
-    if (await hasPageAccess()) enableQuickControls();
+    if (await prepareDebugTarget()) enableQuickControls();
     else {
       quickAccess.hidden = false;
       quickAccess.title = pageOrigin();
@@ -85,19 +87,12 @@ quickEntry.addEventListener('click', async () => {
     quickStatus.textContent = 'Open Unqork, then open Unqlock from the browser toolbar.';
   }
 });
-function closeQuickActions() {
-  cancelConfirmation();
-  quickPage.hidden = true;
-  menu.hidden = false;
-  quickEntry.focus();
-}
-document.getElementById('quick-back').addEventListener('click', closeQuickActions);
-document.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && !quickPage.hidden) {
-    event.preventDefault();
-    if (!confirmation.hidden) cancelConfirmation(true);
-    else closeQuickActions();
+UnqlockPages.onLeave('quick-page', ({ escape }) => {
+  if (escape && !confirmation.hidden) {
+    cancelConfirmation(true);
+    return false;
   }
+  cancelConfirmation();
 });
 quickAccess.addEventListener('click', async () => {
   if (!quickTarget) return;
@@ -125,11 +120,11 @@ quickAccess.addEventListener('click', async () => {
 });
 quickControls.addEventListener('input', () => cancelConfirmation());
 document.getElementById('cancel-action').addEventListener('click', () => cancelConfirmation(true));
-async function executeAction(request, button) {
-  const feedback = button.closest('[role="tabpanel"]').querySelector('.debug-feedback');
+async function executeAction(request, button, feedback = button.closest('[role="tabpanel"]').querySelector('.debug-feedback')) {
   cancelConfirmation();
   busy = true;
   quickControls.disabled = true;
+  homeLog.disabled = true;
   feedback.dataset.state = 'pending';
   feedback.textContent = 'Running…';
   try {
@@ -158,7 +153,8 @@ async function executeAction(request, button) {
   } finally {
     busy = false;
     quickControls.disabled = false;
-    if (!quickPage.hidden) button.focus();
+    homeLog.disabled = false;
+    if (!button.closest('[hidden]')) button.focus();
   }
 }
 document.getElementById('confirm-action').addEventListener('click', () => {
@@ -215,4 +211,18 @@ window.addEventListener('message', async event => {
     if (await hasPageAccess()) enableQuickControls();
   } catch { quickStatus.textContent = 'Reopen Debug tools to check site access.'; }
 });
-if (new URL(location.href).searchParams.get('permission') === 'debug') quickEntry.click();
+// Home runs the log directly when it can, and otherwise hands over to Debug tools to explain or request access.
+homeLog.addEventListener('click', async () => {
+  if (busy) return;
+  delete homeLogStatus.dataset.state;
+  homeLogStatus.textContent = 'Checking active tab…';
+  let ready = false;
+  try { ready = await prepareDebugTarget(); } catch { /* Debug tools explains unsupported pages. */ }
+  if (!ready) {
+    homeLogStatus.textContent = '';
+    UnqlockPages.open('quick-page', homeLog);
+    return;
+  }
+  executeAction({ action:'log', confirmed:false, url:quickTarget.url, productionConfirmed:false, style:document.getElementById('log-style').value }, homeLog, homeLogStatus);
+});
+if (new URL(location.href).searchParams.get('permission') === 'debug') UnqlockPages.open('quick-page');

@@ -32,7 +32,7 @@ const assert = require('node:assert/strict');
     await launch();
     let popup = await context.newPage();
     await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-    const response = await popup.evaluate(() => chrome.runtime.sendMessage({ type:'environment.save', preferences:{badge:true}, group:{ id:'custom', name:'Custom fixture', domains:[{ hostname:'badge-fixture.test', environment:'production' }] } }));
+    const response = await popup.evaluate(() => chrome.runtime.sendMessage({ type:'environment.save', preferences:{badge:true}, group:{ id:'custom', name:'Custom fixture', domains:[{ hostname:'badge-fixture.test', environment:'production' }, { hostname:'fixture-qa.unqork.io', environment:'qa' }] } }));
     assert.equal(response.ok, true);
     assert.equal(response.missingOrigins.length, 0);
     let custom = await context.newPage();
@@ -41,18 +41,18 @@ const assert = require('node:assert/strict');
     assert.equal(await custom.locator('#unqlock-environment span').innerText(), '● PRODUCTION');
     await custom.reload();
     await custom.waitForSelector('#unqlock-environment');
-    await popup.getByRole('button', { name:'General settings' }).click();
+    await popup.locator('#open-launcher').click();
     for (const position of ['top-left', 'top-right', 'bottom-left', 'bottom-right']) {
-      await popup.getByLabel('Position', {exact:true}).selectOption(position);
+      await popup.getByLabel('Corner', {exact:true}).selectOption(position);
       await custom.waitForFunction(position => document.querySelector('#unqlock-environment').dataset.position === position, position);
       const box = await custom.locator('#unqlock-environment').boundingBox();
       const viewport = custom.viewportSize();
       assert.equal(Math.round(position.endsWith('left') ? box.x : viewport.width - box.x - box.width), 16);
       assert.equal(Math.round(position.startsWith('top') ? box.y : viewport.height - box.y - box.height), 16);
     }
-    await popup.getByLabel('Show Floating window', {exact:true}).uncheck();
+    await popup.getByLabel('Show floating launcher', {exact:true}).uncheck();
     await custom.waitForFunction(() => !document.querySelector('#unqlock-environment'));
-    await popup.getByLabel('Show Floating window', {exact:true}).check();
+    await popup.getByLabel('Show floating launcher', {exact:true}).check();
     await custom.waitForSelector('#unqlock-environment');
     // The menu stays in the original page, including after SPA navigation.
     await custom.evaluate(() => history.pushState({}, '', '/app?changed=1#/another'));
@@ -65,31 +65,47 @@ const assert = require('node:assert/strict');
     assert.equal(await menu.evaluate(() => document.activeElement.tagName), 'MAIN', 'Mouse opening focuses the container');
     assert.equal(await menu.evaluate(() => getComputedStyle(document.activeElement).outlineStyle), 'none');
     await custom.keyboard.press('Tab');
-    assert.equal(await menu.evaluate(() => document.activeElement.id), 'open-appearance');
-    assert.equal(await menu.locator('#open-appearance').evaluate(element => element.matches(':focus-visible')), true);
+    assert.equal(await menu.evaluate(() => document.activeElement.id), 'environment-manage');
+    assert.equal(await menu.locator('#environment-manage').evaluate(element => element.matches(':focus-visible')), true);
     await custom.keyboard.press('Escape');
     await custom.waitForFunction(() => !document.querySelector('#unqlock-environment').shadowRoot.querySelector('iframe'));
     await custom.keyboard.press('Enter');
     const keyboardFrame = await custom.locator('#unqlock-environment iframe').elementHandle();
     menu = await keyboardFrame.contentFrame();
     await menu.waitForSelector('body.ready');
-    assert.equal(await menu.evaluate(() => document.activeElement.id), 'open-appearance', 'Keyboard opening focuses the first item');
-    assert.equal(await menu.locator('#open-appearance').evaluate(element => element.matches(':focus-visible')), true);
+    assert.equal(await menu.evaluate(() => document.activeElement.id), 'environment-manage', 'Keyboard opening focuses the first home control');
+    assert.equal(await menu.locator('#environment-manage').evaluate(element => element.matches(':focus-visible')), true);
     assert.equal(context.pages().length, pageCount, 'No new tab or window');
     const badgeBox = await custom.locator('#unqlock-environment').boundingBox();
     const menuBox = await custom.locator('#unqlock-environment iframe').boundingBox();
     assert(menuBox.y + menuBox.height <= badgeBox.y, 'Bottom badge opens above');
-    await menu.getByRole('button', {name:'Environment', exact:false}).click();
-    await menu.waitForFunction(() => document.getElementById('environment-current').textContent.includes('badge-fixture.test'));
+    // Home shows the current environment and switch links for the rest of its group.
+    await menu.waitForFunction(() => document.getElementById('environment-summary').textContent === 'PRODUCTION · badge-fixture.test');
+    const switchLink = menu.getByRole('link', {name:'Open in QA ↗', exact:true});
+    assert.equal(await switchLink.getAttribute('href'), 'https://fixture-qa.unqork.io/app?changed=1#/another');
     await custom.screenshot({ path:path.resolve(__dirname, '../artifacts/floating-menu.png') });
+    for (const scheme of ['light', 'dark']) {
+      await custom.emulateMedia({colorScheme:scheme});
+      await (await menu.frameElement()).screenshot({ path:path.resolve(__dirname, `../artifacts/floating-home-${scheme}.png`) });
+      for (const id of ['style', 'layout', 'panels', 'quick', 'environment', 'launcher']) {
+        await menu.locator('#open-' + id).click();
+        await (await menu.frameElement()).screenshot({ path:path.resolve(__dirname, `../artifacts/floating-${id}-${scheme}.png`) });
+        await menu.locator('#' + id + '-page .page-back').click();
+        assert.equal(await menu.evaluate(id => document.activeElement.id, id), 'open-' + id);
+      }
+    }
+    await custom.emulateMedia({colorScheme:'light'});
+    await menu.getByRole('button', {name:'Manage', exact:true}).click();
+    await menu.waitForFunction(() => document.getElementById('environment-current').textContent.includes('badge-fixture.test'));
     await custom.screenshot({ path:path.resolve(__dirname, '../artifacts/floating-launcher.png') });
     await custom.evaluate(() => {
       document.body.insertAdjacentHTML('beforeend', '<div class="unqorkio-form"></div>');
       window.fixtureSubmission = { data:{} };
       window.angular = { element:() => ({ scope:() => ({ submission:window.fixtureSubmission }) }) };
     });
-    await menu.getByRole('button', {name:'All features'}).click();
-    await menu.getByRole('button', {name:'Debug tools'}).click();
+    await menu.locator('#environment-page .page-back').click();
+    assert.equal(await menu.evaluate(() => document.activeElement.id), 'environment-manage');
+    await menu.locator('#open-quick').click();
     await menu.waitForFunction(() => !document.getElementById('quick-controls').disabled);
     assert.equal(await menu.locator('#quick-access').isHidden(), true, 'Granted site needs no request');
     await menu.getByRole('tab', {name:'Data',exact:true}).click();
@@ -100,7 +116,7 @@ const assert = require('node:assert/strict');
     await custom.waitForFunction(() => window.fixtureSubmission.data.fixture === 'original page');
     await menu.getByRole('button', {name:'Close Unqlock menu'}).click();
     await custom.waitForFunction(() => !document.querySelector('#unqlock-environment').shadowRoot.querySelector('iframe'));
-    await popup.getByLabel('Position', {exact:true}).selectOption('top-right');
+    await popup.getByLabel('Corner', {exact:true}).selectOption('top-right');
     await custom.waitForFunction(() => document.querySelector('#unqlock-environment').dataset.position === 'top-right');
     await custom.getByRole('button', {name:'Open Unqlock menu'}).click();
     const topBadge = await custom.locator('#unqlock-environment').boundingBox();
@@ -112,10 +128,10 @@ const assert = require('node:assert/strict');
     const reopened = await (await custom.locator('#unqlock-environment iframe').elementHandle()).contentFrame();
     await reopened.waitForSelector('body.ready');
     // Escape detaches the frame, and a real keypress into a detaching frame can hang, so dispatch it after evaluate returns.
-    await reopened.getByRole('button', {name:'Component appearance'}).focus();
+    await reopened.locator('#open-style').focus();
     await reopened.evaluate(() => setTimeout(() => document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key:'Escape', bubbles:true, cancelable:true }))));
     await custom.waitForFunction(() => !document.querySelector('#unqlock-environment').shadowRoot.querySelector('iframe'));
-    await popup.getByLabel('Position', {exact:true}).selectOption('bottom-right');
+    await popup.getByLabel('Corner', {exact:true}).selectOption('bottom-right');
 
     const observed = await context.newPage();
     await observed.goto('https://observed-stagingx.unqork.io/app');
@@ -131,10 +147,13 @@ const assert = require('node:assert/strict');
     await observed.getByRole('button', {name:'Open Unqlock menu'}).click();
     const observedMenu = await (await observed.locator('#unqlock-environment iframe').elementHandle()).contentFrame();
     await observedMenu.waitForSelector('body.ready');
-    await observedMenu.getByRole('button', {name:'Environment', exact:false}).click();
+    await observedMenu.waitForFunction(() => document.getElementById('environment-summary').textContent === 'UAT · observed-uatx.unqork.io');
+    await observedMenu.locator('#open-environment').click();
     await observedMenu.waitForFunction(() => document.getElementById('environment-current').textContent.includes('observed-uatx.unqork.io'));
-    await observedMenu.getByRole('button', {name:'All features'}).click();
-    await observedMenu.getByRole('button', {name:'Debug tools'}).click();
+    await observedMenu.locator('#environment-page .page-back').click();
+    // Without site access, logging from home hands over to Debug tools and its access request.
+    await observedMenu.getByRole('button', {name:'Log page data', exact:true}).click();
+    await observedMenu.waitForFunction(() => !document.getElementById('quick-page').hidden);
     await observedMenu.waitForFunction(() => !document.getElementById('quick-access').hidden);
     assert.equal(await observedMenu.locator('#quick-access').getAttribute('title'), 'https://observed-uatx.unqork.io/*');
     assert.equal(await observedMenu.evaluate(() => document.getElementById('quick-controls').disabled), true);

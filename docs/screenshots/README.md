@@ -16,7 +16,7 @@ Upload these images only with the build whose features they depict. Repository a
 
 ## README originals
 
-The newer captures are named for their visible contents. Their image pixels are unchanged.
+The newer captures are named for their visible contents. Their image pixels are unchanged. They predate the reorganized popup: the feature menu is now a home menu with the environment strip, quick switches and Log page data; Component appearance is split into Component style and Canvas layout; General settings is split into Floating launcher and Builder panels; and the environment-label toggle moved from Environment to Floating launcher. Recapture them before the next listing update.
 
 - [Feature menu](SS/feature-menu.png)
 - [Component appearance settings](SS/component-appearance-settings.png)
