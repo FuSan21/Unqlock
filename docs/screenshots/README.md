@@ -1,6 +1,6 @@
 # Screenshots
 
-Five 1280 × 800 RGB PNGs for the Chrome Web Store and Firefox listing, in this order:
+Five 1280 × 800 RGB PNGs for the Chrome Web Store and Firefox listing, in this order. The settings collages show the popup before it was reorganized into a home menu and focused pages; the captions describe what the images show.
 
 1. [Compact builder](listing-01-compact-builder.png) — real sidebar and canvas, category colors, inline type badges and nested groups.
 2. [Component appearance](listing-02-component-appearance.png) — compact layout, scope switches, icons, labels and frame controls.

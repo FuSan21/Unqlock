@@ -42,6 +42,7 @@ DEBUG TOOLS
 
 YOUR WORKSPACE
 • Open the menu from the browser toolbar or floating Unqlock launcher.
+• The home menu shows the current environment with switch links, quick styling and compact switches, and one-click page data logging.
 • Choose any corner for the launcher, show its environment label, or hide it.
 • Preferences save locally and persist across browser restarts.
 
@@ -63,6 +64,6 @@ Use the five images and captions in [screenshots/README.md](screenshots/README.m
 
 ## Update notes
 
-Adds canvas row layout, which places the icon, property ID, type badge, dependency count and actions menu of each row on the left, in the middle or on the right. Adds container emphasis toggles for panels, field groups, columns, grids and other collapsible components: extra spacing, tinted headers, nesting guide lines, depth shading, pinned headers while scrolling and end markers.
+Adds canvas row layout, which places the icon, property ID, type badge, dependency count and actions menu of each row on the left, in the middle or on the right. Adds container emphasis toggles for panels, field groups, columns, grids and other collapsible components: extra spacing, tinted headers, nesting guide lines, depth shading, pinned headers while scrolling and end markers. Reorganizes the menu: the home menu shows the current environment, styling and compact switches, and Log page data, and each feature has its own page. Existing preferences carry over.
 
 Do not submit an older package alongside this copy: it describes the current repository build. Updating these files does not publish a store release.
