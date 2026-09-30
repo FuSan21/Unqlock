@@ -368,7 +368,7 @@
     "family": "charts"
   }
 ];
-  const defaults = { enabled: true, tray: true, canvas: true, icons: true, tiles: true, trayLabels: false, accents: false, backgrounds: false, borders: false, labels: true, symbols: true, compact: false };
+  const defaults = { enabled: true, tray: true, canvas: true, icons: true, tiles: true, trayLabels: false, accents: false, backgrounds: false, borders: false, labels: true, symbols: true, compact: false, containerSpacing: false, containerHeaders: false, containerGuides: false, containerDepth: false, containerSticky: false, containerEnd: false };
   const normalize = value => value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
   const byType = new Map(components.map(component => [component.type, component]));
   const byLabel = new Map(components.map(component => [normalize(component.label), component]));
@@ -377,6 +377,8 @@
   let layout = UnqlockRowLayout.settings();
   let decorated = new Map();
   let scheduled = false;
+  const containers = ["containerSpacing", "containerHeaders", "containerGuides", "containerDepth", "containerSticky", "containerEnd"];
+  const contentSelector = '[data-slot="collapsible-content"]';
 
   function reconcile(next) {
     for (const [element, attributes] of decorated) {
@@ -398,7 +400,7 @@
     const mark = (element, attributes) => {
       if (element) next.set(element, { ...next.get(element), ...attributes });
     };
-    const hasEffects = settings.compact || settings.icons || settings.tiles || settings.trayLabels || settings.labels || settings.accents || settings.backgrounds || settings.borders || layout.enabled;
+    const hasEffects = settings.compact || settings.icons || settings.tiles || settings.trayLabels || settings.labels || settings.accents || settings.backgrounds || settings.borders || layout.enabled || containers.some(key => settings[key]);
     if (settings.enabled && hasEffects && location.pathname.startsWith("/ide/builder/")) {
       for (const card of document.querySelectorAll(selector)) {
         const isTray = card.hasAttribute("data-tray-type");
@@ -450,6 +452,28 @@
           }
         }
         const component = isTray ? byType.get(card.getAttribute("data-tray-type")) : byLabel.get(normalize(label?.textContent || ""));
+        // Every collapsible canvas component shares this structure, whatever its type.
+        const container = !isTray && card.matches('[data-slot="collapsible-trigger"]') && card.parentElement?.matches('[aria-roledescription="draggable"]') ? card.parentElement : null;
+        if (container && containers.some(key => settings[key])) {
+          const content = card.nextElementSibling?.matches(contentSelector) ? card.nextElementSibling : null;
+          // Collapsed containers may unmount their content; header effects still apply.
+          const body = content?.firstElementChild;
+          const wrapper = container.parentElement?.matches('[data-slot="collapsible"]') ? container.parentElement.parentElement : null;
+          let depth = 0;
+          for (let node = container.parentElement?.closest(contentSelector); node; node = node.parentElement?.closest(contentSelector)) {
+            if (node.previousElementSibling?.matches('[data-slot="collapsible-trigger"][data-component-key]')) depth++;
+          }
+          mark(container, { "data-uq-container": "", ...(component ? { "data-uq-family": component.family } : {}) });
+          if (settings.containerSpacing) {
+            mark(wrapper, { "data-uq-container-spacing": "" });
+            mark(body, { "data-uq-container-body-spacing": "" });
+          }
+          if (settings.containerHeaders) mark(card, { "data-uq-container-header": "" });
+          if (settings.containerSticky) mark(card, { "data-uq-container-sticky": "", "data-uq-depth": String(Math.min(depth, 8)) });
+          if (settings.containerGuides) mark(body, { "data-uq-container-guide": "" });
+          if (settings.containerDepth) mark(body, { "data-uq-container-shade": String(Math.min(depth, 3)) });
+          if (settings.containerEnd) mark(body, { "data-uq-container-end": card.getAttribute("data-component-key") });
+        }
         if (!component) continue;
         mark(card, { "data-uq-family": component.family, "data-uq-surface": isTray ? "tray" : "canvas" });
         if (settings.icons) mark(icon, { "data-uq-icon": "", ...(settings.symbols ? { "data-uq-symbol": component.type } : {}) });

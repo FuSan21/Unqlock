@@ -80,6 +80,21 @@ const assert = require('node:assert/strict');
     assert.equal(await page.getByRole('combobox', {name:'Canvas row layout'}).inputValue(), 'native');
     assert.equal(await builder.locator('[data-uq-row-layout]').count(), 0);
     await builder.evaluate(() => document.querySelector('[data-component-key="row"]').remove());
+    const guides = page.locator('input[name="containerGuides"]');
+    assert.equal(await guides.isChecked(), false);
+    await guides.check();
+    await page.waitForFunction(() => document.getElementById('status').textContent === 'Saved');
+    await page.reload();
+    await page.waitForFunction(() => document.getElementById('status').textContent === 'Ready');
+    await page.getByRole('button', {name:'Component appearance'}).click();
+    assert.equal(await guides.isChecked(), true);
+    await page.getByLabel('Style canvas components').uncheck();
+    await page.waitForSelector('.disabled-explanation.has-reason:has(input[name="containerGuides"])');
+    assert.equal(await guides.isDisabled(), true);
+    await page.getByRole('button', {name:'Reset appearance'}).click();
+    await page.waitForFunction(() => document.getElementById('status').textContent === 'Saved');
+    assert.equal(await guides.isChecked(), false);
+    assert.equal(await guides.isDisabled(), false);
     for (const name of ['symbols', 'icons', 'tiles', 'trayLabels', 'labels', 'accents', 'backgrounds', 'borders']) {
       await page.locator(`input[name="${name}"]`).uncheck();
     }

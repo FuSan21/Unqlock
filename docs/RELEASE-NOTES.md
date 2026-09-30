@@ -1,6 +1,7 @@
 ## What's new
 
 - **Canvas row layout:** place the icon, property ID, type badge, dependency count and actions menu of each canvas row on the left, in the middle or on the right. Choose a preset such as All left, or position each part yourself, under Component appearance → Layout.
+- **Container emphasis:** separate toggles for extra spacing, tinted headers, nesting guide lines, depth shading, pinned headers while scrolling and end markers. They apply to every collapsible canvas component, including panels, field groups, columns and grids.
 - **Compact components:** shorter sidebar and canvas rows with smaller icon tiles and inline type badges. Enable it under Component appearance → Layout.
 - **Four configurable panels:** control Build Agent, Explore, Properties and Component tray independently. Use native behavior, start collapsed on module entry, or keep a panel always collapsed.
 - **Panel widths:** use a custom default, capture the current width, or remember deliberate mouse, touch and keyboard resizing. Native limits and available space still apply.

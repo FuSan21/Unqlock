@@ -59,6 +59,17 @@ The popup opens to a feature menu. Choose **Component appearance** for compact l
 
 **Canvas row layout**, also under Layout, places each part of a canvas row on the left, in the middle or on the right: the icon, property ID, type badge, dependency count and actions menu. Choose Details right, All left or Details in middle, or pick a position per part for a custom layout. Middle parts sit halfway between the left and right groups; a container's collapse arrow always stays last, and narrow rows wrap. It works with or without Compact components and follows the canvas switch. Native, the default, leaves Unqork's layout untouched, and rows whose structure is not recognized keep it too. Only the visual order changes: keyboard focus follows the original order, and nothing in the module is modified. Reset appearance returns to Native.
 
+**Containers** makes panels, field groups, columns, grids and every other collapsible canvas component easier to tell apart. Containers are recognized by their collapsible structure rather than a type list, so new or custom collapsible types are included; collapsible areas outside the canvas, such as sidebar categories, are not affected. Each option is a separate toggle, off by default:
+
+- **More space around containers** adds room between containers and a deeper indent for their contents.
+- **Tinted container headers** gives each container header a category-colored band with a divider, so it reads differently from a regular row.
+- **Nesting guide lines** draws a category-colored line down the left of each container's contents.
+- **Shade by nesting depth** shades container contents a little more at each nesting level.
+- **Pin headers while scrolling** keeps a container's header at the top of the canvas while you scroll through it; nested headers stack below their parent.
+- **Mark where containers end** adds a small "End of" line with the container's key at the bottom of its contents.
+
+Header effects still apply while a container is collapsed. The options follow the canvas switch and are cleared by Reset appearance.
+
 ## Appearance controls
 
 Appearance controls are grouped into master switches, layout, icons/labels, and component frames. **Enable component styling** controls the whole appearance feature; **Style sidebar components** and **Style canvas components** control all effects in their respective areas. They do not affect Debug tools. Individual controls include colored icons, tinted icon backgrounds, colored sidebar names, colored canvas type labels, distinct icon shapes, left accents, full backgrounds and borders. Distinct shapes require colored icons; icon backgrounds are independent. Existing settings retain their behavior: icon colors/backgrounds default on, and the new sidebar-name coloring defaults off. Turning a master off preserves the individual preferences.

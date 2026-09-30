@@ -1,6 +1,6 @@
 "use strict";
   const extensionAPI = typeof browser !== "undefined" ? browser : chrome;
-const defaults = { enabled: true, tray: true, canvas: true, icons: true, tiles: true, trayLabels: false, accents: false, backgrounds: false, borders: false, labels: true, symbols: true, compact: false };
+const defaults = { enabled: true, tray: true, canvas: true, icons: true, tiles: true, trayLabels: false, accents: false, backgrounds: false, borders: false, labels: true, symbols: true, compact: false, containerSpacing: false, containerHeaders: false, containerGuides: false, containerDepth: false, containerSticky: false, containerEnd: false };
 const form = document.getElementById("appearance");
 const status = document.getElementById("status");
 const controls = document.getElementById("controls");
@@ -67,6 +67,7 @@ function show(value) {
     if (!reason && !['enabled','tray','canvas'].includes(key) && !form.elements.tray.checked && !form.elements.canvas.checked) reason = 'Turn on sidebar or canvas styling to use this setting.';
     if (!reason && key === 'trayLabels' && !form.elements.tray.checked) reason = 'Turn on Style sidebar components to color sidebar names.';
     if (!reason && key === 'labels' && !form.elements.canvas.checked) reason = 'Turn on Style canvas components to color canvas labels.';
+    if (!reason && key.startsWith('container') && !form.elements.canvas.checked) reason = 'Turn on Style canvas components to use container settings.';
     if (!reason && key === 'symbols' && !form.elements.icons.checked) reason = 'Turn on Colored icons to use distinct icon shapes.';
     UnqlockDisabled.set(form.elements[key], reason);
   }

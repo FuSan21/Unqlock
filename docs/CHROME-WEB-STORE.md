@@ -16,6 +16,7 @@ COMPONENT APPEARANCE
 • Recognize 52 supported component types with category colors and distinct icons.
 • Turn on Compact components for shorter rows, smaller icon tiles and inline type badges.
 • Arrange canvas rows: place the icon, property ID, type badge, dependency count and actions menu on the left, in the middle or on the right.
+• Make panels, field groups and other containers stand out with spacing, tinted headers, guide lines, depth shading, pinned headers and end markers.
 • Customize icon colors, icon backgrounds, sidebar names and canvas type labels.
 • Enable subtle accents, full backgrounds or colored borders.
 • Control sidebar and canvas styling independently, following the builder’s light or dark appearance.
