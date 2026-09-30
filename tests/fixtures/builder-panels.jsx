@@ -6,13 +6,15 @@ const names = {
   agent:['Collapse left','Expand left'], explore:['Collapse right','Expand right'],
   tray:['Close component tray','Expand component tray panel'], properties:['Collapse properties panel','Expand properties panel']
 };
-function useSide(id, outer = false) {
+// Like the live Build Agent, a keepMounted panel hides its content, including its own toggle, while collapsed.
+function useSide(id, outer = false, keepMounted = false) {
   const ref = useRef(null);
   const [closed, setClosed] = useState(false);
   const toggle = <button aria-label={names[id][closed ? 1 : 0]} onClick={() => closed ? ref.current.expand() : ref.current.collapse()}>{id}</button>;
   const panel = <Panel data-slot="resizable-panel" id={id} panelRef={ref} collapsible collapsedSize={outer ? 32 : 0}
     defaultSize={outer ? '20%' : 250} minSize={outer ? 160 : 120} maxSize={outer ? '35%' : 600}
     onResize={size => setClosed(size.inPixels < 60)}>
+    {closed && keepMounted && <div style={{display:'none'}}><button aria-label={names[id][0]}>{id}</button><p>{id} content</p></div>}
     {!closed || outer ? toggle : null}
     {!closed && <p>{id} content</p>}
   </Panel>;
@@ -20,7 +22,7 @@ function useSide(id, outer = false) {
 }
 const handle = id => <Separator id={'handle-' + id} data-slot="resizable-handle" style={{width:2,background:'#64748b'}} />;
 function App() {
-  const agent = useSide('agent', true), explore = useSide('explore', true), properties = useSide('properties'), tray = useSide('tray');
+  const agent = useSide('agent', true, true), explore = useSide('explore', true), properties = useSide('properties'), tray = useSide('tray', false, true);
   const [propertiesMounted, setPropertiesMounted] = useState(!location.search.includes('late-properties'));
   const [revision, setRevision] = useState(0);
   return <>

@@ -29,8 +29,10 @@
   const moduleRoute = () => location.pathname.match(/^\/ide\/builder\/workspaces\/[^/]+\/modules\/[^/]+/)?.[0] || '';
   function find(id) {
     const meta = model.panels[id];
-    const closeMatches = document.querySelectorAll('button[aria-label="' + meta.close + '"]');
-    const openMatches = document.querySelectorAll('button[aria-label="' + meta.open + '"]');
+    // A collapsed panel may keep its content mounted but hidden, including its own toggle; only rendered toggles count.
+    const rendered = element => element.checkVisibility({ visibilityProperty:true });
+    const closeMatches = [...document.querySelectorAll('button[aria-label="' + meta.close + '"]')].filter(rendered);
+    const openMatches = [...document.querySelectorAll('button[aria-label="' + meta.open + '"]')].filter(rendered);
     // An ambiguous match must never close or lock an unrelated panel.
     if (closeMatches.length + openMatches.length !== 1) return null;
     const close = closeMatches[0];
