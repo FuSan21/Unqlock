@@ -46,7 +46,7 @@ YOUR WORKSPACE
 • Preferences save locally and persist across browser restarts.
 
 COMPATIBILITY
-Appearance and panel controls support the modern Unqork Config builder on HTTPS Unqork subdomains. Compact styling also applies to custom components with a compatible header. Legacy canvas, Logic view and UI preview are outside the supported appearance scope. Debug tools require a compatible Angular-based Unqork application page. Native panel limits and available space constrain widths.
+Appearance and panel controls support the modern Unqork Config builder on HTTPS Unqork subdomains. Compact styling and row layout also apply to custom components with a compatible header, and container options apply to any collapsible canvas component. Legacy canvas, Logic view and UI preview are outside the supported appearance scope. Debug tools require a compatible Angular-based Unqork application page. Native panel limits and available space constrain widths.
 
 PRIVACY AND SAFETY
 Preferences, panel widths and saved hostname groups remain in browser-local storage. Automatic discovery records hostnames only, not paths, queries or module content. Unqlock does not collect analytics or transmit page data to developer-operated servers.
@@ -63,6 +63,6 @@ Use the five images and captions in [screenshots/README.md](screenshots/README.m
 
 ## Update notes
 
-Adds compact component rows, visibility and width preferences for all four builder panels, and expanded environment and floating-menu controls. Panel improvements cover resize detection, remembered widths, locked expansion, queued settings saves, focus retention, refreshed width capture and explanatory tooltips.
+Adds canvas row layout, which places the icon, property ID, type badge, dependency count and actions menu of each row on the left, in the middle or on the right. Adds container emphasis toggles for panels, field groups, columns, grids and other collapsible components: extra spacing, tinted headers, nesting guide lines, depth shading, pinned headers while scrolling and end markers.
 
 Do not submit an older package alongside this copy: it describes the current repository build. Updating these files does not publish a store release.

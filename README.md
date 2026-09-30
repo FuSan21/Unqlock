@@ -4,7 +4,7 @@ Unqlock combines Unqork + Unlock: make builder components easier to recognize.
 
 <img src="docs/assets/extension-icon.png" width="80" height="80" alt="Unqlock icon">
 
-One source tree, two Manifest V3 builds. Includes styling for 52 component types, compact rows, visibility and width controls for four builder panels, environment tools, a floating menu and application debugging. The current version is recorded in package.json.
+One source tree, two Manifest V3 builds. Includes styling for 52 component types, compact rows, configurable canvas row layout, container emphasis for collapsible components, visibility and width controls for four builder panels, environment tools, a floating menu and application debugging. The current version is recorded in package.json.
 
 ## Installation
 
@@ -53,7 +53,7 @@ These screenshots use the supplied captures at their original resolution; click 
 
 ## Popup menu
 
-The popup opens to a feature menu. Choose **Component appearance** for compact layout, color, icon, label, accent, background and border controls, the color guide, and reset. Use **All features** or Escape to return to the menu. Existing preferences are preserved; navigation does not toggle the feature.
+The popup opens to a feature menu. Choose **Component appearance** for compact layout, canvas row layout, container emphasis, color, icon, label, accent, background and border controls, the color guide, and reset. Use **All features** or Escape to return to the menu. Existing preferences are preserved; navigation does not toggle the feature.
 
 **Compact components**, under Layout, fits more components in the sidebar and canvas using shorter rows, smaller icon tiles and inline type badges. Names and actions remain available, and narrow headers wrap their type badge when needed. It follows the sidebar/canvas switches, works independently of color effects, and defaults off. Reset appearance restores the normal layout.
 
@@ -117,7 +117,7 @@ Environment edits save automatically when valid; invalid or incomplete entries l
 
 ## Scope and privacy
 
-Targets the modern Unqork Config builder across HTTPS *.unqork.io subdomains. The script is registered on /ide/* pages so navigation into /ide/builder/ works. Appearance styling does not run on unrelated domains or application pages. Unknown component types keep their native colors and icons; compact layout can apply when their header structure is compatible. Legacy canvas, Logic view and UI preview are not supported or verified. Appearance changes do not modify module definitions or submit/save anything.
+Targets the modern Unqork Config builder across HTTPS *.unqork.io subdomains. The script is registered on /ide/* pages so navigation into /ide/builder/ works. Appearance styling does not run on unrelated domains or application pages. Unknown component types keep their native colors and icons; compact layout and canvas row layout can apply when their header structure is compatible, and container options apply to any collapsible canvas component. Legacy canvas, Logic view and UI preview are not supported or verified. Appearance changes do not modify module definitions or submit/save anything.
 
 The full privacy notice is in [docs/PRIVACY.md](docs/PRIVACY.md). Permissions are storage (appearance, floating-menu, environment and builder-panel preferences), activeTab (user-invoked tools), scripting (debug tools and automatic badge registration), and optional site access (saved custom domains only). Automatic badge access covers HTTPS *.unqork.io pages. Unqlock makes no telemetry transmissions; environment links navigate to the selected hostname with the preserved URL; executed application components may do so. Submission/cache data is logged in the page, not returned to extension storage. Firefox explicitly declares no data collection. Full borders replace native border colors while enabled; focus outlines are retained. Disabling or resetting removes decorations. The app's root dark class controls the page palette; the popup follows system appearance.
 

@@ -13,7 +13,7 @@
     "license": "MIT",
     "approval_notes": "Unqlock is plain, unminified JavaScript, CSS and HTML with no bundler, minifier or runtime dependency. To reproduce this package: install Node.js 22, then run npm ci followed by npm run build. dist/firefox then contains exactly the files in this submission, and artifacts/unqlock-firefox.zip is the same package. The source archive includes the build scripts, tests and maintainer documentation in .claude/development.md.",
     "release_notes": {
-      "en-US": "Adds Compact components, visibility and width preferences for Build Agent, Explore, Properties and Component tray, plus environment and floating-menu controls. Improves resize detection, remembered widths, locked expansion, queued settings saves, focus retention and disabled-control explanations."
+      "en-US": "Adds canvas row layout: place the icon, property ID, type badge, dependency count and actions menu of each row on the left, in the middle or on the right. Adds container emphasis toggles for panels, field groups, columns, grids and other collapsible components: extra spacing, tinted headers, nesting guide lines, depth shading, pinned headers and end markers."
     }
   }
 }
