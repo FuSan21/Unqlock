@@ -43,6 +43,7 @@
         "https://*.unqork.io/ide/*"
       ],
       "js": [
+        "row-layout.js",
         "content.js",
         "panel-settings.js",
         "builder-panels.js"

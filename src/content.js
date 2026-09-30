@@ -374,6 +374,7 @@
   const byLabel = new Map(components.map(component => [normalize(component.label), component]));
   const selector = "[data-tray-type], [data-component-key]";
   let settings = { ...defaults };
+  let layout = UnqlockRowLayout.settings();
   let decorated = new Map();
   let scheduled = false;
 
@@ -397,7 +398,7 @@
     const mark = (element, attributes) => {
       if (element) next.set(element, { ...next.get(element), ...attributes });
     };
-    const hasEffects = settings.compact || settings.icons || settings.tiles || settings.trayLabels || settings.labels || settings.accents || settings.backgrounds || settings.borders;
+    const hasEffects = settings.compact || settings.icons || settings.tiles || settings.trayLabels || settings.labels || settings.accents || settings.backgrounds || settings.borders || layout.enabled;
     if (settings.enabled && hasEffects && location.pathname.startsWith("/ide/builder/")) {
       for (const card of document.querySelectorAll(selector)) {
         const isTray = card.hasAttribute("data-tray-type");
@@ -423,6 +424,28 @@
               mark(identity, { "data-uq-compact-identity": "" });
               mark(identity.firstElementChild, { "data-uq-compact-name": "" });
               mark(label, { "data-uq-compact-type": "" });
+            }
+          }
+        }
+        if (!isTray && layout.enabled) {
+          const tile = icon.parentElement;
+          const header = tile?.parentElement;
+          const identity = label?.parentElement;
+          const trailing = header && [...header.children].find(child => child !== tile && child !== identity && child.querySelector(':scope > button[data-slot="dropdown-menu-trigger"]'));
+          // Reorder only a fully recognized header; anything else keeps Unqork's layout.
+          if (trailing && identity && owned(header) && header.children.length === 3 && identity.parentElement === header && identity.children.length === 2 && identity.lastElementChild === label) {
+            const place = (element, section) => mark(element, { "data-uq-section": section, "data-uq-slot": layout[section] });
+            mark(header, { "data-uq-row-layout": "" });
+            mark(identity, { "data-uq-row-contents": "" });
+            mark(trailing, { "data-uq-row-contents": "" });
+            place(tile, "icon");
+            place(identity.firstElementChild, "name");
+            place(label, "type");
+            for (const child of trailing.children) {
+              if (child.matches('button[data-slot="dropdown-menu-trigger"]')) place(child, "actions");
+              else if (child.matches('svg[class*="chevron"]')) mark(child, { "data-uq-section": "chevron" });
+              // The dependency count and the unsaved-changes dot travel together.
+              else place(child, "chip");
             }
           }
         }
@@ -464,8 +487,15 @@
   const observer = new MutationObserver(schedule);
   observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["data-tray-type", "data-component-key", "class"] });
   window.addEventListener("popstate", schedule);
+  function applyLayout(value) {
+    layout = UnqlockRowLayout.settings(value);
+    schedule();
+  }
+
   extensionAPI.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && changes.appearance) applySettings(changes.appearance.newValue);
+    if (area !== "local") return;
+    if (changes.rowLayout) applyLayout(changes.rowLayout.newValue);
+    if (changes.appearance) applySettings(changes.appearance.newValue);
   });
-  extensionAPI.storage.local.get("appearance").then(result => applySettings(result.appearance)).catch(() => applySettings(defaults));
+  extensionAPI.storage.local.get(["appearance", "rowLayout"]).then(result => { layout = UnqlockRowLayout.settings(result.rowLayout); applySettings(result.appearance); }).catch(() => applySettings(defaults));
 })();

@@ -1,5 +1,6 @@
 ## What's new
 
+- **Canvas row layout:** place the icon, property ID, type badge, dependency count and actions menu of each canvas row on the left, in the middle or on the right. Choose a preset such as All left, or position each part yourself, under Component appearance → Layout.
 - **Compact components:** shorter sidebar and canvas rows with smaller icon tiles and inline type badges. Enable it under Component appearance → Layout.
 - **Four configurable panels:** control Build Agent, Explore, Properties and Component tray independently. Use native behavior, start collapsed on module entry, or keep a panel always collapsed.
 - **Panel widths:** use a custom default, capture the current width, or remember deliberate mouse, touch and keyboard resizing. Native limits and available space still apply.

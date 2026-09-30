@@ -59,6 +59,27 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', {name:'Reset appearance'}).click();
     await builder.waitForFunction(() => !document.querySelector('[data-uq-compact]'));
     assert.equal(await page.getByLabel('Compact components', {exact:true}).isChecked(), false);
+    await builder.evaluate(() => document.body.insertAdjacentHTML('beforeend', '<div data-component-key="row"><div id="row-header"><div><svg viewBox="0 0 24 24"></svg></div><div><div>row</div><div class="text-2xs">NUMBER</div></div><div><button data-slot="dropdown-menu-trigger" aria-label="Actions for row">⋮</button></div></div></div>'));
+    assert.equal(await page.getByRole('combobox', {name:'Canvas row layout'}).inputValue(), 'native');
+    assert.equal(await page.locator('#row-sections').isVisible(), false);
+    await page.getByRole('combobox', {name:'Canvas row layout'}).selectOption('left');
+    await builder.waitForSelector('#row-header[data-uq-row-layout] [data-uq-section="actions"][data-uq-slot="left"]');
+    await page.getByRole('radio', {name:'Actions menu right'}).check();
+    await builder.waitForSelector('#row-header [data-uq-section="actions"][data-uq-slot="right"]');
+    await page.reload();
+    await page.waitForFunction(() => document.getElementById('status').textContent === 'Ready');
+    await page.getByRole('button', {name:'Component appearance'}).click();
+    assert.equal(await page.getByRole('combobox', {name:'Canvas row layout'}).inputValue(), 'custom');
+    assert.equal(await page.getByRole('radio', {name:'Actions menu right'}).isChecked(), true);
+    await page.getByLabel('Style canvas components').uncheck();
+    await builder.waitForFunction(() => !document.querySelector('[data-uq-row-layout]'));
+    assert.equal(await page.getByRole('combobox', {name:'Canvas row layout'}).isDisabled(), true);
+    assert.equal(await page.locator('#row-sections').isVisible(), false);
+    await page.getByRole('button', {name:'Reset appearance'}).click();
+    await page.waitForFunction(() => document.getElementById('status').textContent === 'Saved');
+    assert.equal(await page.getByRole('combobox', {name:'Canvas row layout'}).inputValue(), 'native');
+    assert.equal(await builder.locator('[data-uq-row-layout]').count(), 0);
+    await builder.evaluate(() => document.querySelector('[data-component-key="row"]').remove());
     for (const name of ['symbols', 'icons', 'tiles', 'trayLabels', 'labels', 'accents', 'backgrounds', 'borders']) {
       await page.locator(`input[name="${name}"]`).uncheck();
     }
