@@ -44,13 +44,14 @@ YOUR WORKSPACE
 • Open the menu from the browser toolbar or floating Unqlock launcher.
 • The home menu shows the current environment with switch links, quick styling and compact switches, and one-click page data logging.
 • Choose any corner for the launcher, show its environment label, or hide it.
+• Back up or share settings as JSON: copy or download an export, then paste or choose a file to import only the sections you want.
 • Preferences save locally and persist across browser restarts.
 
 COMPATIBILITY
 Appearance and panel controls support the modern Unqork Config builder on HTTPS Unqork subdomains. Compact styling and row layout also apply to custom components with a compatible header, and container options apply to any collapsible canvas component. Legacy canvas, Logic view and UI preview are outside the supported appearance scope. Debug tools require a compatible Angular-based Unqork application page. Native panel limits and available space constrain widths.
 
 PRIVACY AND SAFETY
-Preferences, panel widths and saved hostname groups remain in browser-local storage. Automatic discovery records hostnames only, not paths, queries or module content. Unqlock does not collect analytics or transmit page data to developer-operated servers.
+Preferences, panel widths and saved hostname groups remain in browser-local storage. Automatic discovery records hostnames only, not paths, queries or module content. Settings exports go only to your clipboard or a file you save. Unqlock does not collect analytics or transmit page data to developer-operated servers.
 
 Debug tools use active-tab access from the toolbar. From the floating launcher, they request optional access to that hostname when enabled. Automatic badges on saved custom domains also require optional site access. Declining leaves other settings usable.
 
@@ -64,6 +65,6 @@ Use the five images and captions in [screenshots/README.md](screenshots/README.m
 
 ## Update notes
 
-Adds canvas row layout, which places the icon, property ID, type badge, dependency count and actions menu of each row on the left, in the middle or on the right. Adds container emphasis toggles for panels, field groups, columns, grids and other collapsible components: extra spacing, tinted headers, nesting guide lines, depth shading, pinned headers while scrolling and end markers. Reorganizes the menu: the home menu shows the current environment, styling and compact switches, and Log page data, and each feature has its own page. Existing preferences carry over.
+Adds Import & export: back up settings or share them with your team as JSON by copying or downloading an export, then paste or choose a file to import. A review step lists each section in the file, so you can replace only the ones you choose. With Compact components on, the type badge now stays beside the property ID, and a new custom row layout starts with the type badge on the left.
 
 Do not submit an older package alongside this copy: it describes the current repository build. Updating these files does not publish a store release.

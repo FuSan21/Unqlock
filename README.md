@@ -30,7 +30,7 @@ Compact rows keep component names, icons and inline type badges visible. The sam
 
 ### Menu and settings
 
-The home menu shows the current environment, the two most used switches and Log page data; each feature has its own page for component style, canvas layout, builder panels, debug tools, environments and the floating launcher. These captures predate the reorganized home menu, so their headings differ from the current popup.
+The home menu shows the current environment, the two most used switches and Log page data; each feature has its own page for component style, canvas layout, builder panels, debug tools, environments, the floating launcher and import and export. These captures predate the reorganized home menu, so their headings differ from the current popup.
 
 <p>
   <img src="docs/screenshots/SS/feature-menu.png" width="280" alt="Unqlock feature menu from an earlier version">
@@ -99,7 +99,7 @@ Open Unqlock from the browser toolbar on an Angular Unqork application page, the
 
 Confirm your intent before each edit, removal or execution. Edits affect in-memory submission data only; they do not save submissions or force an Angular digest. Component execution can have external effects, including saving data or calling integrations. Actions target the tab and URL captured when entering Debug tools, and refuse a changed URL. Only one top-level Angular form is supported, not embedded forms or the modern builder. No automatic actions run. Typed values are not persisted. Console output style lasts only for the current popup session.
 
-Debug tools use temporary active-tab access instead of blanket host permissions, including for custom-domain application pages. Opening Unqlock from the floating badge spends no toolbar click, so it cannot use active-tab access; Debug tools then offers **Enable debug tools on this site** and requests access for that one hostname when you choose it. Component style, Canvas layout, Builder panels, Environments and Floating launcher need no grant from the badge. Grants persist until revoked in browser extension settings; you can decline and use the toolbar button instead. Real application compatibility and Firefox MAIN-world injection have not yet been verified against a live Unqork page.
+Debug tools use temporary active-tab access instead of blanket host permissions, including for custom-domain application pages. Opening Unqlock from the floating badge spends no toolbar click, so it cannot use active-tab access; Debug tools then offers **Enable debug tools on this site** and requests access for that one hostname when you choose it. Component style, Canvas layout, Builder panels, Environments, Floating launcher and Import & export need no grant from the badge. Grants persist until revoked in browser extension settings; you can decline and use the toolbar button instead. Real application compatibility and Firefox MAIN-world injection have not yet been verified against a live Unqork page.
 
 ## Builder panels
 

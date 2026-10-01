@@ -1,4 +1,4 @@
-## Coming in the next release
+## New in 1.3.3
 
 - **Import & export:** back up settings or share them with your team as JSON. Copy to the clipboard or download a file, then paste or choose a file to import. A review step lists each section in the file so you can replace only Component style, Canvas layout, Builder panels, Environments or Floating launcher.
 - **Type badge stays left:** with Compact components on, the type badge now sits beside the property ID instead of at the far right, and a new custom row layout starts with the type badge on the left.
