@@ -1,7 +1,7 @@
-## Fixes in 1.3.1
+## Fixes in 1.3.2
 
-- **Pinned headers inside Columns:** an expanded panel or other container placed in a Columns cell no longer has its header pushed to the bottom of the container. Containers in a column keep their normal header position, because the column cell cannot pin to the canvas.
-- **Selecting containers with a custom row layout:** clicking the empty part of a panel, field group or other collapsible header selects the component again, as it does natively. Only the icon, the expand arrow and the header edges toggle it.
+- **Containers in read-only modules:** container emphasis and container background and border colors now apply in imported and other read-only modules, where Unqork turns off dragging.
+- **Selection highlight with the left accent:** selected components that are not collapsible show Unqork's selection ring again when the subtle left accent is on. The hover shadow is kept as well.
 
 ## What's new
 
