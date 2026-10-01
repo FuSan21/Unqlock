@@ -154,6 +154,14 @@ const source = file => fs.readFileSync(path.join(__dirname, '../src', file), 'ut
     const duplicate = { id:'bad', name:'Bad', domains:[stored.groups[0].domains[0]] };
     assert.equal((await send({ type:'environment.save', group:duplicate })).ok, false);
     assert.equal(stored.groups.length, 2);
+    // Imports replace every group and preference, and register any granted custom domain.
+    const imported = { badge:true, blockProduction:true, autoDiscover:true, groups:[custom] };
+    result = await send({ type:'environment.save', replace:imported });
+    assert.deepEqual(stored, imported);
+    assert.equal(registrations[0].matches[0], '*://custom.test/*');
+    assert.equal((await send({ type:'environment.save', replace:{ groups:[duplicate, { ...duplicate, id:'other' }] } })).ok, false);
+    assert.deepEqual(stored, imported, 'An invalid import changes nothing');
+    assert.equal(await send({ type:'environment.save', replace:{ groups:[] } }, { url:'https://first-prod.unqork.io/app', frameId:0 }), undefined, 'Websites cannot replace settings');
   }
-  console.log('PASS: serialized discovery, group edits, sender validation, persistent custom-domain registration, grants, revocation, deletion and startup in both API branches.');
+  console.log('PASS: serialized discovery, group edits, sender validation, persistent custom-domain registration, grants, revocation, deletion, imports and startup in both API branches.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

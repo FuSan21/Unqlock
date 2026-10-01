@@ -63,7 +63,7 @@ Below them, features are grouped by where they apply:
 
 - **Builder:** **Component style** (sidebar/canvas scope, icons, labels, frames and the color guide), **Canvas layout** (Compact components, canvas row layout and containers) and **Builder panels**.
 - **Tools:** **Debug tools**.
-- **Setup:** **Environments** (production guard, auto-discovery and domain groups) and **Floating launcher** (show, corner and environment label).
+- **Setup:** **Environments** (production guard, auto-discovery and domain groups), **Floating launcher** (show, corner and environment label) and **Import & export** (settings as JSON).
 
 Use **‹ Home** or Escape to return; focus goes back to the entry you came from. Component style has **Reset style** and Canvas layout has **Reset layout**; each resets only the settings on its own page. The reorganization kept every stored preference, so existing settings carry over. Navigation does not toggle any feature.
 
@@ -126,6 +126,12 @@ Production data edits and execution show a red confirmation with Cancel focused 
 The switcher offers other domains in the current hostname's group. Each opens a new tab, preserving protocol, port, path, query and fragment. Review URL parameters before switching; module IDs, routes and login state may differ between environments.
 
 Environment edits save automatically when valid; invalid or incomplete entries leave the saved mapping unchanged. For custom domains, enter the group and domains, then choose **Enable automatic badges on saved custom domains**. The browser requests access only to the saved custom hostnames. Once granted, the badge loads automatically after reloads and browser restarts. Denying or revoking access preserves your mappings and production settings. Removing a custom hostname unregisters its automatic badge. Site access can be revoked in the browser's extension settings. Badge visibility and guards are independent of appearance settings.
+
+## Import and export
+
+**Import & export**, under Setup, moves settings to another browser or shares them with a team as JSON. **Copy JSON** puts the export on the clipboard and **Download file** saves it as `unqlock-settings-DATE.json`. The export covers Component style, Canvas layout, Builder panels (including remembered widths), Environments and Floating launcher; Debug tools inputs are not included. Domain groups list your organization's hostnames, so review a file before sharing it.
+
+To import, paste the JSON and choose **Review pasted JSON**, or choose **Choose file**. Unqlock validates the whole file before changing anything, then lists the sections it contains. Chosen sections replace the current ones and the rest stay as they are; Cancel or Escape leaves everything unchanged. Imported custom-domain groups need site access before their automatic badges load: open Environments and choose **Enable automatic badges on saved custom domains**. Firefox closes its toolbar popup when a file picker opens, so there **Choose file** continues in a tab. When a page does not allow the floating menu to write to the clipboard, Copy JSON shows the selected JSON to copy by hand.
 
 ## Scope and privacy
 

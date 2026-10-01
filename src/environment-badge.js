@@ -83,6 +83,8 @@
     frame = document.createElement('iframe');
     frame.src = api.runtime.getURL('popup.html') + '?input=' + (event.detail === 0 ? 'keyboard' : 'pointer');
     frame.title = 'Unqlock menu';
+    // Copy JSON under Import & export writes to the clipboard from inside this frame.
+    frame.allow = 'clipboard-write';
     frame.setAttribute('role', 'dialog');
     shadow.append(frame);
     button.setAttribute('aria-expanded', 'true');

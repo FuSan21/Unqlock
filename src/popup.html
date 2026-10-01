@@ -18,6 +18,7 @@
 <h2 class="menu-heading">Setup</h2>
 <button id="open-environment" class="feature-entry" type="button" data-page="environment-page" aria-controls="environment-page"><span class="sample" aria-hidden="true">◎</span><span><strong>Environments</strong><span class="feature-description">Groups and production guard</span></span><span aria-hidden="true">›</span></button>
 <button id="open-launcher" class="feature-entry" type="button" data-page="launcher-page" aria-controls="launcher-page"><span class="sample" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><rect x="12" y="13" width="6" height="5" rx="1"></rect></svg></span><span><strong>Floating launcher</strong><span class="feature-description">Show, corner and environment label</span></span><span aria-hidden="true">›</span></button>
+<button id="open-transfer" class="feature-entry" type="button" data-page="transfer-page" aria-controls="transfer-page"><span class="sample" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v13M3 13l4 4 4-4M17 20V7M13 11l4-4 4 4"></path></svg></span><span><strong>Import &amp; export</strong><span class="feature-description">Back up or share settings as JSON</span></span><span aria-hidden="true">›</span></button>
 </nav></div>
 <section id="style-page" class="page" aria-labelledby="style-title" hidden><button class="page-back" type="button">‹ Home</button><h2 id="style-title" class="page-title" tabindex="-1">Component style</h2><p class="note">Colors, icons and accents for components in the sidebar and canvas. Turn styling on or off with Component styling on the home menu.</p>
 <fieldset id="style-fields" class="appearance-fields" disabled>
@@ -113,4 +114,25 @@
 </select>
 <label><span>Show environment in badge</span><input type="checkbox" name="badge"></label>
 </fieldset></form><p class="note">Click the floating Unqlock icon to open this menu. The environment label comes from the domain groups under Environments; hiding it does not turn off production safeguards. Changes save automatically.</p><p id="launcher-status" role="status" aria-live="polite"></p></section>
+<section id="transfer-page" class="page" aria-labelledby="transfer-title" hidden>
+<button class="page-back" type="button">‹ Home</button><h2 id="transfer-title" class="page-title" tabindex="-1">Import &amp; export</h2>
+<p class="note">Move settings to another browser or share them with your team. Debug tool inputs are not included.</p>
+<h3 class="settings-heading">Export</h3>
+<p class="note" id="export-help">Exports Component style, Canvas layout, Builder panels, Environments and Floating launcher. Domain groups list your organization’s hostnames; review the file before sharing it.</p>
+<div class="action-row"><button id="export-copy" type="button" aria-describedby="export-help">Copy JSON</button><button id="export-download" type="button" aria-describedby="export-help">Download file</button></div>
+<textarea id="export-output" class="transfer-text" rows="6" readonly spellcheck="false" aria-label="Exported settings" hidden></textarea>
+<p id="export-status" class="transfer-status" role="status" aria-live="polite"></p>
+<h3 class="settings-heading">Import</h3>
+<label for="import-text" class="stacked">Paste exported JSON</label>
+<textarea id="import-text" class="transfer-text" rows="6" spellcheck="false" placeholder='{ "unqlock": 1, … }'></textarea>
+<div class="action-row"><button id="import-review" type="button">Review pasted JSON</button><button id="import-file-button" type="button">Choose file</button></div>
+<input id="import-file" type="file" accept=".json,application/json" hidden>
+<div id="import-preview" class="debug-confirmation" hidden>
+<p id="import-summary"></p>
+<fieldset id="import-sections"><legend class="visually-hidden">Settings to replace</legend></fieldset>
+<p class="note">Chosen settings replace the current ones. Anything not chosen stays as it is.</p>
+<div class="action-row"><button id="import-apply" class="primary" type="button">Import selected</button><button id="import-cancel" type="button">Cancel</button></div>
+</div>
+<p id="import-status" class="transfer-status" role="status" aria-live="polite"></p>
+</section>
 </main><script src="popup-entry.js"></script></body></html>

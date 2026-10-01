@@ -289,6 +289,38 @@ const assert = require('node:assert/strict');
     await page.screenshot({path:path.resolve(__dirname, '../artifacts/quick-light.png')});
     await page.emulateMedia({colorScheme:'dark'});
     await page.screenshot({path:path.resolve(__dirname, '../artifacts/quick-dark.png')});
+    await page.emulateMedia({colorScheme:'light'});
+    await goHome('quick');
+    // Import & export round-trips real storage through the clipboard and a downloaded file.
+    await openPage('transfer');
+    // Record the text on its way to the real clipboard, which automation cannot read from an extension origin.
+    await page.evaluate(() => {
+      const write = navigator.clipboard.writeText.bind(navigator.clipboard);
+      navigator.clipboard.writeText = text => { window.copiedText = text; return write(text); };
+    });
+    await page.getByRole('button', {name:'Copy JSON', exact:true}).click();
+    await page.waitForFunction(() => document.getElementById('export-status').textContent === 'Settings copied as JSON.');
+    const copied = JSON.parse(await page.evaluate(() => window.copiedText));
+    const saved = await page.evaluate(() => chrome.storage.local.get(['appearance', 'floating']));
+    assert.equal(copied.settings.appearance.compact, saved.appearance.compact);
+    assert.equal(copied.extensionVersion, require('../package.json').version);
+    const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', {name:'Download file', exact:true}).click()]);
+    assert.match(download.suggestedFilename(), /^unqlock-settings-\d{4}-\d{2}-\d{2}\.json$/);
+    const file = JSON.parse(fs.readFileSync(await download.path(), 'utf8'));
+    assert.deepEqual(file.settings, copied.settings);
+    file.settings.appearance.compact = !copied.settings.appearance.compact;
+    file.settings.floating.position = 'top-left';
+    await page.getByLabel('Paste exported JSON').fill(JSON.stringify(file));
+    await page.getByRole('button', {name:'Review pasted JSON', exact:true}).click();
+    await page.getByRole('checkbox', {name:'Floating launcher', exact:true}).uncheck();
+    await page.getByRole('button', {name:'Import selected', exact:true}).click();
+    await page.waitForFunction(() => document.getElementById('import-status').textContent.startsWith('Imported'));
+    const imported = await page.evaluate(() => chrome.storage.local.get(['appearance', 'floating']));
+    assert.equal(imported.appearance.compact, file.settings.appearance.compact);
+    assert.deepEqual(imported.floating, saved.floating, 'Unchosen sections stay unchanged');
+    assert.equal(await homeCompact.isChecked(), file.settings.appearance.compact, 'Home switch shows the imported value');
+    await page.screenshot({path:path.resolve(__dirname, '../artifacts/transfer.png')});
+    console.log('PASS: Import & export copies, downloads and imports real extension storage.');
     console.log('PASS: packaged quick-actions UI, home logging and page function with fixture-provided tab and scripting APIs; toolbar permission grant requires manual verification.');
     console.log('PASS: unpacked extension loads with no manifest errors; page navigation and focus, bound home switches, split resets, launcher badge label, content-script injection, storage persistence and light/dark popup rendering.');
     console.log('PASS: independent background/border controls, light/dark computed colors, nested group frames, persistence, disable cleanup and reset defaults.');
