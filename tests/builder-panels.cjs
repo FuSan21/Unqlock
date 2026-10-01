@@ -68,6 +68,9 @@ async function run(firefoxMode) {
         await page.addStyleTag({content:source('builder-panels.css')});
         await page.addScriptTag({content:source('panel-settings.js')});
         await page.addScriptTag({content:source('builder-panels.js')});
+        // Let the injected script read storage and finish its first pass, as a real
+        // content script does at load; a setting saved earlier would count as module entry.
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       }
     }
     const width = id => page.locator('#' + id).evaluate(e => Math.round(e.getBoundingClientRect().width));
