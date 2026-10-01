@@ -405,6 +405,13 @@
     return false;
   }
 
+  // A container's frame sits between its collapsible root and its trigger. Read-only
+  // modules, such as imports, drop the drag attributes, so match structure instead.
+  function frameOf(card) {
+    const frame = card.matches('[data-slot="collapsible-trigger"]') ? card.parentElement : null;
+    return frame?.parentElement?.matches('[data-slot="collapsible"]') ? frame : null;
+  }
+
   function render() {
     scheduled = false;
     const next = new Map();
@@ -464,7 +471,7 @@
         }
         const component = isTray ? byType.get(card.getAttribute("data-tray-type")) : byLabel.get(normalize(label?.textContent || ""));
         // Every collapsible canvas component shares this structure, whatever its type.
-        const container = !isTray && card.matches('[data-slot="collapsible-trigger"]') && card.parentElement?.matches('[aria-roledescription="draggable"]') ? card.parentElement : null;
+        const container = isTray ? null : frameOf(card);
         if (container && containers.some(key => settings[key])) {
           const content = card.nextElementSibling?.matches(contentSelector) ? card.nextElementSibling : null;
           // Collapsed containers may unmount their content; header effects still apply.
@@ -498,7 +505,7 @@
         }
         if (settings.labels && label) mark(label, { "data-uq-label": "" });
         if (settings.accents) mark(card, { "data-uq-accent": "" });
-        const frame = card.matches('[data-slot="collapsible-trigger"]') && card.parentElement?.matches('[aria-roledescription="draggable"]') ? card.parentElement : card;
+        const frame = frameOf(card) || card;
         if (settings.backgrounds || settings.borders) mark(frame, { "data-uq-family": component.family });
         if (settings.backgrounds) mark(frame, { "data-uq-background": "" });
         if (settings.borders) mark(frame, { "data-uq-border": "" });
