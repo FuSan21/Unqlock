@@ -13,11 +13,13 @@ globalThis.UnqlockRowLayout = (() => {
     left: { label:'All left', positions:{ icon:'left', name:'left', type:'left', chip:'left', actions:'left' } },
     middle: { label:'Details in middle', positions:{ icon:'left', name:'left', type:'middle', chip:'middle', actions:'right' } }
   };
+  // The type badge starts beside the property ID, matching Unqork's native row.
+  const defaults = { icon:'left', name:'left', type:'left', chip:'right', actions:'right' };
   // Native keeps Unqork's own row untouched; positions are kept for the next custom layout.
   function settings(value) {
     return {
       enabled: value?.enabled === true,
-      ...Object.fromEntries(Object.keys(sections).map(id => [id, slots.includes(value?.[id]) ? value[id] : presets.right.positions[id]]))
+      ...Object.fromEntries(Object.keys(sections).map(id => [id, slots.includes(value?.[id]) ? value[id] : defaults[id]]))
     };
   }
   function preset(value) {
