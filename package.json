@@ -1,6 +1,6 @@
 {
   "name": "unqlock",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "private": true,
   "license": "MIT",
   "description": "Shared source and reproducible builds for Chrome and Firefox",
