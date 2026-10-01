@@ -60,6 +60,16 @@ header { display:flex; gap:12px; padding:22px 20px 18px; border-bottom:1px solid
 
 #floating-position { width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; background:var(--paper); color:var(--ink); font:inherit; }
 #launcher-status { font-size:12px; margin-top:10px; }
+#transfer-title { margin-bottom:12px; }
+#transfer-page .action-row { margin-top:8px; }
+#transfer-page .action-row button { flex:1; }
+#transfer-page label.stacked { display:block; padding:6px 0 4px; cursor:default; }
+.transfer-text { display:block; width:100%; margin-top:8px; resize:vertical; min-height:80px; padding:8px; border:1px solid var(--line); border-radius:6px; background:var(--paper); color:var(--ink); font:12px/1.5 Consolas,monospace; }
+#import-text { margin-top:0; }
+#import-preview .note { margin:6px 0 10px; }
+#import-sections label { padding:5px 0; }
+.transfer-status { font-size:12px; margin-top:10px; overflow-wrap:anywhere; }
+.transfer-status[data-state="error"] { color:light-dark(#b91c1c,#fca5a5); }
 #panels-status { font-size:12px; margin-top:10px; }
 .panel-settings-card { margin:12px 0; padding:12px; border:1px solid var(--line); border-radius:8px; }
 .panel-settings-card summary { font-weight:600; color:var(--ink); }

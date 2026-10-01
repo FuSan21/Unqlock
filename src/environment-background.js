@@ -122,6 +122,8 @@ api.runtime.onMessage.addListener((message, sender, respond) => {
   serial(async () => {
     let config = await readConfig();
     if (message.type === 'environment.save') {
+      // An import replaces every group and preference at once.
+      if (message.replace) config = UnqlockEnvironment.settings(message.replace);
       if (message.deleteId) config.groups = config.groups.filter(group => group.id !== message.deleteId);
       if (message.group) {
         const index = config.groups.findIndex(group => group.id === message.group.id);
