@@ -200,7 +200,11 @@ const assert = require('node:assert/strict');
       group.id = 'group';
       group.setAttribute('aria-roledescription', 'draggable');
       group.innerHTML = '<div data-component-key="group" data-slot="collapsible-trigger"><div><svg viewBox="0 0 24 24"></svg></div><div class="text-2xs">FIELD GROUP</div></div><div data-component-key="child"><div><svg viewBox="0 0 24 24"></svg></div><div class="text-2xs">NUMBER</div></div>';
-      document.body.append(group);
+      // Unqork wraps every container frame in its collapsible root.
+      const root = document.createElement('div');
+      root.setAttribute('data-slot', 'collapsible');
+      root.append(group);
+      document.body.append(root);
     });
     await page.emulateMedia({colorScheme:'dark'});
     await openPage('style');
