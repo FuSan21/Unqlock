@@ -1,3 +1,8 @@
+## Fixes in 1.3.1
+
+- **Pinned headers inside Columns:** an expanded panel or other container placed in a Columns cell no longer has its header pushed to the bottom of the container. Containers in a column keep their normal header position, because the column cell cannot pin to the canvas.
+- **Selecting containers with a custom row layout:** clicking the empty part of a panel, field group or other collapsible header selects the component again, as it does natively. Only the icon, the expand arrow and the header edges toggle it.
+
 ## What's new
 
 - **Reorganized popup:** the home menu now shows the current environment with switch links, the Component styling and Compact components switches, and Log page data. Features are grouped under Builder, Tools and Setup, and each has its own page: Component style, Canvas layout, Builder panels, Debug tools, Environments and Floating launcher. Existing preferences carry over unchanged.
