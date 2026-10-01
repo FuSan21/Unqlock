@@ -394,6 +394,17 @@
     decorated = next;
   }
 
+  // Sticky pins to the nearest scroll container; a clipping box that does not scroll,
+  // such as a Columns cell, would pin the header inside itself instead of the canvas.
+  function clipped(element) {
+    for (let node = element.parentElement; node; node = node.parentElement) {
+      const { overflowY } = getComputedStyle(node);
+      if (overflowY === "auto" || overflowY === "scroll") return false;
+      if (overflowY === "hidden") return true;
+    }
+    return false;
+  }
+
   function render() {
     scheduled = false;
     const next = new Map();
@@ -469,7 +480,7 @@
             mark(body, { "data-uq-container-body-spacing": "" });
           }
           if (settings.containerHeaders) mark(card, { "data-uq-container-header": "" });
-          if (settings.containerSticky) mark(card, { "data-uq-container-sticky": "", "data-uq-depth": String(Math.min(depth, 8)) });
+          if (settings.containerSticky && !clipped(container)) mark(card, { "data-uq-container-sticky": "", "data-uq-depth": String(Math.min(depth, 8)) });
           if (settings.containerGuides) mark(body, { "data-uq-container-guide": "" });
           if (settings.containerDepth) mark(body, { "data-uq-container-shade": String(Math.min(depth, 3)) });
           if (settings.containerEnd) mark(body, { "data-uq-container-end": card.getAttribute("data-component-key") });

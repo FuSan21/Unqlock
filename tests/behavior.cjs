@@ -256,12 +256,14 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
   await page.screenshot({ path:path.join(__dirname, '../artifacts/row-layout-middle.png') });
   await page.setViewportSize({ width:640, height:820 });
   assert(await row.locator('[data-slot="dropdown-menu-trigger"]').isVisible());
-  await page.evaluate(html => document.body.insertAdjacentHTML('beforeend', `<div id="containers">${html}</div>`), nestedContainers);
+  // A Columns cell clips its contents without scrolling, so its containers must not pin.
+  await page.evaluate(html => document.body.insertAdjacentHTML('beforeend', `<div id="containers">${html}</div>`), nestedContainers + `<div style="overflow:hidden">${containerFrame('PANEL', 'cell', '')}</div>`);
   await page.evaluate(value => window.updateAppearance({ appearance:{ newValue:value } }, 'local'), allContainers);
   await page.waitForSelector('[data-uq-container-sticky]');
   const sticky = key => page.locator(`[data-component-key="${key}"]`).evaluate(element => { const style = getComputedStyle(element); return [style.position, style.top]; });
   assert.deepEqual(await sticky('outer'), ['sticky', '0px']);
   assert.deepEqual(await sticky('inner'), ['sticky', '56px']);
+  assert.equal((await sticky('cell'))[0], 'static');
   assert.match(await page.locator('[data-component-key="outer"]').evaluate(element => getComputedStyle(element).backgroundImage), /gradient/);
   assert.match(await page.locator('#inner-body').evaluate(element => getComputedStyle(element, '::after').content), /End of\W*inner/);
   assert.notEqual(await page.locator('#inner-body').evaluate(element => getComputedStyle(element).borderLeftWidth), '0px');
