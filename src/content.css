@@ -24,7 +24,8 @@
 [data-uq-tile] { background-color:var(--uq-tint)!important; }
 [data-uq-surface="tray"] > [data-uq-icon-background] { background-color:var(--uq-tint)!important; border-radius:5px; padding:3px; box-sizing:content-box; width:16px!important; height:16px!important; }
 [data-uq-label] { color:var(--uq-ink)!important; }
-[data-uq-accent] { box-shadow:inset 3px 0 0 var(--uq-ink)!important; }
+/* Keep Unqork's selection, hover and drop rings: they share box-shadow through Tailwind's shadow variables. */
+[data-uq-accent] { box-shadow:inset 3px 0 0 var(--uq-ink), var(--tw-inset-shadow, 0 0 #0000), var(--tw-inset-ring-shadow, 0 0 #0000), var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000)!important; }
 [data-uq-background] { background-color:var(--uq-tint)!important; }
 [data-uq-border] { border:1px solid var(--uq-ink)!important; }
 @media (forced-colors:active) {

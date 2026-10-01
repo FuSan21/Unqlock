@@ -213,6 +213,17 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
   await page.evaluate((useFirefox) => { window[useFirefox ? 'browser' : 'chrome'] = { storage: { local: { get:async () => ({}) }, onChanged: { addListener: listener => { window.updateAppearance = listener; } } } }; }, firefoxMode);
   await page.addStyleTag({ content:'body{font:14px Segoe UI;background:#f8fafc;color:#172033;margin:28px}main{display:grid;grid-template-columns:260px 1fr;gap:32px}aside,section{display:grid;align-content:start;gap:10px}[data-tray-type]{display:flex;align-items:center;gap:12px;border:1px solid #d9e1ec;border-radius:6px;padding:8px}[data-handle]{width:10px;height:12px}section>[data-component-key]{border:1px solid #d9e1ec;border-radius:8px;padding:12px}.header{display:flex;align-items:center;gap:12px}.tile{width:32px;height:32px;display:grid;place-items:center;border-radius:6px}.text-2xs{font-size:10px;margin-top:4px}.trailing{margin-left:auto;display:flex;align-items:center;gap:4px}.header button{border:0;background:none;color:inherit}.dark body{background:#0b0e13;color:#cbd2da}.dark [data-component-key],.dark [data-tray-type]{border-color:#262d38}main>* > :nth-child(n+12){display:none}' });
   await page.addStyleTag({ content:css });
+  // The accent must keep Unqork's selection ring, a Tailwind box-shadow layer on the same row.
+  assert.match(await page.evaluate(() => {
+    const row = document.createElement('div');
+    row.setAttribute('data-uq-accent', '');
+    row.setAttribute('data-uq-family', 'inputs');
+    row.style.setProperty('--tw-ring-shadow', '0 0 0 2px rgb(0, 188, 200)');
+    document.body.append(row);
+    const shadow = getComputedStyle(row).boxShadow;
+    row.remove();
+    return shadow;
+  }), /inset.*rgb\(0, 188, 200\) 0px 0px 0px 2px/);
   await page.addScriptTag({ content:script });
   await page.waitForSelector('[data-uq-family]');
   assert.equal(await page.locator('[data-tray-type="number"] svg').first().evaluate(element => getComputedStyle(element).color), 'rgb(29, 78, 216)');
