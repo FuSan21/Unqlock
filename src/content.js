@@ -449,7 +449,7 @@
           if (trailing && identity && owned(header) && header.children.length === 3 && identity.parentElement === header && identity.children.length === 2 && identity.lastElementChild === label) {
             const place = (element, section) => mark(element, { "data-uq-section": section, "data-uq-slot": layout[section] });
             mark(header, { "data-uq-row-layout": "" });
-            mark(identity, { "data-uq-row-contents": "" });
+            mark(identity, { "data-uq-row-contents": "identity" });
             mark(trailing, { "data-uq-row-contents": "" });
             place(tile, "icon");
             place(identity.firstElementChild, "name");

@@ -135,11 +135,12 @@
   white-space: normal !important;
   overflow-wrap: anywhere !important;
 }
-/* Row layout: sections become flex items of the header and are ordered into left, middle and right groups around two spacers. */
+/* Row layout: sections become flex items of the header and are ordered into left, middle and right groups around two spacers.
+   The spacers belong to the identity block so clicks on the empty row still reach its handler, which selects a container instead of toggling it. */
 [data-uq-row-layout] { display:flex !important; flex-wrap:wrap !important; align-items:center !important; }
-[data-uq-row-layout]::before, [data-uq-row-layout]::after { content:"" !important; display:block !important; flex:1 1 0 !important; min-width:0 !important; height:0 !important; }
-[data-uq-row-layout]::before { order:20 !important; }
-[data-uq-row-layout]::after { order:40 !important; }
+[data-uq-row-contents="identity"]::before, [data-uq-row-contents="identity"]::after { content:"" !important; display:block !important; flex:1 1 0 !important; min-width:0 !important; align-self:stretch !important; }
+[data-uq-row-contents="identity"]::before { order:20 !important; }
+[data-uq-row-contents="identity"]::after { order:40 !important; }
 [data-uq-row-layout] > [data-uq-row-contents] { display:contents !important; }
 [data-uq-slot="left"] { --uq-slot:10; }
 [data-uq-slot="middle"] { --uq-slot:30; }

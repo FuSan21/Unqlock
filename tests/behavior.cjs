@@ -264,6 +264,14 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
   assert.deepEqual(await sticky('outer'), ['sticky', '0px']);
   assert.deepEqual(await sticky('inner'), ['sticky', '56px']);
   assert.equal((await sticky('cell'))[0], 'static');
+  // Unqork selects a container from its identity block and toggles it from the rest of the header.
+  assert(await page.locator('[data-component-key="outer"]').evaluate(header => {
+    header.scrollIntoView({ block:'center' });
+    const box = header.getBoundingClientRect(), name = header.querySelector('strong').getBoundingClientRect();
+    const target = document.elementFromPoint(name.right + 30, box.top + box.height / 2);
+    window.scrollTo(0, 0);
+    return target === header.querySelector('[data-uq-row-contents="identity"]');
+  }));
   assert.match(await page.locator('[data-component-key="outer"]').evaluate(element => getComputedStyle(element).backgroundImage), /gradient/);
   assert.match(await page.locator('#inner-body').evaluate(element => getComputedStyle(element, '::after').content), /End of\W*inner/);
   assert.notEqual(await page.locator('#inner-body').evaluate(element => getComputedStyle(element).borderLeftWidth), '0px');
