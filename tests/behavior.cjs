@@ -7,7 +7,7 @@ const firefoxMode = process.argv.includes('--firefox');
 fs.mkdirSync(path.resolve(__dirname, '../artifacts'), { recursive:true });
 const root = path.resolve(__dirname, '../dist', firefoxMode ? 'firefox' : 'chrome');
 const catalog = JSON.parse(fs.readFileSync(path.join(__dirname, '../docs/component-catalog.json'), 'utf8'));
-const script = fs.readFileSync(path.join(root, 'row-layout.js'), 'utf8') + '\n' + fs.readFileSync(path.join(root, 'content.js'), 'utf8');
+const script = ['row-layout.js', 'component-colors.js', 'content.js'].map(file => fs.readFileSync(path.join(root, file), 'utf8')).join('\n');
 const css = fs.readFileSync(path.join(root, 'content.css'), 'utf8');
 const icon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 9v12"/></svg>';
 const tray = component => `<div data-tray-type="${component.type}" role="button" tabindex="0">${icon}<span>${component.label}</span><svg data-handle="true"></svg></div>`;
@@ -230,12 +230,59 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
   assert.equal(query('[data-component-key="customComponent"] svg').dataset.uqSymbol, 'custom');
   extras.remove();
   await settle();
-  // Distinct icon shapes are drawn in their group's color, so they must follow any recoloring.
-  const familyOf = Object.fromEntries([...script.matchAll(/"type": "([^"]+)",[\s\S]*?"family": "([a-z]+)"/g)].map(match => [match[1], match[2]]));
-  const ink = Object.fromEntries([...css.matchAll(/^(\.dark )?\[data-uq-family="(\w+)"\] \{ --uq-ink:#(\w{6});/gm)].map(match => [(match[1] ? 'dark ' : '') + match[2], match[3]]));
-  const symbols = [...css.matchAll(/^(\.dark )?\[data-uq-symbol="([^"]+)"\] \{ --uq-symbol:url\("[^"]*?stroke%3D%22%23(\w{6})%22/gm)];
-  assert(symbols.length >= 20);
-  for (const [, dark, type, stroke] of symbols) assert.equal(stroke, ink[(dark ? 'dark ' : '') + familyOf[type]], `${dark ? 'Dark' : 'Light'} ${type} shape uses its group color`);
+  // With full backgrounds the dependency chip takes the row's colors instead of Unqork's brand tint.
+  const chip = query('[data-component-key="number"] [data-slot="popover-trigger"]');
+  assert(!chip.hasAttribute('data-uq-chip'));
+  await settings({ backgrounds:true });
+  assert(chip.hasAttribute('data-uq-chip'));
+  const styledChips = [...dom.window.document.querySelectorAll('[data-component-key][data-uq-family] [data-slot="popover-trigger"]')].filter(element => element.closest('[data-component-key]').hasAttribute('data-uq-family'));
+  assert.deepEqual([...dom.window.document.querySelectorAll('[data-uq-chip]')], styledChips, 'Every styled canvas row, including nested ones');
+  assert(styledChips.length > catalog.components.length);
+  // The row's own actions menu follows its colors too; a nested row's menu belongs to that row.
+  const menu = query('[data-component-key="number"] [data-slot="dropdown-menu-trigger"]');
+  assert(menu.hasAttribute('data-uq-row-control'));
+  assert.equal(dom.window.document.querySelectorAll('[data-uq-row-control]').length, styledChips.length);
+  await settings({});
+  assert(!dom.window.document.querySelector('[data-uq-chip],[data-uq-row-control]'));
+  // Tinted container headers are colored surfaces too, so their own controls follow; plain rows keep Unqork's.
+  const headerHolder = dom.window.document.createElement('div');
+  headerHolder.innerHTML = nestedContainers;
+  dom.window.document.body.append(headerHolder);
+  await settings({ containerHeaders:true });
+  assert(query('[data-component-key="outer"] [data-slot="dropdown-menu-trigger"]').hasAttribute('data-uq-row-control'));
+  assert(!query('[data-component-key="custom"] [data-slot="dropdown-menu-trigger"]').hasAttribute('data-uq-row-control'), 'Unrecognized containers have no group colors');
+  assert(!menu.hasAttribute('data-uq-row-control'));
+  headerHolder.remove();
+  await settings({});
+  // Group colors and shapes come from the palette through root variables, so every group and
+  // shape in content.css has a value, and a picked color reaches icons, backgrounds and shapes.
+  const root = dom.window.document.documentElement.style;
+  const colors = dom.window.UnqlockColors;
+  const cssFamilies = [...new Set([...css.matchAll(/\[data-uq-family="(\w+)"\] \{ --uq-ink:var/g)].map(match => match[1]))];
+  assert.deepEqual(cssFamilies, Array.from(colors.families, family => family.id));
+  const cssSymbols = [...css.matchAll(/^\[data-uq-symbol="([^"]+)"\] \{ --uq-symbol:var/gm)].map(match => match[1]);
+  assert(cssSymbols.length >= 12);
+  for (const type of cssSymbols) {
+    assert.match(root.getPropertyValue('--uq-symbol-' + type), /^url\("data:image\/svg\+xml,/, type + ' has a shape');
+    assert(root.getPropertyValue('--uq-symbol-' + type + '-dark'), type + ' has a dark shape');
+  }
+  assert.equal(root.getPropertyValue('--uq-grids-ink'), '#155E75');
+  assert.equal(root.getPropertyValue('--uq-grids-dark-tint'), '#164E63');
+  assert(decodeURIComponent(root.getPropertyValue('--uq-symbol-datagrid')).includes('stroke="#155E75"'));
+  // Light and dark are picked separately; a theme with one picked color derives its partner.
+  change({ componentColors:{ newValue:{ grids:{ light:{ ink:'#0ea5e9', tint:'#fef3c7' }, dark:{ tint:'#7f1d1d' } }, inputs:{ light:{ ink:'not a color' } } } } }, 'local');
+  assert.equal(root.getPropertyValue('--uq-grids-ink'), '#0EA5E9');
+  assert.equal(root.getPropertyValue('--uq-grids-tint'), '#FEF3C7', 'Both picked colors are used exactly');
+  assert.equal(root.getPropertyValue('--uq-grids-dark-tint'), '#7F1D1D');
+  const derivedInk = colors.partner('dark', 'tint', '#7F1D1D');
+  assert.equal(root.getPropertyValue('--uq-grids-dark-ink'), derivedInk);
+  assert(colors.contrast(derivedInk, '#7F1D1D') >= 5, 'A derived text color stays readable');
+  assert(decodeURIComponent(root.getPropertyValue('--uq-symbol-datagrid')).includes('stroke="#0EA5E9"'));
+  assert(decodeURIComponent(root.getPropertyValue('--uq-symbol-datagrid-dark')).includes('stroke="' + derivedInk + '"'));
+  assert.equal(root.getPropertyValue('--uq-inputs-ink'), '#1E40AF', 'Invalid colors keep the default');
+  assert.equal(root.getPropertyValue('--uq-layout-dark-ink'), '#C4B5FD', 'Other groups keep their defaults');
+  change({ componentColors:{ newValue:undefined } }, 'local');
+  assert.equal(root.getPropertyValue('--uq-grids-ink'), '#155E75');
   // Changes away from components, such as streaming Build Agent text, never trigger a pass.
   const unrelated = dom.window.document.createElement('div');
   dom.window.document.body.append(unrelated);
@@ -269,6 +316,7 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
   await page.evaluate((useFirefox) => { window[useFirefox ? 'browser' : 'chrome'] = { storage: { local: { get:async () => ({}) }, onChanged: { addListener: listener => { window.updateAppearance = listener; } } } }; }, firefoxMode);
   await page.addStyleTag({ content:'body{font:14px Segoe UI;background:#f8fafc;color:#172033;margin:28px}main{display:grid;grid-template-columns:260px 1fr;gap:32px}aside,section{display:grid;align-content:start;gap:10px}[data-tray-type]{display:flex;align-items:center;gap:12px;border:1px solid #d9e1ec;border-radius:6px;padding:8px}[data-handle]{width:10px;height:12px}section>[data-component-key]{border:1px solid #d9e1ec;border-radius:8px;padding:12px}.header{display:flex;align-items:center;gap:12px}.tile{width:32px;height:32px;display:grid;place-items:center;border-radius:6px}.text-2xs{font-size:10px;margin-top:4px}.trailing{margin-left:auto;display:flex;align-items:center;gap:4px}.header button{border:0;background:none;color:inherit}.dark body{background:#0b0e13;color:#cbd2da}.dark [data-component-key],.dark [data-tray-type]{border-color:#262d38}main>* > :nth-child(n+12){display:none}' });
   await page.addStyleTag({ content:css });
+  await page.addScriptTag({ content:script });
   // The accent must keep Unqork's selection ring, a Tailwind box-shadow layer on the same row.
   assert.match(await page.evaluate(() => {
     const row = document.createElement('div');
@@ -280,7 +328,6 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
     row.remove();
     return shadow;
   }), /inset.*rgb\(0, 188, 200\) 0px 0px 0px 2px/);
-  await page.addScriptTag({ content:script });
   await page.waitForSelector('[data-uq-family]');
   assert.equal(await page.locator('[data-tray-type="number"] svg').first().evaluate(element => getComputedStyle(element).color), 'rgb(30, 64, 175)');
   await page.screenshot({ path:path.join(__dirname, '../artifacts/extension-light.png') });

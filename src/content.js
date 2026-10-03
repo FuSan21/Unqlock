@@ -7,7 +7,7 @@
     "label": "Checkboxes",
     "group": "Primary Fields",
     "icon": "list-checks",
-    "family": "choices"
+    "family": "inputs"
   },
   {
     "type": "dateinput",
@@ -21,14 +21,14 @@
     "label": "Dropdown",
     "group": "Primary Fields",
     "icon": "square-chevron-down",
-    "family": "choices"
+    "family": "inputs"
   },
   {
     "type": "select",
     "label": "Multi-Select Dropdown",
     "group": "Primary Fields",
     "icon": "chevron-down",
-    "family": "choices"
+    "family": "inputs"
   },
   {
     "type": "number",
@@ -42,14 +42,14 @@
     "label": "Radio Buttons",
     "group": "Primary Fields",
     "icon": "circle-dot",
-    "family": "choices"
+    "family": "inputs"
   },
   {
     "type": "checkboxv2",
     "label": "Single Checkbox",
     "group": "Primary Fields",
     "icon": "square-check-big",
-    "family": "choices"
+    "family": "inputs"
   },
   {
     "type": "textarea",
@@ -388,6 +388,40 @@
   const byLabel = new Map(components.map(component => [normalize(component.label), component]));
   // Custom components (BYOC) carry their own names, so they share one group.
   const custom = { type:"custom", family:"custom" };
+  // Distinct icon shapes, drawn in their group's color. The stroke color is filled in from the palette.
+  const symbols = {
+    "addressv2": "<path d=\"M15 10c0 4-5 8-5 8s-5-4-5-8a5 5 0 0 1 10 0Z\"/><circle cx=\"10\" cy=\"10\" r=\"1.5\"/><circle cx=\"17\" cy=\"17\" r=\"3\"/><path d=\"m19 19 3 3\"/>",
+    "phonenumber-v2": "<path d=\"M8 3H4v4c0 7 6 13 13 13h4v-4l-5-1-2 2-7-7 2-2Z\"/><circle cx=\"17\" cy=\"6\" r=\"4\"/><path d=\"M13 6h8M17 2c-2 2-2 6 0 8 2-2 2-6 0-8\"/>",
+    "dataviewer": "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M3 9h18M9 9v12M13 13h5m-5 4h5\"/><circle cx=\"15\" cy=\"13\" r=\"1\"/><circle cx=\"17\" cy=\"17\" r=\"1\"/>",
+    "datagrid": "<path d=\"M10 21H3V3h18v7M3 9h18M9 9v12M3 15h7\"/><path d=\"m13 18 7-7 3 3-7 7-4 1Z\"/>",
+    "dynamicGrid": "<rect x=\"3\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><path d=\"M3 15h17l-3-3m3 3-3 3M21 21H4l3-3\"/>",
+    "freeFormGrid": "<rect x=\"3\" y=\"3\" width=\"11\" height=\"7\" rx=\"1\"/><rect x=\"18\" y=\"3\" width=\"3\" height=\"12\" rx=\"1\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"19\" width=\"7\" height=\"2\" rx=\"1\"/>",
+    "viewgrid": "<path d=\"M3 10V3h18v7M9 3v7M15 3v7\"/><path d=\"M2 16s4-5 10-5 10 5 10 5-4 5-10 5S2 16 2 16Z\"/><circle cx=\"12\" cy=\"16\" r=\"2\"/>",
+    "markdown": "<rect x=\"2\" y=\"5\" width=\"20\" height=\"14\" rx=\"2\"/><path d=\"M5 15V9l3 3 3-3v6M17 9v6m-2-2 2 2 2-2\"/>",
+    "richtexteditor": "<path d=\"M4 4h7a3 3 0 0 1 0 6H4Zm0 6h8a3 3 0 0 1 0 6H4ZM3 21h7m3-3 6-6 3 3-6 6-4 1Z\"/>",
+    "survey": "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M3 9h18M9 3v18\"/><circle cx=\"13\" cy=\"13\" r=\"1\"/><circle cx=\"18\" cy=\"18\" r=\"1\"/><circle cx=\"13\" cy=\"18\" r=\"1\"/>",
+    "mapv2": "<path d=\"m3 6 6-3 5 3v15l-5-3-6 3Zm6-3v15M18 12s4-4 4-7a4 4 0 0 0-8 0c0 3 4 7 4 7Z\"/><circle cx=\"18\" cy=\"5\" r=\"1\"/><path d=\"m17 17 4-2v6\"/>",
+    "select": "<rect x=\"3\" y=\"3\" width=\"7\" height=\"5\" rx=\"1\"/><rect x=\"13\" y=\"3\" width=\"8\" height=\"5\" rx=\"1\"/><path d=\"M3 12h18M7 16l5 5 5-5\"/>"
+  };
+  const glyph = (markup, color) => 'url("data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="' + color + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + markup + '</svg>') + '")';
+  // Colors reach content.css as variables on the root element. Setting them through the CSSOM
+  // works under the builder's content security policy, which an injected stylesheet might not.
+  function applyColors(value) {
+    const root = document.documentElement.style;
+    const palette = UnqlockColors.palette(value);
+    for (const family of palette) {
+      for (const [prefix, [ink, tint]] of [["--uq-" + family.id, family.light], ["--uq-" + family.id + "-dark", family.dark]]) {
+        root.setProperty(prefix + "-ink", ink);
+        root.setProperty(prefix + "-tint", tint);
+      }
+    }
+    for (const [type, markup] of Object.entries(symbols)) {
+      const family = palette.find(entry => entry.id === byType.get(type).family);
+      root.setProperty("--uq-symbol-" + type, glyph(markup, family.light[0]));
+      root.setProperty("--uq-symbol-" + type + "-dark", glyph(markup, family.dark[0]));
+    }
+  }
+  applyColors();
   // UI blocks such as Simple Grid have a per-environment ID in their type, so match them by name.
   function trayComponent(card) {
     const type = card.getAttribute("data-tray-type");
@@ -563,6 +597,14 @@
         if (settings.backgrounds || settings.borders) mark(frame, { "data-uq-family": component.family });
         if (settings.backgrounds) mark(frame, { "data-uq-background": "" });
         if (settings.borders) mark(frame, { "data-uq-border": "" });
+        // Unqork's brand-colored dependency chip clashes with a full background; give it the row's colors.
+        // Full backgrounds and tinted container headers both put the row's controls on a colored surface.
+        if (!isTray && (settings.backgrounds || (settings.containerHeaders && container))) {
+          mark(ownedMatch(card, 'button[data-slot="popover-trigger"][aria-label*="dependenc" i]', owned), { "data-uq-chip": "" });
+          // Unqork's gray actions menu and container chevron turn muddy on a colored row.
+          mark(ownedMatch(card, 'button[data-slot="dropdown-menu-trigger"]', owned), { "data-uq-row-control": "" });
+          mark(ownedMatch(card, 'svg[class*="chevron"]', owned), { "data-uq-row-control": "" });
+        }
       }
     }
     reconcile(next);
@@ -611,6 +653,7 @@
     if (area !== "local") return;
     if (changes.rowLayout) applyLayout(changes.rowLayout.newValue);
     if (changes.appearance) applySettings(changes.appearance.newValue);
+    if (changes.componentColors) applyColors(changes.componentColors.newValue);
   });
-  extensionAPI.storage.local.get(["appearance", "rowLayout"]).then(result => { layout = UnqlockRowLayout.settings(result.rowLayout); applySettings(result.appearance); }).catch(() => applySettings(defaults));
+  extensionAPI.storage.local.get(["appearance", "rowLayout", "componentColors"]).then(result => { layout = UnqlockRowLayout.settings(result.rowLayout); applyColors(result.componentColors); applySettings(result.appearance); }).catch(() => applySettings(defaults));
 })();
