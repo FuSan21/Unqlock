@@ -7,7 +7,7 @@
     "label": "Checkboxes",
     "group": "Primary Fields",
     "icon": "list-checks",
-    "family": "inputs"
+    "family": "choices"
   },
   {
     "type": "dateinput",
@@ -21,14 +21,14 @@
     "label": "Dropdown",
     "group": "Primary Fields",
     "icon": "square-chevron-down",
-    "family": "inputs"
+    "family": "choices"
   },
   {
     "type": "select",
     "label": "Multi-Select Dropdown",
     "group": "Primary Fields",
     "icon": "chevron-down",
-    "family": "inputs"
+    "family": "choices"
   },
   {
     "type": "number",
@@ -42,14 +42,14 @@
     "label": "Radio Buttons",
     "group": "Primary Fields",
     "icon": "circle-dot",
-    "family": "inputs"
+    "family": "choices"
   },
   {
     "type": "checkboxv2",
     "label": "Single Checkbox",
     "group": "Primary Fields",
     "icon": "square-check-big",
-    "family": "inputs"
+    "family": "choices"
   },
   {
     "type": "textarea",
@@ -71,14 +71,14 @@
     "group": "Secondary Fields",
     "icon": "map-pin",
     "deprecated": true,
-    "family": "identity"
+    "family": "inputs"
   },
   {
     "type": "addressv2",
     "label": "Address Search",
     "group": "Secondary Fields",
     "icon": "map-pin",
-    "family": "identity"
+    "family": "inputs"
   },
   {
     "type": "button",
@@ -92,49 +92,49 @@
     "label": "Email",
     "group": "Secondary Fields",
     "icon": "mail",
-    "family": "identity"
+    "family": "inputs"
   },
   {
     "type": "hidden",
     "label": "Hidden",
     "group": "Secondary Fields",
     "icon": "eye-off",
-    "family": "private"
+    "family": "data"
   },
   {
     "type": "phonenumber-v2",
     "label": "Intl Phone Number",
     "group": "Secondary Fields",
     "icon": "phone",
-    "family": "identity"
+    "family": "inputs"
   },
   {
     "type": "phoneNumber",
     "label": "Phone Number",
     "group": "Secondary Fields",
     "icon": "phone",
-    "family": "identity"
+    "family": "inputs"
   },
   {
     "type": "password",
     "label": "Protected Field",
     "group": "Secondary Fields",
     "icon": "lock",
-    "family": "private"
+    "family": "inputs"
   },
   {
     "type": "signature",
     "label": "Signature",
     "group": "Secondary Fields",
     "icon": "pen-tool",
-    "family": "identity"
+    "family": "inputs"
   },
   {
     "type": "dataviewer",
     "label": "Advanced Data Grid",
     "group": "Display & Layout",
     "icon": "table",
-    "family": "layout"
+    "family": "grids"
   },
   {
     "type": "columns",
@@ -155,14 +155,14 @@
     "label": "Data Grid",
     "group": "Display & Layout",
     "icon": "table",
-    "family": "layout"
+    "family": "grids"
   },
   {
     "type": "dynamicGrid",
     "label": "Dynamic Grid",
     "group": "Display & Layout",
     "icon": "layout-grid",
-    "family": "layout"
+    "family": "grids"
   },
   {
     "type": "field-group",
@@ -176,7 +176,7 @@
     "label": "Freeform Grid",
     "group": "Display & Layout",
     "icon": "layout-grid",
-    "family": "layout"
+    "family": "grids"
   },
   {
     "type": "htmlelement",
@@ -197,7 +197,7 @@
     "label": "Matrix",
     "group": "Display & Layout",
     "icon": "grid-3x3",
-    "family": "layout"
+    "family": "grids"
   },
   {
     "type": "navigation",
@@ -225,7 +225,7 @@
     "label": "Rich Text Editor",
     "group": "Display & Layout",
     "icon": "text-align-start",
-    "family": "content"
+    "family": "inputs"
   },
   {
     "type": "table",
@@ -239,14 +239,14 @@
     "label": "Uniform Grid",
     "group": "Display & Layout",
     "icon": "grid-3x3",
-    "family": "layout"
+    "family": "grids"
   },
   {
     "type": "viewgrid",
     "label": "View Grid",
     "group": "Display & Layout",
     "icon": "layout-grid",
-    "family": "layout"
+    "family": "grids"
   },
   {
     "type": "browserStorage",
@@ -267,7 +267,7 @@
     "label": "Checkpoint",
     "group": "Data & Event Processing",
     "icon": "flag",
-    "family": "actions"
+    "family": "data"
   },
   {
     "type": "datamapper",
@@ -295,14 +295,14 @@
     "label": "Decisions",
     "group": "Data & Event Processing",
     "icon": "git-branch",
-    "family": "decisions"
+    "family": "logic"
   },
   {
     "type": "file",
     "label": "File",
     "group": "Data & Event Processing",
     "icon": "file-up",
-    "family": "data"
+    "family": "inputs"
   },
   {
     "type": "filestorage",
@@ -316,7 +316,7 @@
     "label": "Initializer",
     "group": "Data & Event Processing",
     "icon": "play",
-    "family": "actions"
+    "family": "logic"
   },
   {
     "type": "plaid",
@@ -337,7 +337,7 @@
     "label": "Timer",
     "group": "Data & Event Processing",
     "icon": "timer",
-    "family": "actions"
+    "family": "logic"
   },
   {
     "type": "chart",
@@ -366,12 +366,41 @@
     "group": "Charts & Graphs",
     "icon": "map",
     "family": "charts"
+  },
+  {
+    "type": "aiSummarizer",
+    "label": "AI Summarizer",
+    "group": "Agentic Pallet",
+    "icon": "sparkles",
+    "family": "logic"
+  },
+  {
+    "type": "uiBlock",
+    "label": "Simple Grid",
+    "group": "Display & Layout",
+    "icon": "puzzle",
+    "family": "grids"
   }
 ];
   const defaults = { enabled: true, tray: true, canvas: true, icons: true, tiles: true, trayLabels: false, accents: false, backgrounds: false, borders: false, labels: true, symbols: true, compact: false, containerSpacing: false, containerHeaders: false, containerGuides: false, containerDepth: false, containerSticky: false, containerEnd: false };
   const normalize = value => value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
   const byType = new Map(components.map(component => [component.type, component]));
   const byLabel = new Map(components.map(component => [normalize(component.label), component]));
+  // Custom components (BYOC) carry their own names, so they share one group.
+  const custom = { type:"custom", family:"custom" };
+  // UI blocks such as Simple Grid have a per-environment ID in their type, so match them by name.
+  function trayComponent(card) {
+    const type = card.getAttribute("data-tray-type");
+    if (type.startsWith("byoc::")) return custom;
+    if (!type.startsWith("uiBlock::")) return byType.get(type);
+    const block = byLabel.get(normalize(card.getAttribute("aria-label")?.replace(/ component$/, "") || ""));
+    return block?.type === "uiBlock" ? block : undefined;
+  }
+  // On the canvas a custom component shows its own name as the type, with a package icon.
+  function canvasComponent(label, icon) {
+    if (icon.matches(".lucide-package") && label) return custom;
+    return byLabel.get(normalize(label?.textContent || ""));
+  }
   const selector = "[data-tray-type], [data-component-key]";
   let settings = { ...defaults };
   let layout = UnqlockRowLayout.settings();
@@ -494,7 +523,7 @@
             }
           }
         }
-        const component = isTray ? byType.get(card.getAttribute("data-tray-type")) : byLabel.get(normalize(label?.textContent || ""));
+        const component = isTray ? trayComponent(card) : canvasComponent(label, icon);
         // Every collapsible canvas component shares this structure, whatever its type.
         const container = isTray ? null : frameOf(card);
         if (container && containers.some(key => settings[key])) {
