@@ -191,10 +191,9 @@ async function run(firefoxMode) {
     if (popup) {
       await popup.locator('#open-panels').click();
       await popup.locator('#panels-fields').waitFor({state:'visible'});
-      await popup.locator('summary').filter({hasText:'Build Agent'}).click();
-      assert(await popup.getByLabel('Build Agent size behavior',{exact:true}).isDisabled());
-      await popup.getByLabel('Build Agent visibility',{exact:true}).selectOption('native');
-      await popup.getByLabel('Build Agent size behavior',{exact:true}).selectOption('custom');
+      assert(await popup.getByLabel('Build Agent width: Custom',{exact:true}).isDisabled());
+      await popup.getByLabel('Build Agent visibility: Default',{exact:true}).check();
+      await popup.getByLabel('Build Agent width: Custom',{exact:true}).check();
       await popup.getByLabel('Build Agent default width (px)',{exact:true}).fill('420');
       await popup.getByLabel('Build Agent default width (px)',{exact:true}).press('Tab');
       await storedWhen(r=>r.builderPanels.agent.width === 420);

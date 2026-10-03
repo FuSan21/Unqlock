@@ -14,27 +14,37 @@
   let pendingSaves = 0;
   let refreshing = false;
   const controls = new Map();
-  function select(id, label, options) {
-    const wrapper = document.createElement('label');
-    wrapper.htmlFor = id;
-    wrapper.textContent = label;
-    const input = document.createElement('select');
-    input.id = id;
-    for (const [value, text] of options) input.add(new Option(text, value));
-    return { wrapper, input };
+  // Segmented switches, matching the canvas row layout choices.
+  function choice(name, label, accessible, options) {
+    const wrapper = document.createElement('fieldset');
+    wrapper.className = 'row-section';
+    const legend = document.createElement('legend');
+    legend.textContent = label;
+    const segments = document.createElement('div');
+    segments.className = 'segments';
+    const inputs = options.map(([value, text]) => {
+      const option = document.createElement('label');
+      const input = document.createElement('input');
+      input.type = 'radio'; input.name = name; input.value = value;
+      input.setAttribute('aria-label', accessible + ': ' + text);
+      const span = document.createElement('span');
+      span.textContent = text;
+      option.append(input, span);
+      segments.append(option);
+      return input;
+    });
+    wrapper.append(legend, segments);
+    return { wrapper, inputs };
   }
   for (const [id, meta] of Object.entries(model.panels)) {
-    const card = document.createElement('details');
+    const card = document.createElement('section');
     card.className = 'panel-settings-card';
-    const summary = document.createElement('summary');
-    summary.textContent = meta.label;
-    const badge = document.createElement('span');
-    badge.className = 'panel-settings-summary';
-    summary.append(badge);
-    card.append(summary);
-    const visibility = select(id + '-visibility', meta.label + ' visibility', [['native','Use Unqork default'],['start','Start collapsed'],['always','Always collapsed']]);
-    const sizing = select(id + '-sizing', meta.label + ' size behavior', [['native','Use Unqork default'],['custom','Use custom default width'],['remember','Remember my last width']]);
-    card.append(visibility.wrapper, visibility.input, sizing.wrapper, sizing.input);
+    const heading = document.createElement('h3');
+    heading.textContent = meta.label;
+    card.append(heading);
+    const visibility = choice(id + '-visibility', 'Visibility', meta.label + ' visibility', [['native','Default'],['start','Start collapsed'],['always','Always collapsed']]);
+    const sizing = choice(id + '-sizing', 'Width', meta.label + ' width', [['native','Default'],['custom','Custom'],['remember','Remember last']]);
+    card.append(visibility.wrapper, sizing.wrapper);
     const label = document.createElement('label');
     label.htmlFor = id + '-width'; label.textContent = 'Default width (px)';
     const input = document.createElement('input');
@@ -50,11 +60,11 @@
     actions.append(current, reset);
     card.append(label, input, note, actions);
     fields.append(card);
-    controls.set(id, { visibility:visibility.input, sizing:sizing.input, input, current, note, badge });
-    visibility.input.addEventListener('change', () => save(id, { visibility:visibility.input.value }));
-    sizing.input.addEventListener('change', () => save(id, {
-      sizing:sizing.input.value,
-      ...(sizing.input.value === 'custom' && config[id].width === null ? { width:model.width(widths[id]) || 300 } : {})
+    controls.set(id, { visibility:visibility.inputs, sizing:sizing.inputs, input, current, note });
+    visibility.wrapper.addEventListener('change', event => save(id, { visibility:event.target.value }));
+    sizing.wrapper.addEventListener('change', event => save(id, {
+      sizing:event.target.value,
+      ...(event.target.value === 'custom' && config[id].width === null ? { width:model.width(widths[id]) || 300 } : {})
     }));
     input.addEventListener('change', () => {
       if (!input.checkValidity() || model.width(input.valueAsNumber) === null) {
@@ -74,15 +84,15 @@
   function show() {
     for (const [id, c] of controls) {
       const pref = config[id];
-      c.visibility.value = pref.visibility; c.sizing.value = pref.sizing;
+      for (const radio of c.visibility) radio.checked = radio.value === pref.visibility;
+      for (const radio of c.sizing) radio.checked = radio.value === pref.sizing;
       if (document.activeElement !== c.input) {
         c.input.value = pref.width ?? '';
         c.input.removeAttribute('aria-invalid');
       }
-      c.badge.textContent = { native:'Unqork default', start:'Start collapsed', always:'Always collapsed' }[pref.visibility];
       const locked = pref.visibility === 'always' ? 'Choose another visibility option to change this panel’s size.' : '';
-      UnqlockDisabled.set(c.sizing, locked);
-      UnqlockDisabled.set(c.input, locked || (pref.sizing !== 'custom' ? 'Choose Use custom default width to enter a width.' : ''));
+      for (const radio of c.sizing) UnqlockDisabled.set(radio, locked);
+      UnqlockDisabled.set(c.input, locked || (pref.sizing !== 'custom' ? 'Choose a Custom width to enter one.' : ''));
       UnqlockDisabled.set(c.current, locked || (!widths[id] ? 'Open this panel in the active module to use its current width.' : ''));
       c.note.textContent = pref.sizing === 'remember'
         ? (remembered[model.rememberedKey(id)] ? 'Last saved: ' + remembered[model.rememberedKey(id)] + ' px. Drag the handle to update it.' : 'Drag the panel’s handle to save its width.')
