@@ -214,6 +214,23 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
   await rowLayout({ ...allLeft, enabled:false });
   list.remove();
   await settings({});
+  // Changes away from components, such as streaming Build Agent text, never trigger a pass.
+  const unrelated = dom.window.document.createElement('div');
+  dom.window.document.body.append(unrelated);
+  await settle();
+  const frameRequest = dom.window.requestAnimationFrame;
+  let passes = 0;
+  dom.window.requestAnimationFrame = callback => { passes++; return frameRequest(callback); };
+  for (let i = 0; i < 5; i++) { unrelated.textContent = 'reply ' + i; unrelated.className = 'streaming-' + i; await settle(); }
+  assert.equal(passes, 0, 'Unrelated changes are ignored');
+  query('[data-component-key="number"] .text-2xs').textContent = 'DECISIONS';
+  await settle();
+  assert.equal(passes, 1, 'A changed component still gets a pass');
+  assert.equal(query('[data-component-key="number"]').dataset.uqFamily, 'decisions');
+  query('[data-component-key="number"] .text-2xs').textContent = 'NUMBER';
+  await settle();
+  dom.window.requestAnimationFrame = frameRequest;
+  unrelated.remove();
   dom.window.history.pushState({}, '', '/ide/other');
   dom.window.document.body.append(dom.window.document.createElement('div'));
   await settle();
