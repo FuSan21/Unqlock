@@ -396,13 +396,26 @@
 
   // Sticky pins to the nearest scroll container; a clipping box that does not scroll,
   // such as a Columns cell, would pin the header inside itself instead of the canvas.
-  function clipped(element) {
+  // Nested containers share ancestors, so one pass remembers each ancestor's answer.
+  function clipped(element, seen) {
+    const path = [];
+    let result = false;
     for (let node = element.parentElement; node; node = node.parentElement) {
+      if (seen.has(node)) { result = seen.get(node); break; }
+      path.push(node);
       const { overflowY } = getComputedStyle(node);
-      if (overflowY === "auto" || overflowY === "scroll") return false;
-      if (overflowY === "hidden") return true;
+      if (overflowY === "auto" || overflowY === "scroll") break;
+      if (overflowY === "hidden") { result = true; break; }
     }
-    return false;
+    for (const node of path) seen.set(node, result);
+    return result;
+  }
+
+  // A card's own element is almost always its first match; scan further only when a
+  // nested card comes first.
+  function ownedMatch(card, query, owned) {
+    const first = card.querySelector(query);
+    return first && owned(first) ? first : [...card.querySelectorAll(query)].find(owned);
   }
 
   // A container's frame sits between its collapsible root and its trigger. Read-only
@@ -415,9 +428,9 @@
   // The tree view shows the type as a badge. The By Type and alphabetical views render
   // flat rows whose details line reads "in parent • Type", so the type is its last item.
   function typeLabel(card, owned) {
-    const badge = [...card.querySelectorAll(".text-2xs")].find(owned);
+    const badge = ownedMatch(card, ".text-2xs", owned);
     if (badge) return badge;
-    const details = [...card.querySelectorAll(".text-xs")].find(owned);
+    const details = ownedMatch(card, ".text-xs", owned);
     const last = details?.lastElementChild;
     if (!last || last.children.length) return null;
     return details.children.length === 1 || last.previousElementSibling?.textContent.trim() === "•" ? last : null;
@@ -426,6 +439,7 @@
   function render() {
     scheduled = false;
     const next = new Map();
+    const clipping = new Map();
     const mark = (element, attributes) => {
       if (element) next.set(element, { ...next.get(element), ...attributes });
     };
@@ -435,7 +449,7 @@
         const isTray = card.hasAttribute("data-tray-type");
         if (!(isTray ? settings.tray : settings.canvas)) continue;
         const owned = element => element.closest(selector) === card;
-        const icon = [...card.querySelectorAll("svg")].find(owned);
+        const icon = ownedMatch(card, "svg", owned);
         if (!icon) continue;
         const label = isTray ? null : typeLabel(card, owned);
         if (settings.compact) {
@@ -498,7 +512,7 @@
             mark(body, { "data-uq-container-body-spacing": "" });
           }
           if (settings.containerHeaders) mark(card, { "data-uq-container-header": "" });
-          if (settings.containerSticky && !clipped(container)) mark(card, { "data-uq-container-sticky": "", "data-uq-depth": String(Math.min(depth, 8)) });
+          if (settings.containerSticky && !clipped(container, clipping)) mark(card, { "data-uq-container-sticky": "", "data-uq-depth": String(Math.min(depth, 8)) });
           if (settings.containerGuides) mark(body, { "data-uq-container-guide": "" });
           if (settings.containerDepth) mark(body, { "data-uq-container-shade": String(Math.min(depth, 3)) });
           if (settings.containerEnd) mark(body, { "data-uq-container-end": card.getAttribute("data-component-key") });
@@ -511,7 +525,7 @@
           else if (icon.parentElement !== card) mark(icon.parentElement, { "data-uq-tile": "" });
         }
         if (isTray && settings.trayLabels) {
-          const name = [...card.querySelectorAll('span[data-slot="tooltip-trigger"]')].find(owned);
+          const name = ownedMatch(card, 'span[data-slot="tooltip-trigger"]', owned);
           if (name) mark(name, { "data-uq-label": "" });
         }
         if (settings.labels && label) mark(label, { "data-uq-label": "" });
@@ -537,7 +551,26 @@
     schedule();
   }
 
-  const observer = new MutationObserver(schedule);
+  // Only changes that touch sidebar or canvas components, or elements this script marked,
+  // need a new pass. The rest of the builder, such as Build Agent replies streaming in or
+  // code editors, changes on nearly every frame.
+  const touchesCard = node => node.nodeType === 1 && (decorated.has(node) || node.matches(selector) || node.querySelector(selector) !== null);
+  function relevant(record) {
+    const target = record.target.nodeType === 1 ? record.target : record.target.parentElement;
+    if (target && (decorated.has(target) || target.closest(selector))) return true;
+    for (const node of record.addedNodes) if (touchesCard(node)) return true;
+    for (const node of record.removedNodes) if (touchesCard(node)) return true;
+    return false;
+  }
+  // pushState fires no event, so a changed route also counts, to clear marks outside the builder.
+  let route = location.pathname;
+  const observer = new MutationObserver(records => {
+    if (scheduled) return;
+    if (route !== location.pathname || records.some(relevant)) {
+      route = location.pathname;
+      schedule();
+    }
+  });
   observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["data-tray-type", "data-component-key", "class"] });
   window.addEventListener("popstate", schedule);
   function applyLayout(value) {
