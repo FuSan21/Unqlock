@@ -412,6 +412,17 @@
     return frame?.parentElement?.matches('[data-slot="collapsible"]') ? frame : null;
   }
 
+  // The tree view shows the type as a badge. The By Type and alphabetical views render
+  // flat rows whose details line reads "in parent • Type", so the type is its last item.
+  function typeLabel(card, owned) {
+    const badge = [...card.querySelectorAll(".text-2xs")].find(owned);
+    if (badge) return badge;
+    const details = [...card.querySelectorAll(".text-xs")].find(owned);
+    const last = details?.lastElementChild;
+    if (!last || last.children.length) return null;
+    return details.children.length === 1 || last.previousElementSibling?.textContent.trim() === "•" ? last : null;
+  }
+
   function render() {
     scheduled = false;
     const next = new Map();
@@ -426,7 +437,7 @@
         const owned = element => element.closest(selector) === card;
         const icon = [...card.querySelectorAll("svg")].find(owned);
         if (!icon) continue;
-        const label = isTray ? null : [...card.querySelectorAll(".text-2xs")].find(owned);
+        const label = isTray ? null : typeLabel(card, owned);
         if (settings.compact) {
           if (isTray) {
             mark(card, { "data-uq-compact": "tray" });

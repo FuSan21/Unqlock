@@ -197,6 +197,23 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
   assert(!query('[data-uq-container],[data-uq-container-guide]'));
   holder.remove();
   await settings({});
+  // The By Type and alphabetical views list flat rows with an "in parent • Type" details line.
+  const listRow = (key, details) => `<button data-component-key="${key}"><div class="tile">${icon}</div><div class="flex-1 min-w-0"><div class="text-sm">${key}</div><div class="text-muted-foreground text-xs">${details}</div></div></button>`;
+  const list = dom.window.document.createElement('div');
+  list.innerHTML = listRow('listButton', '<span>in fgHeader</span><span>•</span><span>Button</span>') + listRow('listPlugin', '<span>in panel</span><span>•</span><span>Plugin</span>') + listRow('listRoot', '<span>Decisions</span>') + listRow('listModule', '<span>in panel</span><span>•</span><span>Module 6552482f</span>') + listRow('listParent', '<span>in Hidden</span>');
+  dom.window.document.body.append(list);
+  await settle();
+  assert.deepEqual(['listButton', 'listPlugin', 'listRoot'].map(key => query(`[data-component-key="${key}"]`).dataset.uqFamily), ['actions', 'integrations', 'decisions']);
+  assert(query('[data-component-key="listButton"] .text-xs > :last-child').hasAttribute('data-uq-label'));
+  assert(query('[data-component-key="listButton"] .tile').hasAttribute('data-uq-tile'));
+  assert(!query('[data-component-key="listModule"]').hasAttribute('data-uq-family'));
+  assert(!query('[data-component-key="listParent"]').hasAttribute('data-uq-family'));
+  await settings({ compact:true });
+  await rowLayout(allLeft);
+  assert(!list.querySelector('[data-uq-compact],[data-uq-row-layout]'));
+  await rowLayout({ ...allLeft, enabled:false });
+  list.remove();
+  await settings({});
   dom.window.history.pushState({}, '', '/ide/other');
   dom.window.document.body.append(dom.window.document.createElement('div'));
   await settle();
