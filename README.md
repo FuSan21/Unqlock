@@ -82,10 +82,10 @@ Use **‹ Home** or Escape to return; focus goes back to the entry you came from
 
 Header effects still apply while a container is collapsed. The options follow the canvas switch and are cleared by Reset layout.
 
-**Toolbar**, at the end of Canvas layout, controls two buttons on the canvas toolbar. Each one either uses Unqork's default or stays open:
+**Toolbar**, at the end of Canvas layout, controls two buttons on the canvas toolbar with switches like those for the row layout. Each one either uses Unqork's **Default** or stays open:
 
 - **Search bar → Always visible** keeps the configuration search field open instead of the search button. It opens without taking focus from what you are editing. The close button and Escape clear the search instead of closing the field; Escape on an empty field moves focus out of it.
-- **Sort mode → Always visible as switches** replaces the sort dropdown with Default, By Type and Alphabetical side by side, with the current mode highlighted. The switches use Unqork's own sort control and support the arrow keys. Unqork still resets the sort mode when the page reloads.
+- **Sort mode → Switches** replaces the sort dropdown with Default, By Type and Alphabetical side by side, with the current mode highlighted. The switches use Unqork's own sort control and support the arrow keys. Unqork still resets the sort mode when the page reloads.
 
 These two options work whether or not Component styling is on, and Reset layout returns both to Unqork's default. If the builder's sort control is not recognized, Unqork's dropdown stays in place.
 

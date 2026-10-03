@@ -178,7 +178,7 @@ const scripts = ['environment.js', 'panel-settings.js', 'row-layout.js', 'toolba
       assert.equal(store.rowLayout.enabled, false);
       assert.deepEqual(store.canvasToolbar, { search:'native', sort:'always' });
       assert.deepEqual(store.componentColors, { logic:{ dark:{ ink:'#7C3AED' } } }, 'A layout import leaves colors alone');
-      assert.equal(document.querySelector('select[data-toolbar="sort"]').value, 'always', 'Open toolbar controls show imported values');
+      assert.equal(document.querySelector('input[data-toolbar="sort"]:checked').value, 'always', 'Open toolbar controls show imported values');
       assert.equal(store.builderPanels.agent.visibility, 'start');
       assert.equal(store.panelWidth_explore, 333);
       assert.equal(messages.filter(message => message.replace).length, 1);

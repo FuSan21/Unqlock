@@ -2,7 +2,7 @@
 globalThis.UnqlockToolbar = (() => {
   const controls = {
     search: { label:'Search bar', always:'Always visible' },
-    sort: { label:'Sort mode', always:'Always visible as switches' }
+    sort: { label:'Sort mode', always:'Switches' }
   };
   // Each control either keeps Unqork's own behavior or stays open.
   function settings(value) {

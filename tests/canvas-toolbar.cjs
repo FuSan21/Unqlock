@@ -177,24 +177,24 @@ async function run(firefoxMode) {
       await popup.reload();
       await popup.locator('#open-layout').click();
       await popup.locator('#layout-fields:not([disabled])').waitFor();
-      await popup.getByLabel('Search bar', { exact:true }).selectOption('always');
+      await popup.getByLabel('Search bar: Always visible', { exact:true }).check();
       await storedWhen(values => values.canvasToolbar?.search === 'always' && values.canvasToolbar?.sort === 'native');
-      await popup.getByLabel('Sort mode', { exact:true }).selectOption('always');
+      await popup.getByLabel('Sort mode: Switches', { exact:true }).check();
       await storedWhen(values => values.canvasToolbar?.search === 'always' && values.canvasToolbar?.sort === 'always');
       await popup.reload();
       await popup.locator('#open-layout').click();
       await popup.locator('#layout-fields:not([disabled])').waitFor();
-      assert.equal(await popup.getByLabel('Sort mode', { exact:true }).inputValue(), 'always');
+      assert(await popup.getByLabel('Sort mode: Switches', { exact:true }).isChecked());
       // Toolbar options do not depend on Component styling.
       await set({ appearance:{ enabled:false } });
       await popup.reload();
       await popup.locator('#open-layout').click();
       await popup.locator('#layout-fields:not([disabled])').waitFor();
       assert(await popup.locator('#row-preset').isDisabled(), 'Row layout needs Component styling');
-      assert(await popup.getByLabel('Search bar', { exact:true }).isEnabled());
+      assert(await popup.getByLabel('Search bar: Always visible', { exact:true }).isEnabled());
       await popup.getByRole('button', { name:'Reset layout', exact:true }).click();
       await storedWhen(values => values.canvasToolbar?.search === 'native' && values.canvasToolbar?.sort === 'native');
-      assert.equal(await popup.getByLabel('Search bar', { exact:true }).inputValue(), 'native');
+      await popup.waitForFunction(() => document.querySelector('input[data-toolbar="search"][value="native"]').checked);
     }
     assert.deepEqual(errors, []);
     console.log('PASS: canvas toolbar search focus, Escape and close, sort switches through a memoized trigger, keyboard, remount, unrecognized fallback, scope and popup settings (' + (firefoxMode ? 'Firefox' : 'Chrome extension') + ').');

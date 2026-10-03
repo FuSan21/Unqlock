@@ -87,19 +87,31 @@ rowSections.replaceChildren(...Object.entries(UnqlockRowLayout.sections).map(([i
 }));
 // Toolbar controls work without Component styling, since they only keep Unqork's own controls open.
 const toolbarControls = Object.entries(UnqlockToolbar.controls).map(([id, control]) => {
-  const label = document.createElement("label");
-  const name = document.createElement("span");
-  name.textContent = control.label;
-  const select = document.createElement("select");
-  select.dataset.toolbar = id;
-  select.setAttribute("aria-label", control.label);
-  select.setAttribute("aria-describedby", "toolbar-help");
-  select.append(new Option("Use Unqork default", "native"), new Option(control.always, "always"));
-  label.append(name, select);
-  return label;
+  const group = document.createElement("fieldset");
+  group.className = "row-section";
+  group.setAttribute("aria-describedby", "toolbar-help");
+  const legend = document.createElement("legend");
+  legend.textContent = control.label;
+  const segments = document.createElement("div");
+  segments.className = "segments";
+  for (const [value, text] of [["native", "Default"], ["always", control.always]]) {
+    const option = document.createElement("label");
+    const input = document.createElement("input");
+    input.type = "radio";
+    input.name = "toolbar-" + id;
+    input.value = value;
+    input.dataset.toolbar = id;
+    input.setAttribute("aria-label", control.label + ": " + text);
+    const span = document.createElement("span");
+    span.textContent = text;
+    option.append(input, span);
+    segments.append(option);
+  }
+  group.append(legend, segments);
+  return group;
 });
 document.getElementById("toolbar-controls").replaceChildren(...toolbarControls);
-const toolbarSelects = [...document.querySelectorAll("select[data-toolbar]")];
+const toolbarInputs = [...document.querySelectorAll("input[data-toolbar]")];
 async function getTargetTab() {
   if (window.top !== window || new URL(location.href).searchParams.has('targetTab')) {
     const result = await extensionAPI.runtime.sendMessage({ type:'floating.target' });
@@ -186,7 +198,7 @@ function showColors(value) {
 }
 function showToolbar(value) {
   canvasToolbar = UnqlockToolbar.settings(value);
-  for (const select of toolbarSelects) select.value = canvasToolbar[select.dataset.toolbar];
+  for (const input of toolbarInputs) input.checked = input.value === canvasToolbar[input.dataset.toolbar];
 }
 function showLayout(value) {
   rowLayout = UnqlockRowLayout.settings(value);
@@ -229,8 +241,8 @@ rowPreset.addEventListener("change", () => {
 rowSections.addEventListener("change", event => {
   if (event.target.name?.startsWith("row-")) save({ rowLayout:{ ...rowLayout, [event.target.name.slice(4)]:event.target.value, enabled:true } });
 });
-for (const select of toolbarSelects) {
-  select.addEventListener("change", () => save({ canvasToolbar:{ ...canvasToolbar, [select.dataset.toolbar]:select.value } }));
+for (const input of toolbarInputs) {
+  input.addEventListener("change", () => save({ canvasToolbar:{ ...canvasToolbar, [input.dataset.toolbar]:input.value } }));
 }
 const pick = (source, keys) => Object.fromEntries(keys.map(key => [key, source[key]]));
 document.getElementById("reset-style").addEventListener("click", () => save({ appearance:{ ...appearance, ...pick(defaults, styleKeys) }, componentColors:{} }));
