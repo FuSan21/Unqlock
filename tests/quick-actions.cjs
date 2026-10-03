@@ -80,7 +80,7 @@ const source = file => fs.readFileSync(path.join(__dirname, '../src', file), 'ut
         return [{ result:{ ok:true, message:'Done' } }];
       } }
     };
-    page.eval(['environment.js', 'row-layout.js', 'toolbar-settings.js', 'disabled-controls.js', 'quick-actions.js', 'popup.js', 'quick-popup.js', 'environment-popup.js'].map(source).join('\n'));
+    page.eval(['environment.js', 'row-layout.js', 'toolbar-settings.js', 'component-colors.js', 'disabled-controls.js', 'quick-actions.js', 'popup.js', 'quick-popup.js', 'environment-popup.js'].map(source).join('\n'));
     const settle = () => new Promise(resolve => setTimeout(resolve, 0));
     await settle();
     assert.match(page.document.getElementById('environment-summary').textContent, /UNKNOWN · example\.test/);

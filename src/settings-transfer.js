@@ -26,6 +26,7 @@ globalThis.UnqlockTransfer = (() => {
         appearance: appearance(stored.appearance),
         rowLayout: UnqlockRowLayout.settings(stored.rowLayout),
         canvasToolbar: UnqlockToolbar.settings(stored.canvasToolbar),
+        componentColors: UnqlockColors.settings(stored.componentColors),
         builderPanels: UnqlockPanels.settings(stored.builderPanels),
         panelWidths: panelWidths(stored),
         environment: UnqlockEnvironment.settings(stored.environment),
@@ -45,12 +46,12 @@ globalThis.UnqlockTransfer = (() => {
     if (!isObject(file) || !Number.isInteger(file.unqlock) || !isObject(file.settings)) throw new Error('This JSON is not an Unqlock settings export.');
     if (file.unqlock > format) throw new Error('These settings come from a newer version of Unqlock. Update Unqlock and try again.');
     const settings = file.settings;
-    for (const key of ['appearance', 'rowLayout', 'canvasToolbar', 'builderPanels', 'panelWidths', 'environment', 'floating']) {
+    for (const key of ['appearance', 'rowLayout', 'canvasToolbar', 'componentColors', 'builderPanels', 'panelWidths', 'environment', 'floating']) {
       if (Object.hasOwn(settings, key) && !isObject(settings[key])) throw new Error('The ' + key + ' value must be an object.');
     }
     const appearance = settings.appearance || {};
     const present = {
-      style: Object.keys(appearance).some(key => !layoutKeys.includes(key)),
+      style: Object.keys(appearance).some(key => !layoutKeys.includes(key)) || Boolean(settings.componentColors),
       layout: Object.keys(appearance).some(key => layoutKeys.includes(key)) || Boolean(settings.rowLayout || settings.canvasToolbar),
       panels: Boolean(settings.builderPanels || settings.panelWidths),
       environments: Boolean(settings.environment) && ['groups', 'blockProduction', 'autoDiscover'].some(key => Object.hasOwn(settings.environment, key)),
@@ -84,6 +85,8 @@ globalThis.UnqlockTransfer = (() => {
         ...(selected('layout') ? pick(incoming, layoutKeys) : {})
       };
     }
+    // A style import replaces the colors too; a file without them restores the defaults.
+    if (selected('style')) update.componentColors = UnqlockColors.settings(settings.componentColors);
     if (selected('layout')) {
       update.rowLayout = UnqlockRowLayout.settings(settings.rowLayout);
       update.canvasToolbar = UnqlockToolbar.settings(settings.canvasToolbar);

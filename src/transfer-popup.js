@@ -1,7 +1,7 @@
 "use strict";
 (() => {
   const transfer = UnqlockTransfer;
-  const storedKeys = ['appearance', 'rowLayout', 'canvasToolbar', 'builderPanels', 'environment', 'floating', ...Object.keys(UnqlockPanels.panels).map(UnqlockPanels.rememberedKey)];
+  const storedKeys = ['appearance', 'rowLayout', 'canvasToolbar', 'componentColors', 'builderPanels', 'environment', 'floating', ...Object.keys(UnqlockPanels.panels).map(UnqlockPanels.rememberedKey)];
   const exportOutput = document.getElementById('export-output');
   const exportStatus = document.getElementById('export-status');
   const exportButtons = [document.getElementById('export-copy'), document.getElementById('export-download')];
@@ -127,6 +127,7 @@
       if (Object.keys(update).length) await extensionAPI.storage.local.set(update);
       if (update.rowLayout) showLayout(update.rowLayout);
       if (update.canvasToolbar) showToolbar(update.canvasToolbar);
+      if (update.componentColors) showColors(update.componentColors);
       if (update.appearance) show(update.appearance);
       if (environment) renderStrip(environmentTarget ? UnqlockEnvironment.detect(environmentTarget.url, environmentConfig) : null);
       const names = chosen.map(id => transfer.sections[id]).join(', ');

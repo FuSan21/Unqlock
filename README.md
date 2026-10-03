@@ -4,7 +4,7 @@ Unqlock combines Unqork + Unlock: make builder components easier to recognize.
 
 <img src="docs/assets/extension-icon.png" width="80" height="80" alt="Unqlock icon">
 
-One source tree, two Manifest V3 builds. Includes styling for 52 component types, compact rows, configurable canvas row layout, container emphasis for collapsible components, visibility and width controls for four builder panels, environment tools, a floating menu and application debugging. The current version is recorded in package.json.
+One source tree, two Manifest V3 builds. Includes styling for 54 component types plus custom components, with customizable group colors, compact rows, configurable canvas row layout, container emphasis for collapsible components, visibility and width controls for four builder panels, environment tools, a floating menu and application debugging. The current version is recorded in package.json.
 
 ## Installation
 
@@ -61,7 +61,7 @@ The popup opens to a home menu with the everyday actions on top:
 
 Below them, features are grouped by where they apply:
 
-- **Builder:** **Component style** (sidebar/canvas scope, icons, labels, frames and the color guide), **Canvas layout** (Compact components, canvas row layout, containers and the canvas toolbar) and **Builder panels**.
+- **Builder:** **Component style** (sidebar/canvas scope, icons, labels, frames and group colors), **Canvas layout** (Compact components, canvas row layout, containers and the canvas toolbar) and **Builder panels**.
 - **Tools:** **Debug tools**.
 - **Setup:** **Environments** (production guard, auto-discovery and domain groups), **Floating launcher** (show, corner and environment label) and **Import & export** (settings as JSON).
 
@@ -74,7 +74,7 @@ Use **‹ Home** or Escape to return; focus goes back to the entry you came from
 **Containers** makes panels, field groups, columns, grids and every other collapsible canvas component easier to tell apart. Containers are recognized by their collapsible structure rather than a type list, so new or custom collapsible types are included; collapsible areas outside the canvas, such as sidebar categories, are not affected. Each option is a separate toggle, off by default:
 
 - **More space around containers** adds room between containers and a deeper indent for their contents.
-- **Tinted container headers** gives each container header a category-colored band with a divider, so it reads differently from a regular row.
+- **Tinted container headers** fills each container header with its group's background color and adds a divider, so it reads differently from a regular row. With Full background accents also on, the header keeps a slightly stronger band than its body.
 - **Nesting guide lines** draws a category-colored line down the left of each container's contents.
 - **Shade by nesting depth** shades container contents a little more at each nesting level.
 - **Pin headers while scrolling** keeps a container's header at the top of the canvas while you scroll through it; nested headers stack below their parent.
@@ -91,7 +91,7 @@ These two options work whether or not Component styling is on, and Reset layout 
 
 ## Appearance controls
 
-Component style groups scope, icons/labels and component frames. **Component styling** on the home menu controls the whole appearance feature, including Canvas layout; **Style sidebar components** and **Style canvas components** control all effects in their respective areas. They do not affect Debug tools. Individual controls include colored icons, tinted icon backgrounds, colored sidebar names, colored canvas type labels, distinct icon shapes, left accents, full backgrounds and borders. Distinct shapes require colored icons; icon backgrounds are independent. Existing settings retain their behavior: icon colors/backgrounds default on, and the new sidebar-name coloring defaults off. Turning a master off preserves the individual preferences.
+Component style groups scope, icons/labels, component frames and colors. **Colors**, at the end, lists every component group, such as Input fields, Grids or Logic & processing, with a **Light** and a **Dark** pair of swatches, each a color picker. The first swatch of a pair is the **foreground**, used for icons, labels, shapes, borders and accents; the second is the **background**, used for icon tiles and full background accents. Pick only one and the other is worked out from it so labels stay readable; pick both to keep two similar groups apart, since pale backgrounds of close hues such as red and pink otherwise look alike. **Reset** beside a changed group restores its defaults, Reset style restores all of them, and Import & export includes them with Component style. **Component styling** on the home menu controls the whole appearance feature, including Canvas layout; **Style sidebar components** and **Style canvas components** control all effects in their respective areas. They do not affect Debug tools. Individual controls include colored icons, tinted icon backgrounds, colored sidebar names, colored canvas type labels, distinct icon shapes, left accents, full backgrounds and borders. Distinct shapes require colored icons; icon backgrounds are independent. Existing settings retain their behavior: icon colors/backgrounds default on, and the new sidebar-name coloring defaults off. Turning a master off preserves the individual preferences.
 
 ## Debug tools
 

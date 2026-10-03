@@ -44,6 +44,7 @@
       ],
       "js": [
         "row-layout.js",
+        "component-colors.js",
         "content.js",
         "panel-settings.js",
         "builder-panels.js",

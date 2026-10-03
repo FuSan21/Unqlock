@@ -13,6 +13,54 @@ const rowPreset = document.getElementById("row-preset");
 let appearance = { ...defaults };
 let rowLayout = UnqlockRowLayout.settings();
 let canvasToolbar = UnqlockToolbar.settings();
+let componentColors = {};
+// The color guide doubles as the color settings: each group has a text and a background swatch
+// per theme, and each swatch is a color picker.
+const partNames = { ink:"foreground", tint:"background" };
+const colorRows = UnqlockColors.families.map(family => {
+  const row = document.createElement("div");
+  row.className = "color-row";
+  row.setAttribute("role", "group");
+  row.setAttribute("aria-label", family.name + " colors");
+  const name = document.createElement("span");
+  name.textContent = family.name;
+  const pickers = [];
+  const pairs = UnqlockColors.modes.map(mode => {
+    const pair = document.createElement("span");
+    pair.className = "color-pair";
+    for (const part of UnqlockColors.parts) {
+      const picker = document.createElement("input");
+      picker.type = "color";
+      picker.className = "swatch";
+      picker.dataset.color = family.id + "-" + mode + "-" + part;
+      picker.title = (mode === "light" ? "Light " : "Dark ") + partNames[part];
+      picker.setAttribute("aria-label", family.name + " " + mode + " " + partNames[part] + " color");
+      picker.addEventListener("change", () => {
+        const next = structuredClone(componentColors);
+        next[family.id] = { ...next[family.id], [mode]:{ ...next[family.id]?.[mode], [part]:picker.value } };
+        save({ componentColors:UnqlockColors.settings(next) });
+      });
+      pickers.push({ mode, part, picker });
+      pair.append(picker);
+    }
+    return pair;
+  });
+  const reset = document.createElement("button");
+  reset.type = "button";
+  reset.className = "link-button";
+  reset.textContent = "Reset";
+  reset.setAttribute("aria-label", "Reset " + family.name + " colors");
+  reset.addEventListener("click", async () => {
+    const { [family.id]:_removed, ...rest } = componentColors;
+    await save({ componentColors:rest });
+    pickers[0].picker.focus();
+  });
+  const resetCell = document.createElement("span");
+  resetCell.append(reset);
+  row.append(name, ...pairs, resetCell);
+  return { family, pickers, reset, row };
+});
+document.getElementById("color-settings").append(...colorRows.map(entry => entry.row));
 rowPreset.replaceChildren(...[["native", "Native"], ...Object.entries(UnqlockRowLayout.presets).map(([id, preset]) => [id, preset.label]), ["custom", "Custom"]].map(([value, label]) => new Option(label, value)));
 const rowSections = document.getElementById("row-sections");
 rowSections.replaceChildren(...Object.entries(UnqlockRowLayout.sections).map(([id, name]) => {
@@ -99,7 +147,6 @@ globalThis.UnqlockPages = (() => {
   });
   return { open, back, current:() => current, onOpen:register(openHooks), onLeave:register(leaveHooks) };
 })();
-const families = [["Input fields","1E40AF","93C5FD"],["Choices","155E75","67E8F9"],["Layout","5B21B6","C4B5FD"],["Grids","9F1239","FDA4AF"],["Content","334155","CBD5E1"],["Actions & navigation","166534","86EFAC"],["Logic & processing","854D0E","FDE047"],["Data & storage","115E59","5EEAD4"],["Integrations","9A3412","FDBA74"],["Charts & maps","86198F","F0ABFC"],["Custom components","3F6212","BEF264"]];
 function normalize(value) {
   return Object.fromEntries(Object.entries(defaults).map(([key, fallback]) => [key, typeof value?.[key] === "boolean" ? value[key] : fallback]));
 }
@@ -122,6 +169,20 @@ function show(value) {
   }
   showLayout(rowLayout);
   showToolbar(canvasToolbar);
+  showColors(componentColors);
+}
+// Swatches show the resolved colors, so a derived partner shows what the builder will use.
+function showColors(value) {
+  componentColors = UnqlockColors.settings(value);
+  const palette = UnqlockColors.palette(componentColors);
+  for (const { family, pickers, reset } of colorRows) {
+    const entry = palette.find(item => item.id === family.id);
+    for (const { mode, part, picker } of pickers) {
+      picker.value = entry[mode][UnqlockColors.parts.indexOf(part)].toLowerCase();
+      UnqlockDisabled.set(picker, reasonFor("colors", picker));
+    }
+    reset.hidden = !Object.keys(entry.picked).length;
+  }
 }
 function showToolbar(value) {
   canvasToolbar = UnqlockToolbar.settings(value);
@@ -151,7 +212,8 @@ async function save(items) {
     await extensionAPI.storage.local.set(items);
     if (items.rowLayout) rowLayout = UnqlockRowLayout.settings(items.rowLayout);
     if (items.canvasToolbar) canvasToolbar = UnqlockToolbar.settings(items.canvasToolbar);
-    if (items.appearance) show(items.appearance); else { showLayout(rowLayout); showToolbar(canvasToolbar); }
+    if (items.componentColors) componentColors = UnqlockColors.settings(items.componentColors);
+    if (items.appearance) show(items.appearance); else { showLayout(rowLayout); showToolbar(canvasToolbar); showColors(componentColors); }
     setAppearanceStatus("Saved");
   }
   catch { setAppearanceStatus("Could not save. Try again."); }
@@ -171,18 +233,6 @@ for (const select of toolbarSelects) {
   select.addEventListener("change", () => save({ canvasToolbar:{ ...canvasToolbar, [select.dataset.toolbar]:select.value } }));
 }
 const pick = (source, keys) => Object.fromEntries(keys.map(key => [key, source[key]]));
-document.getElementById("reset-style").addEventListener("click", () => save({ appearance:{ ...appearance, ...pick(defaults, styleKeys) } }));
+document.getElementById("reset-style").addEventListener("click", () => save({ appearance:{ ...appearance, ...pick(defaults, styleKeys) }, componentColors:{} }));
 document.getElementById("reset-layout").addEventListener("click", () => save({ appearance:{ ...appearance, ...pick(defaults, layoutKeys) }, rowLayout:UnqlockRowLayout.settings(), canvasToolbar:UnqlockToolbar.settings() }));
-function drawLegend() {
-  document.getElementById("legend").replaceChildren(...families.map(([name, light, dark]) => {
-    const row = document.createElement("div");
-    const swatch = document.createElement("span");
-    swatch.className = "swatch";
-    swatch.style.backgroundColor = "#" + (matchMedia("(prefers-color-scheme:dark)").matches ? dark : light);
-    row.append(swatch, document.createTextNode(name));
-    return row;
-  }));
-}
-drawLegend();
-matchMedia("(prefers-color-scheme:dark)").addEventListener("change", drawLegend);
-extensionAPI.storage.local.get(["appearance", "rowLayout", "canvasToolbar"]).then(result => { rowLayout = UnqlockRowLayout.settings(result.rowLayout); canvasToolbar = UnqlockToolbar.settings(result.canvasToolbar); show(result.appearance); setAppearanceStatus("Ready"); setAppearanceBusy(false); }).catch(() => { show(defaults); setAppearanceStatus("Storage unavailable"); });
+extensionAPI.storage.local.get(["appearance", "rowLayout", "canvasToolbar", "componentColors"]).then(result => { rowLayout = UnqlockRowLayout.settings(result.rowLayout); canvasToolbar = UnqlockToolbar.settings(result.canvasToolbar); componentColors = UnqlockColors.settings(result.componentColors); show(result.appearance); setAppearanceStatus("Ready"); setAppearanceBusy(false); }).catch(() => { show(defaults); setAppearanceStatus("Storage unavailable"); });
