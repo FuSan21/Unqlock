@@ -41,6 +41,7 @@ const assert = require('node:assert/strict');
     await page.goto(`chrome-extension://${installed.id}/popup.html`);
     await status('Ready');
     assert.match(await page.locator('#environment-summary').innerText(), /Open an Unqork page/);
+    assert.equal(await page.locator('#version').textContent(), 'v' + require('../package.json').version, 'The header shows the packaged version');
     await builder.waitForSelector('#unqlock-environment');
     assert.equal(await builder.locator('#unqlock-environment span').isVisible(), false);
     // Floating launcher owns the badge label; Environments owns the groups.
