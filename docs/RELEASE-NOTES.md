@@ -1,10 +1,11 @@
-## Unreleased
+## New in 1.4.0
 
 - **Canvas toolbar:** under Canvas layout → Toolbar, keep the configuration search field always visible, and show the sort modes as side-by-side switches (Default, By Type, Alphabetical) instead of a dropdown. Both default to Unqork's behavior and are included in Import & export.
 - **Component colors by role:** components are regrouped into ten color groups by what they do: input fields, layout, grids, content, actions and navigation, logic and processing (Initializer, Decisions, Calculator, Data Workflow, Data Mapper, Timer and AI Summarizer now share one color), data and storage, integrations, charts and maps, and custom components. Custom (BYOC) components get their own color in the sidebar and on the canvas, and the Simple Grid UI block is styled with the grids. Each group has its own color, chosen to fit the role and measured to stay distinct for icons and for full backgrounds in light and dark themes, with readable text on every background. Distinct icon shapes follow their group's color.
 - **Custom colors:** Component style → Colors replaces the color guide with pickers: per group, a foreground and a background color for the light theme and for the dark theme. Pick one color of a theme and its partner is worked out to stay readable, or pick both to keep similar groups apart. Reset restores a group's defaults, and colors travel with Component style in Import & export.
 - **Controls on colored rows:** with Full background accents or Tinted container headers on, a row's dependency count, actions menu and container chevron take the row's own colors instead of Unqork's brand tint and gray.
 - **Tinted container headers** now use the group's background color, including colors you pick.
+- **Version in the popup:** the header shows the installed Unqlock version next to its name.
 - **By Type and Alphabetical views:** component styling now applies to the flat rows these sort modes show.
 
 ## New in 1.3.3
