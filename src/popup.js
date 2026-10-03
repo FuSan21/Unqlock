@@ -12,6 +12,7 @@ const resetButtons = [document.getElementById("reset-style"), document.getElemen
 const rowPreset = document.getElementById("row-preset");
 let appearance = { ...defaults };
 let rowLayout = UnqlockRowLayout.settings();
+let canvasToolbar = UnqlockToolbar.settings();
 rowPreset.replaceChildren(...[["native", "Native"], ...Object.entries(UnqlockRowLayout.presets).map(([id, preset]) => [id, preset.label]), ["custom", "Custom"]].map(([value, label]) => new Option(label, value)));
 const rowSections = document.getElementById("row-sections");
 rowSections.replaceChildren(...Object.entries(UnqlockRowLayout.sections).map(([id, name]) => {
@@ -36,6 +37,21 @@ rowSections.replaceChildren(...Object.entries(UnqlockRowLayout.sections).map(([i
   group.append(legend, segments);
   return group;
 }));
+// Toolbar controls work without Component styling, since they only keep Unqork's own controls open.
+const toolbarControls = Object.entries(UnqlockToolbar.controls).map(([id, control]) => {
+  const label = document.createElement("label");
+  const name = document.createElement("span");
+  name.textContent = control.label;
+  const select = document.createElement("select");
+  select.dataset.toolbar = id;
+  select.setAttribute("aria-label", control.label);
+  select.setAttribute("aria-describedby", "toolbar-help");
+  select.append(new Option("Use Unqork default", "native"), new Option(control.always, "always"));
+  label.append(name, select);
+  return label;
+});
+document.getElementById("toolbar-controls").replaceChildren(...toolbarControls);
+const toolbarSelects = [...document.querySelectorAll("select[data-toolbar]")];
 async function getTargetTab() {
   if (window.top !== window || new URL(location.href).searchParams.has('targetTab')) {
     const result = await extensionAPI.runtime.sendMessage({ type:'floating.target' });
@@ -105,6 +121,11 @@ function show(value) {
     UnqlockDisabled.set(control, reasonFor(key, control));
   }
   showLayout(rowLayout);
+  showToolbar(canvasToolbar);
+}
+function showToolbar(value) {
+  canvasToolbar = UnqlockToolbar.settings(value);
+  for (const select of toolbarSelects) select.value = canvasToolbar[select.dataset.toolbar];
 }
 function showLayout(value) {
   rowLayout = UnqlockRowLayout.settings(value);
@@ -129,7 +150,8 @@ async function save(items) {
   try {
     await extensionAPI.storage.local.set(items);
     if (items.rowLayout) rowLayout = UnqlockRowLayout.settings(items.rowLayout);
-    if (items.appearance) show(items.appearance); else showLayout(rowLayout);
+    if (items.canvasToolbar) canvasToolbar = UnqlockToolbar.settings(items.canvasToolbar);
+    if (items.appearance) show(items.appearance); else { showLayout(rowLayout); showToolbar(canvasToolbar); }
     setAppearanceStatus("Saved");
   }
   catch { setAppearanceStatus("Could not save. Try again."); }
@@ -145,9 +167,12 @@ rowPreset.addEventListener("change", () => {
 rowSections.addEventListener("change", event => {
   if (event.target.name?.startsWith("row-")) save({ rowLayout:{ ...rowLayout, [event.target.name.slice(4)]:event.target.value, enabled:true } });
 });
+for (const select of toolbarSelects) {
+  select.addEventListener("change", () => save({ canvasToolbar:{ ...canvasToolbar, [select.dataset.toolbar]:select.value } }));
+}
 const pick = (source, keys) => Object.fromEntries(keys.map(key => [key, source[key]]));
 document.getElementById("reset-style").addEventListener("click", () => save({ appearance:{ ...appearance, ...pick(defaults, styleKeys) } }));
-document.getElementById("reset-layout").addEventListener("click", () => save({ appearance:{ ...appearance, ...pick(defaults, layoutKeys) }, rowLayout:UnqlockRowLayout.settings() }));
+document.getElementById("reset-layout").addEventListener("click", () => save({ appearance:{ ...appearance, ...pick(defaults, layoutKeys) }, rowLayout:UnqlockRowLayout.settings(), canvasToolbar:UnqlockToolbar.settings() }));
 function drawLegend() {
   document.getElementById("legend").replaceChildren(...families.map(([name, light, dark]) => {
     const row = document.createElement("div");
@@ -160,4 +185,4 @@ function drawLegend() {
 }
 drawLegend();
 matchMedia("(prefers-color-scheme:dark)").addEventListener("change", drawLegend);
-extensionAPI.storage.local.get(["appearance", "rowLayout"]).then(result => { rowLayout = UnqlockRowLayout.settings(result.rowLayout); show(result.appearance); setAppearanceStatus("Ready"); setAppearanceBusy(false); }).catch(() => { show(defaults); setAppearanceStatus("Storage unavailable"); });
+extensionAPI.storage.local.get(["appearance", "rowLayout", "canvasToolbar"]).then(result => { rowLayout = UnqlockRowLayout.settings(result.rowLayout); canvasToolbar = UnqlockToolbar.settings(result.canvasToolbar); show(result.appearance); setAppearanceStatus("Ready"); setAppearanceBusy(false); }).catch(() => { show(defaults); setAppearanceStatus("Storage unavailable"); });

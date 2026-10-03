@@ -46,7 +46,9 @@
         "row-layout.js",
         "content.js",
         "panel-settings.js",
-        "builder-panels.js"
+        "builder-panels.js",
+        "toolbar-settings.js",
+        "canvas-toolbar.js"
       ],
       "css": [
         "content.css",
@@ -69,7 +71,8 @@
         "https://*.unqork.io/ide/*"
       ],
       "js": [
-        "panel-resize-bridge.js"
+        "panel-resize-bridge.js",
+        "canvas-toolbar-bridge.js"
       ],
       "world": "MAIN",
       "run_at": "document_start"

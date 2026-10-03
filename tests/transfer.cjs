@@ -4,7 +4,7 @@ const path = require('node:path');
 const { JSDOM } = require('jsdom');
 const source = file => fs.readFileSync(path.join(__dirname, '../src', file), 'utf8');
 const settle = async () => { for (let i = 0; i < 10; i++) await new Promise(resolve => setTimeout(resolve, 0)); };
-const scripts = ['environment.js', 'panel-settings.js', 'row-layout.js', 'disabled-controls.js', 'quick-actions.js', 'popup.js', 'quick-popup.js', 'environment-popup.js', 'launcher-popup.js', 'panels-popup.js', 'settings-transfer.js', 'transfer-popup.js'];
+const scripts = ['environment.js', 'panel-settings.js', 'row-layout.js', 'toolbar-settings.js', 'disabled-controls.js', 'quick-actions.js', 'popup.js', 'quick-popup.js', 'environment-popup.js', 'launcher-popup.js', 'panels-popup.js', 'settings-transfer.js', 'transfer-popup.js'];
 (async () => {
   for (const apiName of ['chrome', 'browser']) {
     const popup = new JSDOM(source('popup.html'), { url:'https://extension.test/popup.html', runScripts:'outside-only' });
@@ -13,6 +13,7 @@ const scripts = ['environment.js', 'panel-settings.js', 'row-layout.js', 'disabl
     const original = {
       appearance:{ enabled:true, compact:true, icons:false, containerGuides:true },
       rowLayout:{ enabled:true, icon:'left', name:'left', type:'middle', chip:'right', actions:'right' },
+      canvasToolbar:{ search:'always' },
       builderPanels:{ agent:{ visibility:'always', sizing:'custom', width:420 } },
       panelWidth_explore:333,
       floating:{ enabled:true, position:'top-right' },
@@ -78,6 +79,7 @@ const scripts = ['environment.js', 'panel-settings.js', 'row-layout.js', 'disabl
       assert.equal(exported.settings.appearance.compact, true);
       assert.equal(exported.settings.appearance.tray, true, 'Unset appearance keys export their defaults');
       assert.equal(exported.settings.rowLayout.type, 'middle');
+      assert.deepEqual(exported.settings.canvasToolbar, { search:'always', sort:'native' });
       assert.equal(exported.settings.builderPanels.agent.visibility, 'always');
       assert.equal(exported.settings.builderPanels.tray.visibility, 'native');
       assert.deepEqual(exported.settings.panelWidths, { agent:null, explore:333, properties:null, tray:null });
@@ -111,6 +113,7 @@ const scripts = ['environment.js', 'panel-settings.js', 'row-layout.js', 'disabl
       const incoming = structuredClone(exported);
       Object.assign(incoming.settings.appearance, { compact:false, icons:true, containerGuides:false });
       incoming.settings.rowLayout.enabled = false;
+      incoming.settings.canvasToolbar = { search:'native', sort:'always' };
       incoming.settings.builderPanels.agent = { visibility:'start', sizing:'native', width:null };
       incoming.settings.floating.position = 'bottom-right';
       incoming.settings.environment = { badge:false, blockProduction:false, autoDiscover:true, groups:[{ id:'team', name:'Team', domains:[{ hostname:'team.example.test', environment:'qa' }] }] };
@@ -139,6 +142,7 @@ const scripts = ['environment.js', 'panel-settings.js', 'row-layout.js', 'disabl
       assert.equal(store.appearance.compact, true, 'Layout keys are kept');
       assert.equal(store.appearance.containerGuides, true);
       assert.equal(store.rowLayout.enabled, true);
+      assert.deepEqual(store.canvasToolbar, original.canvasToolbar);
       assert.deepEqual(store.builderPanels, original.builderPanels);
       assert.equal(store.panelWidth_explore, 333);
       assert.deepEqual(store.floating, { enabled:true, position:'bottom-right' });
@@ -167,6 +171,8 @@ const scripts = ['environment.js', 'panel-settings.js', 'row-layout.js', 'disabl
       assert.equal(store.appearance.containerGuides, false);
       assert.equal(store.appearance.icons, true);
       assert.equal(store.rowLayout.enabled, false);
+      assert.deepEqual(store.canvasToolbar, { search:'native', sort:'always' });
+      assert.equal(document.querySelector('select[data-toolbar="sort"]').value, 'always', 'Open toolbar controls show imported values');
       assert.equal(store.builderPanels.agent.visibility, 'start');
       assert.equal(store.panelWidth_explore, 333);
       assert.equal(messages.filter(message => message.replace).length, 1);

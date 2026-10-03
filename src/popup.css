@@ -13,7 +13,7 @@ h2 { font-size:14px; margin:0 0 12px; }
 #panel-inspect > button, #panel-execute > button { width:100%; }
 .value-types { margin-top:12px; }
 .value-types legend { margin-bottom:6px; }
-#row-preset { width:auto; min-width:150px; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--paper); color:var(--ink); font:inherit; }
+#row-preset, select[data-toolbar] { width:184px; max-width:60%; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--paper); color:var(--ink); font:inherit; }
 .row-section { margin-top:8px; }
 .row-section legend { font-size:12px; color:var(--muted); margin-bottom:4px; }
 .row-section .segments span { padding:4px; font-size:12px; }

@@ -1,3 +1,8 @@
+## Unreleased
+
+- **Canvas toolbar:** under Canvas layout → Toolbar, keep the configuration search field always visible, and show the sort modes as side-by-side switches (Default, By Type, Alphabetical) instead of a dropdown. Both default to Unqork's behavior and are included in Import & export.
+- **By Type and Alphabetical views:** component styling now applies to the flat rows these sort modes show.
+
 ## New in 1.3.3
 
 - **Import & export:** back up settings or share them with your team as JSON. Copy to the clipboard or download a file, then paste or choose a file to import. A review step lists each section in the file so you can replace only Component style, Canvas layout, Builder panels, Environments or Floating launcher.

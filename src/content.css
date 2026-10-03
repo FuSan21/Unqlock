@@ -197,3 +197,15 @@
   [data-uq-container-shade] { background-color:Canvas !important; }
   [data-uq-container-sticky] { background-color:Canvas !important; }
 }
+
+/* Canvas toolbar: the sort switches replace Unqork's sort dropdown, which stays mounted but hidden. */
+[data-unqlock-sort-replaced] { display:none!important; }
+[data-unqlock-sort] { display:inline-flex; align-items:center; gap:2px; flex-shrink:0; height:24px; padding:0 2px; border-radius:calc(var(--radius, .5rem) - 2px); color:var(--muted-foreground, #64748b); font-size:12px; line-height:1; }
+[data-unqlock-sort] > svg { width:14px; height:14px; margin:0 4px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
+[data-unqlock-sort] > button { height:20px; padding:0 8px; border:0; border-radius:calc(var(--radius, .5rem) - 4px); background:transparent; color:inherit; font:inherit; white-space:nowrap; cursor:pointer; }
+[data-unqlock-sort] > button:hover { background:var(--muted, #f1f5f9); color:var(--foreground, #334155); }
+[data-unqlock-sort] > button[aria-checked="true"] { background:var(--accent, #f1f5f9); color:var(--foreground, #334155); font-weight:600; box-shadow:inset 0 0 0 1px var(--border, #e2e8f0); }
+[data-unqlock-sort] > button:focus-visible { outline:2px solid var(--ring, #0ea5e9); outline-offset:1px; }
+@media (forced-colors:active) {
+  [data-unqlock-sort] > button[aria-checked="true"] { outline:1px solid CanvasText; }
+}
