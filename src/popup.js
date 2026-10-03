@@ -99,7 +99,7 @@ globalThis.UnqlockPages = (() => {
   });
   return { open, back, current:() => current, onOpen:register(openHooks), onLeave:register(leaveHooks) };
 })();
-const families = [["Inputs","1D4ED8","93C5FD"],["Contact & identity","0F766E","5EEAD4"],["Layout","4338CA","A5B4FC"],["Content","6D28D9","C4B5FD"],["Data & storage","0E7490","67E8F9"],["Calculation & workflows","7E22CE","D8B4FE"],["Decisions","92400E","FCD34D"],["Actions & execution","166534","86EFAC"],["Integrations","9A3412","FDBA74"],["Charts & maps","9D174D","FDA4AF"],["Hidden & protected","475569","CBD5E1"]];
+const families = [["Input fields","1E40AF","93C5FD"],["Choices","155E75","67E8F9"],["Layout","5B21B6","C4B5FD"],["Grids","9F1239","FDA4AF"],["Content","334155","CBD5E1"],["Actions & navigation","166534","86EFAC"],["Logic & processing","854D0E","FDE047"],["Data & storage","115E59","5EEAD4"],["Integrations","9A3412","FDBA74"],["Charts & maps","86198F","F0ABFC"],["Custom components","3F6212","BEF264"]];
 function normalize(value) {
   return Object.fromEntries(Object.entries(defaults).map(([key, fallback]) => [key, typeof value?.[key] === "boolean" ? value[key] : fallback]));
 }

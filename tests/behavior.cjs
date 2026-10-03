@@ -38,7 +38,7 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
 (async () => {
   dom.window.eval(script);
   await settle();
-  assert.equal(dom.window.document.querySelectorAll('[data-uq-family]').length, 105);
+  assert.equal(dom.window.document.querySelectorAll('[data-uq-family]').length, 109);
   assert.equal(query('[data-tray-type="integrator"]').dataset.uqFamily, 'integrations');
   assert.equal(query('[data-component-key="integrator"]').dataset.uqFamily, 'integrations');
   assert(!query('[data-component-key="unknown"]').hasAttribute('data-uq-family'));
@@ -119,7 +119,7 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
   assert(query('[data-component-key="new-card"]').hasAttribute('data-uq-family'));
   existing.querySelector('.text-2xs').textContent = 'DECISIONS';
   await settle();
-  assert.equal(existing.dataset.uqFamily, 'decisions');
+  assert.equal(existing.dataset.uqFamily, 'logic');
   existing.querySelector('.text-2xs').textContent = 'UNSUPPORTED';
   await settle();
   assert(!existing.hasAttribute('data-uq-family'));
@@ -203,7 +203,7 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
   list.innerHTML = listRow('listButton', '<span>in fgHeader</span><span>•</span><span>Button</span>') + listRow('listPlugin', '<span>in panel</span><span>•</span><span>Plugin</span>') + listRow('listRoot', '<span>Decisions</span>') + listRow('listModule', '<span>in panel</span><span>•</span><span>Module 6552482f</span>') + listRow('listParent', '<span>in Hidden</span>');
   dom.window.document.body.append(list);
   await settle();
-  assert.deepEqual(['listButton', 'listPlugin', 'listRoot'].map(key => query(`[data-component-key="${key}"]`).dataset.uqFamily), ['actions', 'integrations', 'decisions']);
+  assert.deepEqual(['listButton', 'listPlugin', 'listRoot'].map(key => query(`[data-component-key="${key}"]`).dataset.uqFamily), ['actions', 'integrations', 'logic']);
   assert(query('[data-component-key="listButton"] .text-xs > :last-child').hasAttribute('data-uq-label'));
   assert(query('[data-component-key="listButton"] .tile').hasAttribute('data-uq-tile'));
   assert(!query('[data-component-key="listModule"]').hasAttribute('data-uq-family'));
@@ -214,6 +214,28 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
   await rowLayout({ ...allLeft, enabled:false });
   list.remove();
   await settings({});
+  // UI blocks carry a per-environment ID and match by name; custom components (BYOC) share one group,
+  // including one named like a built-in, and show a package icon on the canvas.
+  const packageIcon = '<svg class="lucide lucide-package" viewBox="0 0 24 24"></svg>';
+  const extras = dom.window.document.createElement('div');
+  extras.innerHTML = '<div data-tray-type="uiBlock::6abe616e836eb2cfdd35162d" aria-label="Simple Grid component">' + icon + '<span>Simple Grid</span></div>'
+    + '<div data-tray-type="uiBlock::0123" aria-label="Team Header component">' + icon + '<span>Team Header</span></div>'
+    + '<div data-tray-type="byoc::smartPagination" aria-label="Smart Pagination component">' + icon + '<span>Smart Pagination</span></div>'
+    + '<div data-tray-type="byoc::SimpleGrid" aria-label="Simple Grid component">' + icon + '<span>Simple Grid</span></div>'
+    + '<div data-component-key="customComponent"><div class="header"><div class="tile">' + packageIcon + '</div><div><strong>customComponent</strong><div class="text-2xs">SMARTPAGINATION</div></div></div></div>'
+    + '<div data-component-key="customGrid"><div class="header"><div class="tile">' + packageIcon + '</div><div><strong>customGrid</strong><div class="text-2xs">SIMPLEGRID</div></div></div></div>';
+  dom.window.document.body.append(extras);
+  await settle();
+  assert.deepEqual([...extras.children].map(element => element.dataset.uqFamily || null), ['grids', null, 'custom', 'custom', 'custom', 'custom']);
+  assert.equal(query('[data-component-key="customComponent"] svg').dataset.uqSymbol, 'custom');
+  extras.remove();
+  await settle();
+  // Distinct icon shapes are drawn in their group's color, so they must follow any recoloring.
+  const familyOf = Object.fromEntries([...script.matchAll(/"type": "([^"]+)",[\s\S]*?"family": "([a-z]+)"/g)].map(match => [match[1], match[2]]));
+  const ink = Object.fromEntries([...css.matchAll(/^(\.dark )?\[data-uq-family="(\w+)"\] \{ --uq-ink:#(\w{6});/gm)].map(match => [(match[1] ? 'dark ' : '') + match[2], match[3]]));
+  const symbols = [...css.matchAll(/^(\.dark )?\[data-uq-symbol="([^"]+)"\] \{ --uq-symbol:url\("[^"]*?stroke%3D%22%23(\w{6})%22/gm)];
+  assert(symbols.length >= 20);
+  for (const [, dark, type, stroke] of symbols) assert.equal(stroke, ink[(dark ? 'dark ' : '') + familyOf[type]], `${dark ? 'Dark' : 'Light'} ${type} shape uses its group color`);
   // Changes away from components, such as streaming Build Agent text, never trigger a pass.
   const unrelated = dom.window.document.createElement('div');
   dom.window.document.body.append(unrelated);
@@ -226,7 +248,7 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
   query('[data-component-key="number"] .text-2xs').textContent = 'DECISIONS';
   await settle();
   assert.equal(passes, 1, 'A changed component still gets a pass');
-  assert.equal(query('[data-component-key="number"]').dataset.uqFamily, 'decisions');
+  assert.equal(query('[data-component-key="number"]').dataset.uqFamily, 'logic');
   query('[data-component-key="number"] .text-2xs').textContent = 'NUMBER';
   await settle();
   dom.window.requestAnimationFrame = frameRequest;
@@ -237,7 +259,7 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
   assert.equal(dom.window.document.querySelectorAll('[data-uq-family]').length, 0);
   testObserver.disconnect();
   dom.window.close();
-  console.log('PASS: all 52 types, aliases, nested ownership, row layout placement, container structure and depth, unknown types, dynamic inserts/type changes, scope, disable cleanup, SVG preservation and click handlers.');
+  console.log('PASS: all 54 types, UI blocks, custom components, shape colors, aliases, nested ownership, row layout placement, container structure and depth, unknown types, dynamic inserts/type changes, scope, disable cleanup, SVG preservation and click handlers.');
   const browser = await (firefoxMode ? firefox : chromium).launch({ ...(firefoxMode ? {} : process.env.CHROME_PATH ? { executablePath:process.env.CHROME_PATH } : {}), headless:true });
   const page = await browser.newPage({ viewport:{ width:1100, height:820 } });
   const failures = [];
@@ -260,7 +282,7 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
   }), /inset.*rgb\(0, 188, 200\) 0px 0px 0px 2px/);
   await page.addScriptTag({ content:script });
   await page.waitForSelector('[data-uq-family]');
-  assert.equal(await page.locator('[data-tray-type="number"] svg').first().evaluate(element => getComputedStyle(element).color), 'rgb(29, 78, 216)');
+  assert.equal(await page.locator('[data-tray-type="number"] svg').first().evaluate(element => getComputedStyle(element).color), 'rgb(30, 64, 175)');
   await page.screenshot({ path:path.join(__dirname, '../artifacts/extension-light.png') });
   await page.evaluate(() => document.documentElement.classList.add('dark'));
   assert.equal(await page.locator('[data-tray-type="number"] svg').first().evaluate(element => getComputedStyle(element).color), 'rgb(147, 197, 253)');

@@ -1,6 +1,7 @@
 ## Unreleased
 
 - **Canvas toolbar:** under Canvas layout → Toolbar, keep the configuration search field always visible, and show the sort modes as side-by-side switches (Default, By Type, Alphabetical) instead of a dropdown. Both default to Unqork's behavior and are included in Import & export.
+- **Component colors by role:** components are regrouped into eleven colors by what they do: input fields, choices, layout, grids, content, actions and navigation, logic and processing (Initializer, Decisions, Calculator, Data Workflow, Data Mapper, Timer and AI Summarizer now share one color), data and storage, integrations, charts and maps, and custom components. Custom (BYOC) components get their own color in the sidebar and on the canvas, and the Simple Grid UI block is styled with the grids. Each group has its own color, chosen to fit the role and measured to stay distinct for icons and for full backgrounds in light and dark themes, with readable text on every background. Distinct icon shapes follow their group's color.
 - **By Type and Alphabetical views:** component styling now applies to the flat rows these sort modes show.
 
 ## New in 1.3.3

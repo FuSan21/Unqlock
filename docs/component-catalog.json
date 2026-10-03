@@ -1,7 +1,7 @@
 {
   "source": "Verified in Chrome: UnqorkAI Default Library component tray, 2026-09-16",
-  "uniqueCount": 52,
-  "trayEntryCount": 63,
+  "uniqueCount": 54,
+  "trayEntryCount": 65,
   "frequentlyUsed": ["button", "transformer", "columns", "dataworkflow", "decision", "hidden", "htmlelement", "initializer", "panel", "integrator", "textfield"],
   "components": [
     {"type":"selectboxes","label":"Checkboxes","group":"Primary Fields","icon":"list-checks"},
@@ -55,6 +55,8 @@
     {"type":"chart","label":"Chart","group":"Charts & Graphs","icon":"chart-column"},
     {"type":"kpi","label":"KPI","group":"Charts & Graphs","icon":"gauge"},
     {"type":"map","label":"Map","group":"Charts & Graphs","icon":"map"},
-    {"type":"mapv2","label":"Map V2","group":"Charts & Graphs","icon":"map"}
+    {"type":"mapv2","label":"Map V2","group":"Charts & Graphs","icon":"map"},
+    {"type":"aiSummarizer","label":"AI Summarizer","group":"Agentic Pallet","icon":"sparkles"},
+    {"type":"uiBlock","label":"Simple Grid","group":"Display & Layout","icon":"puzzle","note":"A UI block: the tray type is uiBlock:: plus a per-environment ID, so it is matched by name."}
   ]
 }
