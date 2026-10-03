@@ -61,7 +61,7 @@ The popup opens to a home menu with the everyday actions on top:
 
 Below them, features are grouped by where they apply:
 
-- **Builder:** **Component style** (sidebar/canvas scope, icons, labels, frames and the color guide), **Canvas layout** (Compact components, canvas row layout and containers) and **Builder panels**.
+- **Builder:** **Component style** (sidebar/canvas scope, icons, labels, frames and the color guide), **Canvas layout** (Compact components, canvas row layout, containers and the canvas toolbar) and **Builder panels**.
 - **Tools:** **Debug tools**.
 - **Setup:** **Environments** (production guard, auto-discovery and domain groups), **Floating launcher** (show, corner and environment label) and **Import & export** (settings as JSON).
 
@@ -81,6 +81,13 @@ Use **‹ Home** or Escape to return; focus goes back to the entry you came from
 - **Mark where containers end** adds a small "End of" line with the container's key at the bottom of its contents.
 
 Header effects still apply while a container is collapsed. The options follow the canvas switch and are cleared by Reset layout.
+
+**Toolbar**, at the end of Canvas layout, controls two buttons on the canvas toolbar. Each one either uses Unqork's default or stays open:
+
+- **Search bar → Always visible** keeps the configuration search field open instead of the search button. It opens without taking focus from what you are editing. The close button and Escape clear the search instead of closing the field; Escape on an empty field moves focus out of it.
+- **Sort mode → Always visible as switches** replaces the sort dropdown with Default, By Type and Alphabetical side by side, with the current mode highlighted. The switches use Unqork's own sort control and support the arrow keys. Unqork still resets the sort mode when the page reloads.
+
+These two options work whether or not Component styling is on, and Reset layout returns both to Unqork's default. If the builder's sort control is not recognized, Unqork's dropdown stays in place.
 
 ## Appearance controls
 

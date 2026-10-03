@@ -23,6 +23,7 @@ for (const [target, manifest] of [['chrome', chromeManifest], ['firefox', firefo
   assert.equal(bridge.world, 'MAIN');
   assert.deepEqual(bridge.matches, ['https://*.unqork.io/ide/*']);
   assert(archives[target]['panel-resize-bridge.js']);
+  assert(bridge.js.includes('canvas-toolbar-bridge.js'));
   assert.deepEqual(manifest.optional_host_permissions, ['*://*/*']);
   for (const script of manifest.background.scripts || [manifest.background.service_worker]) assert(archives[target][script], `Missing background script ${script}`);
   for (const script of manifest.content_scripts[1].js) assert(archives[target][script], `Missing ${script}`);
