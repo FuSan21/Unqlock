@@ -122,3 +122,4 @@ input[role="switch"]:checked::before { transform:translateX(14px); background:va
 .swatch::-webkit-color-swatch-wrapper { padding:2px; }
 .swatch::-webkit-color-swatch { border:0; border-radius:3px; }
 .swatch::-moz-color-swatch { border:0; border-radius:3px; }
+.version { margin-left:4px; font-size:11px; font-weight:500; letter-spacing:0; color:var(--muted); vertical-align:2px; }

@@ -2,6 +2,8 @@
 (async () => {
   const api = typeof browser !== 'undefined' ? browser : chrome;
   const embedded = window.top !== window;
+  const version = api.runtime?.getManifest?.().version;
+  if (version) document.getElementById('version').textContent = 'v' + version;
   try {
     if (embedded) {
       // Resolve the containing tab through the browser, never a page-supplied ID.
