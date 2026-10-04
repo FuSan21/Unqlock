@@ -3,6 +3,11 @@ const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
 const assert = require('node:assert/strict');
+// A stalled step reports where it stopped instead of running into the runner's timeout silently.
+let step = 'start';
+const mark = name => { step = name; };
+const watchdog = setTimeout(() => { console.error('Stalled at step: ' + step); process.exit(1); }, 4 * 60 * 1000);
+watchdog.unref();
 (async () => {
   const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'unqlock-environment-'));
   const extension = path.join(fixture, 'extension');
@@ -29,18 +34,22 @@ const assert = require('node:assert/strict');
     await management.close();
   }
   try {
+    mark('launch');
     await launch();
+    mark('save custom group');
     let popup = await context.newPage();
     await popup.goto(`chrome-extension://${extensionId}/popup.html`);
     const response = await popup.evaluate(() => chrome.runtime.sendMessage({ type:'environment.save', preferences:{badge:true}, group:{ id:'custom', name:'Custom fixture', domains:[{ hostname:'badge-fixture.test', environment:'production' }, { hostname:'fixture-qa.unqork.io', environment:'qa' }] } }));
     assert.equal(response.ok, true);
     assert.equal(response.missingOrigins.length, 0);
+    mark('custom-domain badge');
     let custom = await context.newPage();
     await custom.goto('https://badge-fixture.test/app?x=1#/dashboard');
     await custom.waitForSelector('#unqlock-environment');
     assert.equal(await custom.locator('#unqlock-environment span').innerText(), '● PRODUCTION');
     await custom.reload();
     await custom.waitForSelector('#unqlock-environment');
+    mark('launcher corners');
     await popup.locator('#open-launcher').click();
     for (const position of ['top-left', 'top-right', 'bottom-left', 'bottom-right']) {
       await popup.getByLabel('Corner', {exact:true}).selectOption(position);
@@ -54,6 +63,7 @@ const assert = require('node:assert/strict');
     await custom.waitForFunction(() => !document.querySelector('#unqlock-environment'));
     await popup.getByLabel('Show floating launcher', {exact:true}).check();
     await custom.waitForSelector('#unqlock-environment');
+    mark('open menu by mouse');
     // The menu stays in the original page, including after SPA navigation.
     await custom.evaluate(() => history.pushState({}, '', '/app?changed=1#/another'));
     await custom.bringToFront();
@@ -67,8 +77,13 @@ const assert = require('node:assert/strict');
     await custom.keyboard.press('Tab');
     assert.equal(await menu.evaluate(() => document.activeElement.id), 'environment-manage');
     assert.equal(await menu.locator('#environment-manage').evaluate(element => element.matches(':focus-visible')), true);
-    await custom.keyboard.press('Escape');
+    // Escape removes the menu frame mid-keypress; a real keypress into a detaching frame can hang,
+    // so dispatch it from the frame after evaluate returns.
+    mark('close menu with Escape');
+    await menu.evaluate(() => setTimeout(() => document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key:'Escape', bubbles:true, cancelable:true }))));
     await custom.waitForFunction(() => !document.querySelector('#unqlock-environment').shadowRoot.querySelector('iframe'));
+    mark('open menu by keyboard');
+    assert.equal(await custom.locator('#unqlock-environment').evaluate(host => host.shadowRoot.activeElement === host.shadowRoot.querySelector('button')), true, 'Escape returns focus to the launcher');
     await custom.keyboard.press('Enter');
     const keyboardFrame = await custom.locator('#unqlock-environment iframe').elementHandle();
     menu = await keyboardFrame.contentFrame();
@@ -79,6 +94,7 @@ const assert = require('node:assert/strict');
     const badgeBox = await custom.locator('#unqlock-environment').boundingBox();
     const menuBox = await custom.locator('#unqlock-environment iframe').boundingBox();
     assert(menuBox.y + menuBox.height <= badgeBox.y, 'Bottom badge opens above');
+    mark('home strip and screenshots');
     // Home shows the current environment and switch links for the rest of its group.
     await menu.waitForFunction(() => document.getElementById('environment-summary').textContent === 'PRODUCTION · badge-fixture.test');
     const switchLink = menu.getByRole('link', {name:'Open in QA ↗', exact:true});
@@ -98,6 +114,7 @@ const assert = require('node:assert/strict');
     await menu.getByRole('button', {name:'Manage', exact:true}).click();
     await menu.waitForFunction(() => document.getElementById('environment-current').textContent.includes('badge-fixture.test'));
     await custom.screenshot({ path:path.resolve(__dirname, '../artifacts/floating-launcher.png') });
+    mark('debug data from the menu');
     await custom.evaluate(() => {
       document.body.insertAdjacentHTML('beforeend', '<div class="unqorkio-form"></div>');
       window.fixtureSubmission = { data:{} };
@@ -116,6 +133,7 @@ const assert = require('node:assert/strict');
     await custom.waitForFunction(() => window.fixtureSubmission.data.fixture === 'original page');
     await menu.getByRole('button', {name:'Close Unqlock menu'}).click();
     await custom.waitForFunction(() => !document.querySelector('#unqlock-environment').shadowRoot.querySelector('iframe'));
+    mark('top corner menu');
     await popup.getByLabel('Corner', {exact:true}).selectOption('top-right');
     await custom.waitForFunction(() => document.querySelector('#unqlock-environment').dataset.position === 'top-right');
     await custom.getByRole('button', {name:'Open Unqlock menu'}).click();
@@ -133,6 +151,7 @@ const assert = require('node:assert/strict');
     await custom.waitForFunction(() => !document.querySelector('#unqlock-environment').shadowRoot.querySelector('iframe'));
     await popup.getByLabel('Corner', {exact:true}).selectOption('bottom-right');
 
+    mark('observed unqork.io host');
     const observed = await context.newPage();
     await observed.goto('https://observed-stagingx.unqork.io/app');
     await observed.waitForSelector('#unqlock-environment');
@@ -158,6 +177,7 @@ const assert = require('node:assert/strict');
     assert.equal(await observedMenu.locator('#quick-access').getAttribute('title'), 'https://observed-uatx.unqork.io/*');
     assert.equal(await observedMenu.evaluate(() => document.getElementById('quick-controls').disabled), true);
     assert.match(await observedMenu.locator('#quick-status').innerText(), /one-time access/);
+    mark('browser restart');
     await context.close();
     await launch();
     custom = await context.newPage();
@@ -165,6 +185,7 @@ const assert = require('node:assert/strict');
     await custom.waitForSelector('#unqlock-environment');
     assert.equal(await custom.locator('#unqlock-environment span').innerText(), '● PRODUCTION');
     assert.equal(await custom.locator('#unqlock-environment').getAttribute('data-position'), 'bottom-right');
+    mark('delete group');
     popup = await context.newPage();
     await popup.goto(`chrome-extension://${extensionId}/popup.html`);
     await popup.evaluate(() => chrome.runtime.sendMessage({ type:'environment.save', deleteId:'custom' }));
@@ -174,5 +195,5 @@ const assert = require('node:assert/strict');
     await custom.reload();
     assert.equal(await custom.locator('#unqlock-environment').count(), 0);
     console.log('PASS: actual custom-domain badge injection, reload and browser-restart persistence with fixture-granted site access, automatic grouping and unregister-on-delete.');
-  } finally { await context?.close(); }
+  } finally { mark('close browser'); await context?.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
