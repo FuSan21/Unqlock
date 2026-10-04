@@ -8,7 +8,7 @@ function collect(relative) {
   if (fs.lstatSync(absolute).isSymbolicLink()) throw new Error('Refusing symbolic link');
   if (fs.statSync(absolute).isDirectory()) {
     for (const name of fs.readdirSync(absolute).sort()) collect(relative + '/' + name);
-  } else entries['unqork-scripts/' + relative] = [fs.readFileSync(absolute), { mtime:new Date('2020-01-01T00:00:00Z') }];
+  } else entries['unqlock/' + relative] = [fs.readFileSync(absolute), { mtime:new Date('2020-01-01T00:00:00Z') }];
 }
 for (const item of ['src', 'scripts', 'tests', 'docs', '.claude', '.github', 'wxt.config.ts', 'tsconfig.json', 'vitest.config.mts', 'package.json', 'package-lock.json', 'amo-metadata.json', 'README.md', 'CLAUDE.md', 'LICENSE', '.gitignore', '.gitattributes', '.editorconfig']) collect(item);
 fs.mkdirSync(path.join(project, 'artifacts'), { recursive:true });

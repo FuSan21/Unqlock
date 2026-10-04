@@ -66,6 +66,6 @@ Use the five images and captions in [screenshots/README.md](screenshots/README.m
 
 ## Update notes
 
-Adds Import & export: back up settings or share them with your team as JSON by copying or downloading an export, then paste or choose a file to import. A review step lists each section in the file, so you can replace only the ones you choose. With Compact components on, the type badge now stays beside the property ID, and a new custom row layout starts with the type badge on the left.
+Builder panels and the canvas toolbar settings now use side-by-side switches instead of dropdowns, like the canvas row layout, and every builder panel's options are shown at once. Component style and Canvas layout show when a change is saving.
 
 Do not submit an older package alongside this copy: it describes the current repository build. Updating these files does not publish a store release.

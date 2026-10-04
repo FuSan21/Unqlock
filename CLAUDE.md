@@ -18,6 +18,7 @@ npm run version:bump -- patch # patch, minor, major or an explicit X.Y.Z
 npm run sign:firefox          # submit to addons.mozilla.org
 npm run publish:chrome        # upload and publish to the Chrome Web Store
 npm run icons                 # regenerate committed PNG icons from the SVG
+npm run screenshots           # recapture the popup screenshots from dist/chrome
 ```
 
 ## Conventions

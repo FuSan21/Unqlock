@@ -1,35 +1,47 @@
 # Screenshots
 
-Five 1280 × 800 RGB PNGs for the Chrome Web Store and Firefox listing, in this order. The settings collages show the popup before it was reorganized into a home menu and focused pages; the captions describe what the images show.
+## Store images
 
-1. [Compact builder](listing-01-compact-builder.png) — real sidebar and canvas, category colors, inline type badges and nested groups.
-2. [Component appearance](listing-02-component-appearance.png) — compact layout, scope switches, icons, labels and frame controls.
-3. [Builder panels](listing-03-builder-panels.png) — all four sections, visibility choices and native/custom/remembered widths.
-4. [Environment and floating menu](listing-04-environment-menu.png) — the feature menu, badge, production option and domain configuration. The current organization hostname is explicitly redacted; the user-provided Demo Group and example hostnames remain visible.
-5. [Debug tools](listing-05-debug-tools.png) — Inspect, Data and Execute tabs. These are interface captures; no debug actions were executed.
+Five 1280 × 800 RGB PNGs for the Chrome Web Store and Firefox listing, in this order:
 
-The existing store collages were built from the earlier user-provided Chrome captures on 2026-09-25. The SS/ folder now contains a newer set used directly in the main README. Settings are cropped and pasted at their original pixel size without resizing, sharpening or re-rendering their text. The builder receives one proportional downscale to fit the listing dimensions. Collages use crops of actual extension UI; they do not simulate new controls or combine states into a fictional popup. The dark palette and direct UI presentation follow the original screenshots. Browser chrome, workspace navigation and coworker names are excluded. The earlier source captures and archive were removed.
+1. [Compact builder](listing-01-compact-builder.png): the real sidebar and canvas with category colors, inline type badges and nested groups.
+2. [Component appearance](listing-02-component-appearance.png): Component style switches, the per-group color pickers and the canvas row layout switches.
+3. [Builder panels](listing-03-builder-panels.png): visibility and width switches for the four panels.
+4. [Environment and home menu](listing-04-environment-menu.png): the home menu with the environment strip, the production guard and an example domain group.
+5. [Debug tools](listing-05-debug-tools.png): the Inspect, Data and Execute tabs.
 
-Capture settings pages by opening the floating menu, navigating to the feature, and scrolling long pages. Wait for the page and scroll animation to settle before capture. Open native select menus without changing preferences to show available policies. Crop to the extension or builder surface, assemble the selected views at 1280 × 800, and inspect every output at full size. Keep private full-window captures in ignored artifacts/, not in the repository.
+Each image crops the captures in SS/ at their native pixels, without resizing, sharpening or re-rendering text; only the builder capture is cropped to fit. They show actual extension UI, never simulated controls or a combination of states the popup cannot show. Upload them with the build whose features they depict; repository assets do not upload themselves to either store. Chrome's image guidance: https://developer.chrome.com/docs/webstore/images
 
-Upload these images only with the build whose features they depict. Repository assets do not upload themselves to either store. Chrome's image guidance: https://developer.chrome.com/docs/webstore/images
+## Captures
 
-## README originals
+The popup captures are generated from the current build, in the dark theme, with example data only: the active tab is example-staging.unqork.io and the domain group uses placeholder hostnames.
 
-The newer captures are named for their visible contents. Their image pixels are unchanged. They predate the reorganized popup: the feature menu is now a home menu with the environment strip, quick switches and Log page data; Component appearance is split into Component style and Canvas layout; General settings is split into Floating launcher and Builder panels; and the environment-label toggle moved from Environment to Floating launcher. Recapture them before the next listing update.
-
-- [Feature menu](SS/feature-menu.png)
-- [Component appearance settings](SS/component-appearance-settings.png)
-- [General settings and builder panels](SS/general-builder-panel-settings.png)
-- [Environment settings](SS/environment-settings.png)
+- [Home menu](SS/home-menu.png)
+- [Component style](SS/component-style.png)
+- [Canvas layout](SS/canvas-layout.png)
+- [Builder panels](SS/builder-panels.png)
+- [Environments](SS/environments.png)
+- [Floating launcher](SS/floating-launcher.png)
+- [Import & export](SS/import-export.png)
 - [Debug: Inspect](SS/debug-inspect.png)
 - [Debug: Data](SS/debug-data.png)
 - [Debug: Execute](SS/debug-execute.png)
+
+The two builder captures are screenshots of the Unqork builder with test data, both with compact components; they compare color treatments, not normal versus compact sizing.
+
 - [Compact builder with subtle accents](SS/compact-builder-subtle-accents.png)
 - [Compact builder with full colors](SS/compact-builder-full-colors.png)
 
-Both builder captures use compact components; they compare color treatments, not normal versus compact sizing. The environment capture includes its current hostname and example domain mappings.
+## Regenerating
 
-## Regenerate store collages
+After a change to the popup, refresh the captures and then the store images:
 
-Run `python scripts/compose-listing.py` with Python 3, Pillow and the Windows Segoe UI fonts. The script uses the descriptive filenames in SS/ and writes five listing PNGs plus an ignored contact sheet in artifacts/. Regeneration uses the newer captures, so the resulting crops differ from the retained store images. It does not modify the originals. Review the generated images before uploading.
+```sh
+npm run build
+npm run screenshots
+python scripts/compose-listing.py
+```
+
+npm run screenshots loads dist/chrome in Playwright's Chromium, fills storage with the example settings in scripts/capture-screenshots.cjs and writes the popup captures to SS/. The composer needs Python 3, Pillow and the Windows Segoe UI fonts; it writes the five store images here and a review contact sheet to the ignored artifacts/ folder. If a page's layout changes, adjust the crop boxes in scripts/compose-listing.py and inspect every image at full size before uploading.
+
+The builder captures come from a real builder session. Capture only test data, crop out browser chrome, workspace navigation and coworker names, and redact organization hostnames before committing.

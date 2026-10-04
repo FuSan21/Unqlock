@@ -11,6 +11,7 @@
     "version:bump": "node scripts/version.cjs bump",
     "version:check": "node scripts/version.cjs check",
     "icons": "node scripts/render-icons.cjs",
+    "screenshots": "node scripts/capture-screenshots.cjs",
     "build": "node scripts/build.cjs",
     "typecheck": "tsc -p .",
     "test": "node scripts/test.cjs",
