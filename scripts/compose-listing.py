@@ -25,11 +25,23 @@ def paste(im,stamp,box,xy):
  im.paste(shot,position)
 def save(im,name):
  assert im.size==(1280,800) and im.mode=='RGB';im.save(OUT/name,optimize=True)
-# Crop the compact builder surface at native resolution. All UI crops remain 1:1.
-builder=Image.new('RGB',(1280,800),BG)
-shot=source('compact-builder-subtle-accents').crop((31,138,1044,771))
-builder.paste(shot,((1280-shot.width)//2,(800-shot.height)//2))
-save(builder,'listing-01-compact-builder.png')
+# Builder captures exist per theme at slightly different sizes; trim each pair to their shared size.
+def builder(view,width=None):
+ light=source(f'compact-builder-{view}-light');dark=source(f'compact-builder-{view}-dark')
+ size=(min(light.width,dark.width,width or 10**6),min(light.height,dark.height))
+ return light.crop((0,0)+size),dark.crop((0,0)+size)
+def side_by_side(left,right,gap,fill):
+ pair=Image.new('RGB',(left.width+gap+right.width,max(left.height,right.height)),fill)
+ pair.paste(left,(0,0));pair.paste(right,(left.width+gap,0))
+ return pair
+# The builder in both themes: subtle accents in light, full colors in dark, downscaled once to fit.
+im=base('See every component’s role at a glance','Compact rows and group colors in the sidebar and canvas, in light and dark themes.')
+light,_=builder('subtle-accents',760);_,dark=builder('full-colors',760)
+pair=side_by_side(light,dark,24,BG)
+scale=min(1192/pair.width,620/pair.height)
+pair=pair.resize((round(pair.width*scale),round(pair.height*scale)),Image.Resampling.LANCZOS)
+im.paste(pair,((1280-pair.width)//2,155))
+save(im,'listing-01-compact-builder.png')
 # Each store image shows one view in both themes, light then dark, plus a third view.
 im=base('Recognize components at a glance','Pick foreground and background colors per group, for light and dark themes.')
 paste(im,'light/component-style',(0,880,354,1375),(44,155))
@@ -55,6 +67,8 @@ paste(im,'dark/debug-execute',(0,96,354,600),(884,155))
 save(im,'listing-05-debug-tools.png')
 # README images: every popup capture in both themes, light on the left and dark on the right.
 GAP=16
+for view in ['subtle-accents','full-colors']:
+ side_by_side(*builder(view),GAP,'#7b8494').save(SRC/f'compact-builder-{view}.png',optimize=True)
 for light in sorted((SRC/'light').glob('*.png')):
  left=Image.open(light).convert('RGB');right=source('dark/'+light.stem)
  assert left.size==right.size,light.name
@@ -101,13 +115,15 @@ for i,line in enumerate(['Components colored and shaped by role','Compact rows a
  d.ellipse((74,y+9,84,y+19),fill=ACCENT)
  d.text((98,y),line,font=font(20),fill=MUTED)
 chips(d,72,474,480)
-# The compact builder from the listing image, downscaled once to fit beside the text.
-shot=source('compact-builder-subtle-accents').crop((31,138,1044,771))
-shot=shot.resize((round(shot.width*470/shot.height),470),Image.Resampling.LANCZOS)
-frame=Image.new('L',shot.size,0);ImageDraw.Draw(frame).rounded_rectangle((0,0,shot.width-1,shot.height-1),radius=14,fill=255)
-x,y=1400-shot.width-56,45
-d.rounded_rectangle((x-2,y-2,x+shot.width+1,y+shot.height+1),radius=16,fill='#262d38')
-marquee.paste(shot,(x,y),frame)
+# The compact builder in light and dark, each downscaled once to fit beside the text.
+x=1400-56
+for shot in reversed(builder('subtle-accents',600)):
+ shot=shot.resize((round(shot.width*470/shot.height),470),Image.Resampling.LANCZOS)
+ x-=shot.width
+ frame=Image.new('L',shot.size,0);ImageDraw.Draw(frame).rounded_rectangle((0,0,shot.width-1,shot.height-1),radius=14,fill=255)
+ d.rounded_rectangle((x-2,43,x+shot.width+1,45+shot.height+1),radius=16,fill='#262d38')
+ marquee.paste(shot,(x,45),frame)
+ x-=14
 tile('promo-marquee-1400x560.png',marquee)
 # Review-only contact sheet. Listing images above remain full resolution.
 contact=Image.new('RGB',(1280,1200),'#161b22')

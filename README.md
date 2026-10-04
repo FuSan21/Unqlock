@@ -21,11 +21,11 @@ If Firefox has not granted access to your Unqork site, allow it from the extensi
 
 ### Compact components
 
-Compact rows keep component names, icons and inline type badges visible. The same layout supports subtle accents (left) or full colored backgrounds and borders (right).
+Compact rows keep component names, icons and inline type badges visible, in the light theme (left) and the dark theme (right). The same layout supports subtle accents or full colored backgrounds and borders.
 
 <p>
-  <img src="docs/screenshots/SS/compact-builder-subtle-accents.png" width="49%" alt="Compact builder with subtle accents, colored icons and inline type badges">
-  <img src="docs/screenshots/SS/compact-builder-full-colors.png" width="49%" alt="Compact builder with full category-colored backgrounds and borders">
+  <img src="docs/screenshots/SS/compact-builder-subtle-accents.png" width="100%" alt="Compact builder with subtle accents, colored icons and inline type badges, in light and dark themes">
+  <img src="docs/screenshots/SS/compact-builder-full-colors.png" width="100%" alt="Compact builder with full category-colored backgrounds and borders, in light and dark themes">
 </p>
 
 ### Menu and settings
