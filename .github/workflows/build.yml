@@ -8,10 +8,12 @@ permissions:
   contents: read
 
 jobs:
-  check:
-    name: Build and test both browsers
+  build:
+    name: Build both browsers
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 10
+    outputs:
+      test-matrix: ${{ steps.matrix.outputs.groups }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -26,28 +28,20 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: npm run version:check -- "$RELEASE_TAG"
-      - run: npx playwright install --with-deps chromium firefox
-      # Each test group is its own step, so the run page shows live progress and the failing group.
-      - name: 'Test: Type check and unit tests'
-        run: node scripts/test.cjs unit
       - name: 'Test: Build and package checks'
         run: node scripts/test.cjs build
-      - name: 'Test: Environment and background'
-        run: node scripts/test.cjs models
-      - name: 'Test: Component styling'
-        run: node scripts/test.cjs behavior
-      - name: 'Test: Chrome extension integration'
-        run: node scripts/test.cjs chrome
-      - name: 'Test: Canvas toolbar'
-        run: node scripts/test.cjs toolbar
-      - name: 'Test: Builder panels'
-        run: node scripts/test.cjs panels
-      - name: 'Test: Floating launcher and environments'
-        run: node scripts/test.cjs floating
-      - name: 'Test: Firefox package'
-        run: node scripts/test.cjs firefox
       - run: npm run lint:firefox
       - run: npm run package:source
+      - name: List test groups
+        id: matrix
+        run: echo "groups=$(node scripts/test.cjs --matrix)" >> "$GITHUB_OUTPUT"
+      # The test job runs the browser suites against this exact dist/, and the store jobs ship these ZIPs.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 1
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: extension-packages
@@ -55,9 +49,42 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  test:
+    name: 'Test: ${{ matrix.title }}'
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      # One job per test group from scripts/test-groups.cjs, all running in parallel.
+      matrix:
+        include: ${{ fromJSON(needs.build.outputs.test-matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: dist
+          path: dist
+      - name: Install Playwright browsers
+        if: matrix.browsers != ''
+        env:
+          BROWSERS: ${{ matrix.browsers }}
+        run: npx playwright install --with-deps $BROWSERS
+      - name: Run tests
+        env:
+          GROUP: ${{ matrix.group }}
+        run: node scripts/test.cjs "$GROUP"
+
   sign:
     name: Submit Firefox add-on to AMO
-    needs: check
+    needs: [build, test]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -92,7 +119,7 @@ jobs:
 
   publish-chrome:
     name: Publish Chrome package to the Web Store
-    needs: check
+    needs: [build, test]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -123,7 +150,7 @@ jobs:
 
   release:
     name: Publish tagged release
-    needs: [check, sign, publish-chrome]
+    needs: [build, test, sign, publish-chrome]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     timeout-minutes: 5

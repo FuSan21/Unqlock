@@ -44,8 +44,8 @@ assert(amo.summary['en-US'].length > 0 && amo.summary['en-US'].length <= 250, `A
 // AMO renders a limited Markdown subset; keep the description in blocks, not one wall of text.
 assert(/\n\s*\n/.test(amo.description['en-US']), 'AMO description needs blank-line separated sections');
 assert(amo.version.license || amo.version.custom_license);
-// CI runs each test group as its own step; a group missing from the workflow would never run there.
+// CI runs the build group in its build job and every other group from the --matrix list, one job each.
 const workflow = fs.readFileSync(path.join(project, '.github/workflows/build.yml'), 'utf8');
-for (const name of Object.keys(require('../scripts/test-groups.cjs').groups)) assert(workflow.includes(`run: node scripts/test.cjs ${name}
-`), `The workflow does not run test group ${name}`);
+assert(workflow.includes('run: node scripts/test.cjs build\n') &&workflow.includes('node scripts/test.cjs --matrix') && workflow.includes('fromJSON(needs.build.outputs.test-matrix)'), 'The workflow does not run every test group');
+for (const [name, { browsers }] of Object.entries(require('../scripts/test-groups.cjs').groups)) assert(Array.isArray(browsers) && browsers.every(browser => ['chromium', 'firefox'].includes(browser)), `Test group ${name} needs a browsers list`);
 console.log('PASS: browser manifests, archive contents, permissions, store listing limits, identical shared runtime assets and every test group in CI.');

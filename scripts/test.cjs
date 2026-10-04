@@ -1,10 +1,15 @@
 // Runs the test suite. With no argument it runs every group in order; with group names it runs
-// only those, which is how CI shows each group as its own step. Every group after build reads dist/.
+// only those, which is how CI runs each group as its own job. Every group after build reads dist/.
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 const project = path.resolve(__dirname, '..');
 const { groups } = require('./test-groups.cjs');
 const requested = process.argv.slice(2);
+// --matrix prints the CI test matrix: every group that runs against the build job's dist/.
+if (requested[0] === '--matrix') {
+  console.log(JSON.stringify(Object.entries(groups).filter(([name]) => name !== 'build').map(([group, { title, browsers }]) => ({ group, title, browsers:browsers.join(' ') }))));
+  process.exit(0);
+}
 for (const name of requested) if (!groups[name]) { console.error(`Unknown test group "${name}". Groups: ${Object.keys(groups).join(', ')}`); process.exit(1); }
 // GitHub Actions folds each test's output under its title and shows the result beside it.
 const actions = process.env.GITHUB_ACTIONS === 'true';
