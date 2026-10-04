@@ -19,7 +19,7 @@ Chrome Web Store promo tiles, 24-bit RGB PNGs without transparency:
 - [Small promo tile](promo-small-440x280.png), 440 × 280: the icon, name, a one-line pitch and the ten group colors.
 - [Marquee promo tile](promo-marquee-1400x560.png), 1400 × 560: the same, with three key features beside the compact builder.
 
-Upload both in the Chrome developer dashboard under Store listing → Graphic assets. Firefox does not use promo tiles.
+Firefox does not use promo tiles. [CHROME-WEB-STORE.md](../CHROME-WEB-STORE.md#dashboard-upload) lists which file goes in which dashboard field.
 
 ## Captures
 

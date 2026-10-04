@@ -60,9 +60,27 @@ Logged data may contain sensitive information. Property edits affect in-memory d
 
 Unqlock is an independent project and is not affiliated with or endorsed by Unqork.
 
-## Screenshots
+## Dashboard upload
 
-Use the five images and captions in [screenshots/README.md](screenshots/README.md). Upload the small (440 × 280) and marquee (1400 × 560) promo tiles listed there under Graphic assets. Keep the existing dark UI presentation and use only non-sensitive example data.
+In the [Chrome developer dashboard](https://chrome.google.com/webstore/devconsole), open Unqlock, then **Store listing**:
+
+| Dashboard field | File |
+| --- | --- |
+| Description | The **Detailed description** above |
+| Store icon (128 × 128) | `src/public/icons/icon-128.png` |
+| Screenshot 1 | `docs/screenshots/listing-01-compact-builder.png` |
+| Screenshot 2 | `docs/screenshots/listing-02-component-appearance.png` |
+| Screenshot 3 | `docs/screenshots/listing-03-builder-panels.png` |
+| Screenshot 4 | `docs/screenshots/listing-04-environment-menu.png` |
+| Screenshot 5 | `docs/screenshots/listing-05-debug-tools.png` |
+| Small promo tile (440 × 280) | `docs/screenshots/promo-small-440x280.png` |
+| Marquee promo tile (1400 × 560) | `docs/screenshots/promo-marquee-1400x560.png` |
+
+Delete the current screenshots first, then upload in this order; the first screenshot is the one shown in search results. The short description comes from the package manifest, so it updates with the next uploaded version. Save the draft, then submit it for review together with the package, or on its own if the package is already submitted.
+
+On addons.mozilla.org, open the add-on in the [Developer Hub](https://addons.mozilla.org/developers/addons), choose **Edit Product Page** and replace the screenshots with the same five `listing-*.png` files in the same order. Firefox has no promo tiles; the description and summary are sent from amo-metadata.json with each submission.
+
+All images show light and dark themes and contain only example data.
 
 ## Update notes
 
