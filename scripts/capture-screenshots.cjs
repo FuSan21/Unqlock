@@ -1,5 +1,6 @@
-// Captures the popup pages from the built Chrome extension into docs/screenshots/SS, in the dark
-// theme the store images use. Run npm run build first. Every value shown is example data: the
+// Captures the popup pages from the built Chrome extension into docs/screenshots/SS/light and
+// SS/dark, once per theme. scripts/compose-listing.py pairs them for the README and store images.
+// Run npm run build first. Every value shown is example data: the
 // active tab is a placeholder hostname and no real module or organization is opened.
 const fs = require('node:fs');
 const os = require('node:os');
@@ -23,13 +24,13 @@ const settings = {
     { hostname:'example.com', environment:'production' }
   ] }] }
 };
-(async () => {
-  if (!fs.existsSync(path.join(extension, 'manifest.json'))) throw new Error('Run npm run build first.');
-  fs.mkdirSync(output, { recursive:true });
+async function capture(theme) {
+  const folder = path.join(output, theme);
+  fs.mkdirSync(folder, { recursive:true });
   const context = await chromium.launchPersistentContext(fs.mkdtempSync(path.join(os.tmpdir(), 'unqlock-screenshots-')), {
     ...(process.env.CHROME_PATH ? { executablePath:process.env.CHROME_PATH } : { channel:'chromium' }), headless:true,
     args:[`--disable-extensions-except=${extension}`, `--load-extension=${extension}`],
-    viewport:{ width:354, height:600 }, colorScheme:'dark'
+    viewport:{ width:354, height:600 }, colorScheme:theme
   });
   try {
     let [worker] = context.serviceWorkers();
@@ -46,8 +47,8 @@ const settings = {
       await popup.mouse.move(0, 0);
       await popup.evaluate(() => { document.activeElement?.blur(); scrollTo(0, 0); });
       await popup.waitForTimeout(300);
-      await popup.screenshot({ path:path.join(output, name + '.png'), fullPage:true });
-      console.log('Captured ' + name + '.png');
+      await popup.screenshot({ path:path.join(folder, name + '.png'), fullPage:true });
+      console.log('Captured ' + theme + '/' + name + '.png');
     };
     const open = async entry => {
       await popup.reload();
@@ -73,4 +74,8 @@ const settings = {
     await popup.getByLabel('Component key').fill('calculatePremium');
     await shot('debug-execute');
   } finally { await context.close(); }
+}
+(async () => {
+  if (!fs.existsSync(path.join(extension, 'manifest.json'))) throw new Error('Run npm run build first.');
+  for (const theme of ['light', 'dark']) await capture(theme);
 })().catch(error => { console.error(error); process.exitCode = 1; });

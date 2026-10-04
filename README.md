@@ -30,13 +30,15 @@ Compact rows keep component names, icons and inline type badges visible. The sam
 
 ### Menu and settings
 
+Every capture shows the light theme on the left and the dark theme on the right; the popup follows your system appearance.
+
 <p>
-  <img src="docs/screenshots/SS/home-menu.png" width="280" alt="Home menu with the current environment, switch links, quick switches, Log page data and the feature list">
-  <img src="docs/screenshots/SS/component-style.png" width="280" alt="Component style with scope, icon, label and frame switches and per-group color pickers">
-  <img src="docs/screenshots/SS/canvas-layout.png" width="280" alt="Canvas layout with Compact components, row layout switches, container options and toolbar switches">
-  <img src="docs/screenshots/SS/builder-panels.png" width="280" alt="Builder panels with visibility and width switches for each of the four panels">
-  <img src="docs/screenshots/SS/environments.png" width="280" alt="Environments with the production guard, auto-discovery and an example domain group">
-  <img src="docs/screenshots/SS/import-export.png" width="280" alt="Import and export with Copy JSON, Download file, paste and file import">
+  <img src="docs/screenshots/SS/home-menu.png" width="49%" alt="Home menu with the current environment, switch links, quick switches, Log page data and the feature list">
+  <img src="docs/screenshots/SS/component-style.png" width="49%" alt="Component style with scope, icon, label and frame switches and per-group color pickers">
+  <img src="docs/screenshots/SS/canvas-layout.png" width="49%" alt="Canvas layout with Compact components, row layout switches, container options and toolbar switches">
+  <img src="docs/screenshots/SS/builder-panels.png" width="49%" alt="Builder panels with visibility and width switches for each of the four panels">
+  <img src="docs/screenshots/SS/environments.png" width="49%" alt="Environments with the production guard, auto-discovery and an example domain group">
+  <img src="docs/screenshots/SS/import-export.png" width="49%" alt="Import and export with Copy JSON, Download file, paste and file import">
 </p>
 
 ### Debug tools
@@ -44,9 +46,9 @@ Compact rows keep component names, icons and inline type badges visible. The sam
 Inspect page data, edit in-memory properties, or execute a component by its key on compatible Angular application pages.
 
 <p>
-  <img src="docs/screenshots/SS/debug-inspect.png" width="280" alt="Inspect tab with console output style and Log page data action">
-  <img src="docs/screenshots/SS/debug-data.png" width="280" alt="Data tab with property key, value type switches, value and update or remove actions">
-  <img src="docs/screenshots/SS/debug-execute.png" width="280" alt="Execute tab with component key and Run component action">
+  <img src="docs/screenshots/SS/debug-inspect.png" width="49%" alt="Inspect tab with console output style and Log page data action">
+  <img src="docs/screenshots/SS/debug-data.png" width="49%" alt="Data tab with property key, value type switches, value and update or remove actions">
+  <img src="docs/screenshots/SS/debug-execute.png" width="49%" alt="Execute tab with component key and Run component action">
 </p>
 
 The [screenshot guide](docs/screenshots/README.md) lists every capture and the five 1280 × 800 store images.

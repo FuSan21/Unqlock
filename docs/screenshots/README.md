@@ -10,7 +10,7 @@ Five 1280 × 800 RGB PNGs for the Chrome Web Store and Firefox listing, in this 
 4. [Environment and home menu](listing-04-environment-menu.png): the home menu with the environment strip, the production guard and an example domain group.
 5. [Debug tools](listing-05-debug-tools.png): the Inspect, Data and Execute tabs.
 
-Each image crops the captures in SS/ at their native pixels, without resizing, sharpening or re-rendering text; only the builder capture is cropped to fit. They show actual extension UI, never simulated controls or a combination of states the popup cannot show. Upload them with the build whose features they depict; repository assets do not upload themselves to either store. Chrome's image guidance: https://developer.chrome.com/docs/webstore/images
+Each image shows one popup view in the light and the dark theme side by side, plus a third view. The images crop the captures in SS/light and SS/dark at their native pixels, without resizing, sharpening or re-rendering text; only the builder capture is cropped to fit. They show actual extension UI, never simulated controls or a combination of states the popup cannot show. Upload them with the build whose features they depict; repository assets do not upload themselves to either store. Chrome's image guidance: https://developer.chrome.com/docs/webstore/images
 
 ## Promo tiles
 
@@ -23,7 +23,7 @@ Upload both in the Chrome developer dashboard under Store listing → Graphic as
 
 ## Captures
 
-The popup captures are generated from the current build, in the dark theme, with example data only: the active tab is example-staging.unqork.io and the domain group uses placeholder hostnames.
+The popup captures are generated from the current build in both themes, with example data only: the active tab is example-staging.unqork.io and the domain group uses placeholder hostnames. SS/light and SS/dark hold the single-theme captures the store images crop; each image listed below pairs them, light on the left and dark on the right, for the main README.
 
 - [Home menu](SS/home-menu.png)
 - [Component style](SS/component-style.png)
@@ -51,6 +51,6 @@ npm run screenshots
 python scripts/compose-listing.py
 ```
 
-npm run screenshots loads dist/chrome in Playwright's Chromium, fills storage with the example settings in scripts/capture-screenshots.cjs and writes the popup captures to SS/. The composer needs Python 3, Pillow and the Windows Segoe UI fonts; it writes the five store images and both promo tiles here, and a review contact sheet to the ignored artifacts/ folder. If a page's layout changes, adjust the crop boxes in scripts/compose-listing.py and inspect every image at full size before uploading.
+npm run screenshots loads dist/chrome in Playwright's Chromium, fills storage with the example settings in scripts/capture-screenshots.cjs and writes the popup captures to SS/light and SS/dark. The composer needs Python 3, Pillow and the Windows Segoe UI fonts; it writes the light and dark pairs to SS/, the five store images and both promo tiles here, and a review contact sheet to the ignored artifacts/ folder. If a page's layout changes, adjust the crop boxes in scripts/compose-listing.py and inspect every image at full size before uploading.
 
 The builder captures come from a real builder session. Capture only test data, crop out browser chrome, workspace navigation and coworker names, and redact organization hostnames before committing.
