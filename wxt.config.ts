@@ -20,7 +20,7 @@ export default defineConfig({
     permissions: ['storage', 'activeTab', 'scripting'],
     optional_host_permissions: ['*://*/*'],
     web_accessible_resources: [{ resources: ['icons/icon-32.png', 'popup.html'], matches: ['http://*/*', 'https://*/*'] }],
-    action: { default_icon: { 16: 'icons/icon-16.png', 32: 'icons/icon-32.png' }, default_title: 'Unqlock', default_popup: 'popup.html' },
+    action: { default_icon: { 16: 'icons/icon-16.png', 32: 'icons/icon-32.png' }, default_title: 'Unqlock' },
     ...(browser === 'firefox'
       ? {
           browser_specific_settings: {

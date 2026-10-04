@@ -2,7 +2,6 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { JSDOM } = require('jsdom');
-const source = file => fs.readFileSync(path.join(__dirname, '../src/public', file), 'utf8');
 const built = file => fs.readFileSync(path.join(__dirname, '../dist/chrome', file), 'utf8');
 const lib = require('./lib.cjs');
 const settle = () => new Promise(resolve => setTimeout(resolve, 0));
@@ -65,88 +64,5 @@ const settle = () => new Promise(resolve => setTimeout(resolve, 0));
   dom.window.eval(built('content-scripts/environment-badge.js'));
   assert.equal(dom.window.document.querySelectorAll('#unqlock-environment').length, 1);
   dom.window.close();
-  for (const api of ['chrome', 'browser']) {
-    const popup = new JSDOM(source('popup.html'), { runScripts:'outside-only' });
-    const page = popup.window;
-    let config = { hosts:{ production:'custom.test', qa:'qa.test' } };
-    let listener;
-    let calls = [];
-    page.matchMedia = () => ({ matches:false, addEventListener:() => {} });
-    page[api] = {
-      storage:{ local:{ get:async () => ({ environment:config }), set:async value => { config = value.environment; } }, onChanged:{ addListener:fn => listener = fn } },
-      tabs:{ query:async () => [{ id:7, url:'https://custom.test/app?x=1#/dashboard' }] },
-      runtime:{ sendMessage:async message => {
-        config = page.UnqlockEnvironment.settings(config);
-        if (message.type === 'environment.save') {
-          if (message.group) config.groups = [...config.groups.filter(group => group.id !== message.group.id), message.group];
-          if (message.deleteId) config.groups = config.groups.filter(group => group.id !== message.deleteId);
-          Object.assign(config, message.preferences);
-        }
-        return { ok:true, config, missingOrigins:['*://custom.test/*'] };
-      } },
-      permissions:{ request:async () => false },
-      scripting:{ executeScript:async injection => { calls.push(injection); return [{ result:{ ok:true, message:'Done' } }]; } }
-    };
-    page.eval(['environment.js', 'row-layout.js', 'toolbar-settings.js', 'component-colors.js', 'disabled-controls.js', 'quick-actions.js', 'popup.js', 'quick-popup.js', 'environment-popup.js'].map(source).join('\n'));
-    const click = id => page.document.getElementById(id).click();
-    click('open-quick'); await settle();
-    click('tab-execute');
-    page.document.getElementById('component-key').value = 'run';
-    page.document.querySelector('[data-quick-action="trigger"]').click();
-    assert.match(page.document.getElementById('confirmation-text').textContent, /PRODUCTION ENVIRONMENT/);
-    assert.equal(page.document.activeElement.id, 'cancel-action');
-    assert.equal(calls.length, 0);
-    click('confirm-action'); await settle();
-    assert.equal(calls[0].args[0].productionConfirmed, true);
-    assert.equal(calls[0].args[0].production, true);
-    page.document.querySelector('[data-quick-action="trigger"]').click();
-    config.blockProduction = true;
-    // Re-read policy at execution, even before a storage event reaches this popup.
-    click('confirm-action'); await settle();
-    assert.equal(calls.length, 1);
-    listener({ environment:{ newValue:config } }, 'local');
-    assert.equal(page.document.querySelector('[data-quick-action="trigger"]').disabled, true);
-    assert.equal(page.document.querySelector('[data-quick-action="set"]').disabled, true);
-    assert.equal(page.document.querySelector('[data-quick-action="log"]').disabled, false);
-    assert.equal(page.document.querySelector('#environment-links a').href, 'https://qa.test/app?x=1#/dashboard', 'Home links to the rest of the group');
-    assert.equal(page.document.querySelector('#environment-links a').textContent, 'Open in QA ↗');
-    assert.match(page.document.getElementById('environment-summary').textContent, /PRODUCTION · custom\.test/);
-    page.document.querySelector('#quick-page .page-back').click(); click('open-environment'); await settle();
-    assert.match(page.document.getElementById('environment-current').textContent, /^Current: PRODUCTION · custom\.test/);
-    page.document.querySelectorAll('.environment-domain input')[1].value = 'https://bad.test';
-    page.document.querySelector('.environment-domain input').dispatchEvent(new page.Event('input', { bubbles:true }));
-    await settle();
-    assert.match(page.document.getElementById('environment-status').textContent, /hostname only/);
-    assert.equal(config.groups[0].domains[1].hostname, 'qa.test', 'Invalid drafts retain the saved hostname');
-    assert.equal(page.document.querySelector('#environment-form [name="badge"]'), null, 'The badge label moved to Floating launcher');
-    const discoveryToggle = page.document.querySelector('[name="autoDiscover"]');
-    discoveryToggle.checked = false;
-    discoveryToggle.dispatchEvent(new page.Event('input', { bubbles:true }));
-    await settle();
-    assert.equal(config.autoDiscover, false, 'Preferences save even with an invalid domain draft');
-    assert.equal(page.document.querySelectorAll('.environment-domain input')[1].value, 'https://bad.test', 'Saving preserves unfinished edits');
-    click('environment-access'); await settle();
-    assert.match(page.document.getElementById('environment-status').textContent, /not granted/);
-    click('environment-new-group');
-    page.document.getElementById('environment-group-name').value = 'Second organization';
-    page.document.querySelector('.environment-domain input').value = 'second.test';
-    page.document.querySelector('.environment-domain select').value = 'staging';
-    page.document.querySelector('.environment-domain input').dispatchEvent(new page.Event('input', { bubbles:true }));
-    await settle();
-    assert.equal(config.groups.length, 2);
-    assert.equal(config.groups[0].domains.length, 2);
-    const nameField = page.document.getElementById('environment-group-name');
-    nameField.focus();
-    for (const name of ['Second revised', 'Second final']) {
-      nameField.value = name;
-      nameField.dispatchEvent(new page.Event('input', { bubbles:true }));
-    }
-    await settle();
-    assert.equal(config.groups[1].name, 'Second final', 'Rapid edits save in order');
-    assert.equal(page.document.activeElement, nameField, 'Auto-save retains typing focus');
-    click('environment-delete-group'); await settle();
-    assert.equal(config.groups.length, 1);
-    popup.window.close();
-  }
-  console.log('PASS: environment detection, URL validation, badge lifecycle, production guard and saved-host switcher in both API branches.');
+  console.log('PASS: environment detection, URL validation, discovery and badge lifecycle.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

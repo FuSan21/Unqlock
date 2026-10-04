@@ -12,20 +12,29 @@
     "version:check": "node scripts/version.cjs check",
     "icons": "node scripts/render-icons.cjs",
     "build": "node scripts/build.cjs",
+    "typecheck": "tsc -p .",
     "test": "node scripts/test.cjs",
+    "test:unit": "vitest run",
     "test:chrome": "node tests/chrome.cjs",
-    "lint:firefox": "web-ext lint --source-dir dist/firefox --warnings-as-errors",
+    "lint:firefox": "node scripts/lint-firefox.cjs",
     "test:firefox": "node tests/behavior.cjs --firefox",
     "sign:firefox": "node scripts/sign.cjs",
     "publish:chrome": "node scripts/publish-chrome.cjs",
-    "package:source": "node scripts/package-source.cjs"
+    "package:source": "node scripts/package-source.cjs",
+    "postinstall": "wxt prepare"
   },
   "overrides": {
     "addons-linter": {
       "image-size": "2.0.4"
     }
   },
+  "dependencies": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
   "devDependencies": {
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/react": "16.3.3",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@wxt-dev/module-react": "1.2.2",
@@ -33,10 +42,9 @@
     "fflate": "0.8.3",
     "jsdom": "^29.0.0",
     "playwright": "^1.58.0",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
     "react-resizable-panels": "4.13.2",
     "typescript": "5.9.3",
+    "vitest": "5.0.3",
     "web-ext": "10.6.0",
     "wxt": "0.21.4"
   }
