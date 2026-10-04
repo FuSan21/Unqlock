@@ -12,6 +12,15 @@ Five 1280 × 800 RGB PNGs for the Chrome Web Store and Firefox listing, in this 
 
 Each image crops the captures in SS/ at their native pixels, without resizing, sharpening or re-rendering text; only the builder capture is cropped to fit. They show actual extension UI, never simulated controls or a combination of states the popup cannot show. Upload them with the build whose features they depict; repository assets do not upload themselves to either store. Chrome's image guidance: https://developer.chrome.com/docs/webstore/images
 
+## Promo tiles
+
+Chrome Web Store promo tiles, 24-bit RGB PNGs without transparency:
+
+- [Small promo tile](promo-small-440x280.png), 440 × 280: the icon, name, a one-line pitch and the ten group colors.
+- [Marquee promo tile](promo-marquee-1400x560.png), 1400 × 560: the same, with three key features beside the compact builder.
+
+Upload both in the Chrome developer dashboard under Store listing → Graphic assets. Firefox does not use promo tiles.
+
 ## Captures
 
 The popup captures are generated from the current build, in the dark theme, with example data only: the active tab is example-staging.unqork.io and the domain group uses placeholder hostnames.
@@ -42,6 +51,6 @@ npm run screenshots
 python scripts/compose-listing.py
 ```
 
-npm run screenshots loads dist/chrome in Playwright's Chromium, fills storage with the example settings in scripts/capture-screenshots.cjs and writes the popup captures to SS/. The composer needs Python 3, Pillow and the Windows Segoe UI fonts; it writes the five store images here and a review contact sheet to the ignored artifacts/ folder. If a page's layout changes, adjust the crop boxes in scripts/compose-listing.py and inspect every image at full size before uploading.
+npm run screenshots loads dist/chrome in Playwright's Chromium, fills storage with the example settings in scripts/capture-screenshots.cjs and writes the popup captures to SS/. The composer needs Python 3, Pillow and the Windows Segoe UI fonts; it writes the five store images and both promo tiles here, and a review contact sheet to the ignored artifacts/ folder. If a page's layout changes, adjust the crop boxes in scripts/compose-listing.py and inspect every image at full size before uploading.
 
 The builder captures come from a real builder session. Capture only test data, crop out browser chrome, workspace navigation and coworker names, and redact organization hostnames before committing.

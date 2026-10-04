@@ -62,7 +62,7 @@ Unqlock is an independent project and is not affiliated with or endorsed by Unqo
 
 ## Screenshots
 
-Use the five images and captions in [screenshots/README.md](screenshots/README.md). Keep the existing dark UI presentation and use only non-sensitive example data.
+Use the five images and captions in [screenshots/README.md](screenshots/README.md). Upload the small (440 × 280) and marquee (1400 × 560) promo tiles listed there under Graphic assets. Keep the existing dark UI presentation and use only non-sensitive example data.
 
 ## Update notes
 
