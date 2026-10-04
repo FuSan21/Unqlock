@@ -148,7 +148,7 @@ The full privacy notice is in [docs/PRIVACY.md](docs/PRIVACY.md). Permissions ar
 
 ## Building from source
 
-Requires Node.js 22 or newer and npm. Run both commands from the repository root, the folder containing package.json:
+Requires Node.js 22 or newer and npm. The extension is written in TypeScript and built with [WXT](https://wxt.dev); the popup uses React. Run both commands from the repository root, the folder containing package.json:
 
 ```sh
 npm ci
