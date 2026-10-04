@@ -120,7 +120,7 @@ function preferences() {
 }
 async function injectCurrentBadge() {
   if (!environmentTarget || !environmentConfig.groups.some(group => group.domains.some(domain => domain.hostname === new URL(environmentTarget.url).hostname))) return;
-  try { await extensionAPI.scripting.executeScript({ target:{ tabId:environmentTarget.id }, files:['environment.js', 'environment-badge.js'] }); } catch { /* Registered scripts run on the next permitted page load. */ }
+  try { await extensionAPI.scripting.executeScript({ target:{ tabId:environmentTarget.id }, files:['content-scripts/environment-badge.js'] }); } catch { /* Registered scripts run on the next permitted page load. */ }
 }
 function saveEnvironment(preferencesOnly = false) {
   const revision = ++editRevision;

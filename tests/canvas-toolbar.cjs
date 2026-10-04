@@ -4,7 +4,8 @@ const os = require('node:os');
 const path = require('node:path');
 const { chromium, firefox } = require('playwright');
 const { buildSync } = require('esbuild');
-const source = name => fs.readFileSync(path.resolve(__dirname, '../src', name), 'utf8');
+// The Firefox branch injects the built content scripts into the fixture page.
+const source = name => fs.readFileSync(path.resolve(__dirname, '../dist/firefox/content-scripts', name), 'utf8');
 const bundle = buildSync({ entryPoints:[path.join(__dirname, 'fixtures/canvas-toolbar.jsx')], bundle:true, write:false, format:'iife', define:{ 'process.env.NODE_ENV':'"production"' } }).outputFiles[0].text;
 const html = '<!doctype html><div id="root"></div><script>' + bundle.replace(/<\/script/gi, '<\\/script') + '</script>';
 const fixtureUrl = 'https://toolbar-fixture.unqork.io/ide/builder/workspaces/test/modules/first';
@@ -61,7 +62,6 @@ async function run(firefoxMode) {
       if (firefoxMode) {
         await page.addScriptTag({ content:source('canvas-toolbar-bridge.js') });
         await page.addStyleTag({ content:source('content.css') });
-        await page.addScriptTag({ content:source('toolbar-settings.js') });
         await page.addScriptTag({ content:source('canvas-toolbar.js') });
       }
       await frames();

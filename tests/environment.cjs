@@ -2,12 +2,13 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { JSDOM } = require('jsdom');
-const source = file => fs.readFileSync(path.join(__dirname, '../src', file), 'utf8');
+const source = file => fs.readFileSync(path.join(__dirname, '../src/public', file), 'utf8');
+const built = file => fs.readFileSync(path.join(__dirname, '../dist/chrome', file), 'utf8');
+const lib = require('./lib.cjs');
 const settle = () => new Promise(resolve => setTimeout(resolve, 0));
 (async () => {
   const dom = new JSDOM('', { url:'https://example-prod.unqork.io/app', runScripts:'outside-only' });
-  dom.window.eval(source('environment.js'));
-  const env = dom.window.UnqlockEnvironment;
+  const env = lib.load('environment');
   for (const [host, expected] of Object.entries({
     'american-equity-stagingx':'staging', 'american-equity-uatx':'uat', 'american-equity-qa-uatx':'unknown',
     'org-qa':'qa', 'org-prod':'production', 'org-prod-designer':'production', 'org-pre-prod':'preprod',
@@ -35,8 +36,8 @@ const settle = () => new Promise(resolve => setTimeout(resolve, 0));
   assert.throws(() => env.switchUrl('https://user:secret@a.test', 'b.test'));
   let badgeListener;
   let sourceListener;
-  dom.window.chrome = { runtime:{ getURL:file => 'https://extension.test/' + file, sendMessage:async () => ({ok:true}), onMessage:{ addListener:fn => sourceListener = fn } }, storage:{ local:{ get:async () => ({}) }, onChanged:{ addListener:fn => badgeListener = fn } } };
-  dom.window.eval(source('environment-badge.js'));
+  dom.window.chrome = { runtime:{ getURL:file => 'https://extension.test/' + file.replace(/^\//, ''), sendMessage:async () => ({ok:true}), onMessage:{ addListener:fn => sourceListener = fn } }, storage:{ local:{ get:async () => ({}) }, onChanged:{ addListener:fn => badgeListener = fn } } };
+  dom.window.eval(built('content-scripts/environment-badge.js'));
   await settle();
   // The badge, not the browser, supplies the page address the embedded menu resolves.
   let reported;
@@ -61,7 +62,7 @@ const settle = () => new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(dom.window.document.getElementById('unqlock-environment'), null);
   badgeListener({ floating:{newValue:{enabled:true}} }, 'local');
   badgeListener({ environment:{ newValue:{} } }, 'local');
-  dom.window.eval(source('environment-badge.js'));
+  dom.window.eval(built('content-scripts/environment-badge.js'));
   assert.equal(dom.window.document.querySelectorAll('#unqlock-environment').length, 1);
   dom.window.close();
   for (const api of ['chrome', 'browser']) {

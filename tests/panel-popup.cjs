@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const {chromium,firefox} = require('playwright');
-const source = file => fs.readFileSync(path.join(__dirname,'../src',file),'utf8');
+const source = file => fs.readFileSync(path.join(__dirname,'../src/public',file),'utf8');
 (async () => {
   for (const engine of [chromium,firefox]) {
     const browser = await engine.launch({headless:true});

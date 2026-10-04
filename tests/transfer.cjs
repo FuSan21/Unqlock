@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { JSDOM } = require('jsdom');
-const source = file => fs.readFileSync(path.join(__dirname, '../src', file), 'utf8');
+const source = file => fs.readFileSync(path.join(__dirname, '../src/public', file), 'utf8');
 const settle = async () => { for (let i = 0; i < 10; i++) await new Promise(resolve => setTimeout(resolve, 0)); };
 const scripts = ['environment.js', 'panel-settings.js', 'row-layout.js', 'toolbar-settings.js', 'component-colors.js', 'disabled-controls.js', 'quick-actions.js', 'popup.js', 'quick-popup.js', 'environment-popup.js', 'launcher-popup.js', 'panels-popup.js', 'settings-transfer.js', 'transfer-popup.js'];
 (async () => {

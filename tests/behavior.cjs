@@ -7,8 +7,8 @@ const firefoxMode = process.argv.includes('--firefox');
 fs.mkdirSync(path.resolve(__dirname, '../artifacts'), { recursive:true });
 const root = path.resolve(__dirname, '../dist', firefoxMode ? 'firefox' : 'chrome');
 const catalog = JSON.parse(fs.readFileSync(path.join(__dirname, '../docs/component-catalog.json'), 'utf8'));
-const script = ['row-layout.js', 'component-colors.js', 'content.js'].map(file => fs.readFileSync(path.join(root, file), 'utf8')).join('\n');
-const css = fs.readFileSync(path.join(root, 'content.css'), 'utf8');
+const script = fs.readFileSync(path.join(root, 'content-scripts/content.js'), 'utf8');
+const css = fs.readFileSync(path.join(root, 'content-scripts/content.css'), 'utf8');
 const icon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 9v12"/></svg>';
 const tray = component => `<div data-tray-type="${component.type}" role="button" tabindex="0">${icon}<span>${component.label}</span><svg data-handle="true"></svg></div>`;
 const card = (component, key = component.type) => `<div data-component-key="${key}" role="button" tabindex="0"><div class="header"><div class="tile">${icon}</div><div><strong>${component.label} example</strong><div class="text-2xs">${component.label === 'Plug-In' ? 'PLUGIN' : component.label.toUpperCase()}</div></div><div class="trailing"><button data-slot="popover-trigger" aria-label="1 dependencies"><span>1</span></button><button data-slot="dropdown-menu-trigger" aria-label="Actions for ${key}">⋮</button></div></div></div>`;
@@ -257,7 +257,7 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
   // Group colors and shapes come from the palette through root variables, so every group and
   // shape in content.css has a value, and a picked color reaches icons, backgrounds and shapes.
   const root = dom.window.document.documentElement.style;
-  const colors = dom.window.UnqlockColors;
+  const colors = require('./lib.cjs').load('component-colors');
   const cssFamilies = [...new Set([...css.matchAll(/\[data-uq-family="(\w+)"\] \{ --uq-ink:var/g)].map(match => match[1]))];
   assert.deepEqual(cssFamilies, Array.from(colors.families, family => family.id));
   const cssSymbols = [...css.matchAll(/^\[data-uq-symbol="([^"]+)"\] \{ --uq-symbol:var/gm)].map(match => match[1]);

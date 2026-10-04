@@ -3,7 +3,7 @@ const path = require('node:path');
 const { chromium } = require('playwright');
 (async () => {
   const project = path.resolve(__dirname, '..');
-  const folder = path.join(project, 'src/icons');
+  const folder = path.join(project, 'src/public/icons');
   const svg = fs.readFileSync(path.join(folder, 'unqlock.svg'), 'utf8');
   const browser = await chromium.launch({ ...(process.env.CHROME_PATH ? { executablePath:process.env.CHROME_PATH } : {}), headless:true });
   try {
@@ -17,6 +17,6 @@ const { chromium } = require('playwright');
       const bytes = fs.readFileSync(target);
       if (bytes.readUInt32BE(16) !== size || bytes.readUInt32BE(20) !== size) throw new Error('Incorrect icon size');
     }
-    console.log('Rendered icon PNGs and documentation preview from src/icons/unqlock.svg.');
+    console.log('Rendered icon PNGs and documentation preview from src/public/icons/unqlock.svg.');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

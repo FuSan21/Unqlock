@@ -4,7 +4,8 @@ const os = require('node:os');
 const path = require('node:path');
 const { chromium, firefox } = require('playwright');
 const { buildSync } = require('esbuild');
-const source = name => fs.readFileSync(path.resolve(__dirname, '../src', name), 'utf8');
+// The Firefox branch injects the built content scripts into the fixture page.
+const source = name => fs.readFileSync(path.resolve(__dirname, '../dist/firefox/content-scripts', name), 'utf8');
 const bundle = buildSync({ entryPoints:[path.join(__dirname, 'fixtures/builder-panels.jsx')], bundle:true, write:false, format:'iife' }).outputFiles[0].text;
 const html = '<!doctype html><style>body{margin:0}button{height:30px} [data-panel]{background:#fafafa;border:1px solid #ddd!important;box-sizing:border-box}</style><div id="root"></div><script>' + bundle.replace(/<\/script/gi, '<\\/script') + '</script>';
 const fixtureUrl = 'https://panels-fixture.unqork.io/ide/builder/workspaces/test/modules/first';
@@ -66,7 +67,6 @@ async function run(firefoxMode) {
       if (firefoxMode) {
         await page.addScriptTag({content:source('panel-resize-bridge.js')});
         await page.addStyleTag({content:source('builder-panels.css')});
-        await page.addScriptTag({content:source('panel-settings.js')});
         await page.addScriptTag({content:source('builder-panels.js')});
         // Let the injected script read storage and finish its first pass, as a real
         // content script does at load; a setting saved earlier would count as module entry.

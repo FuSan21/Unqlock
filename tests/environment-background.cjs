@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const source = file => fs.readFileSync(path.join(__dirname, '../src', file), 'utf8');
+const background = fs.readFileSync(path.join(__dirname, '../dist/chrome/background.js'), 'utf8');
 (async () => {
   for (const apiName of ['chrome', 'browser']) {
     let stored;
@@ -29,7 +29,7 @@ const source = file => fs.readFileSync(path.join(__dirname, '../src', file), 'ut
       },
       runtime:{
         ...(apiName === 'browser' ? { getBrowserInfo:async () => ({ name:'Firefox' }) } : {}),
-        getURL:file => 'extension://test/' + file,
+        getURL:file => 'extension://test/' + file.replace(/^\//, ''),
         onMessage:{ addListener:fn => { messageListener = fn; } },
         onStartup:event('startup'), onInstalled:event('installed')
       },
@@ -61,7 +61,7 @@ const source = file => fs.readFileSync(path.join(__dirname, '../src', file), 'ut
       windows:{ create:async options => { popupWindows.push(options); } }
     };
     const context = vm.createContext({ [apiName]:api, URL });
-    vm.runInContext(source('environment.js') + '\n' + source('quick-actions.js') + '\n' + source('environment-background.js'), context);
+    vm.runInContext(background, context);
     const popup = { url:'extension://test/popup.html' };
     const send = (message, sender = popup) => new Promise(resolve => {
       if (messageListener(message, sender, resolve) !== true) resolve(undefined);

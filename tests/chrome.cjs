@@ -2,6 +2,7 @@ const { chromium } = require('playwright');
 const path = require('node:path');
 const fs = require('node:fs');
 const assert = require('node:assert/strict');
+const lib = require('./lib.cjs');
 (async () => {
   fs.mkdirSync(path.resolve(__dirname, '../artifacts'), { recursive:true });
   const extension = path.resolve(__dirname, '../dist/chrome');
@@ -240,9 +241,8 @@ const assert = require('node:assert/strict');
     await styling.check();
     await openPage('style');
     // Each group's swatch picks its color; the builder's backgrounds and borders follow it.
-    globalThis.eval(fs.readFileSync(path.join(extension, 'component-colors.js'), 'utf8'));
     const rgb = value => 'rgb(' + [1, 3, 5].map(index => parseInt(value.slice(index, index + 2), 16)).join(', ') + ')';
-    const derivedTint = UnqlockColors.partner('light', 'ink', '#DC2626');
+    const derivedTint = lib.load('component-colors').partner('light', 'ink', '#DC2626');
     const resetInputs = page.getByRole('button', {name:'Reset Input fields colors'});
     assert.equal(await resetInputs.isHidden(), true, 'Default colors have nothing to reset');
     await page.getByLabel('Input fields light foreground color', {exact:true}).fill('#dc2626');
@@ -276,7 +276,7 @@ const assert = require('node:assert/strict');
       window.testSubmission = { data:{} };
       window.angular = { element:() => ({ scope:() => ({ submission:window.testSubmission, form:{} }) }) };
     });
-    const executeQuickAction = require('node:vm').runInNewContext(fs.readFileSync(path.join(extension, 'quick-actions.js'), 'utf8') + '\nrunQuickAction;');
+    const executeQuickAction = lib.load('quick-actions').runQuickAction;
     await page.exposeFunction('fixtureQuickAction', request => builder.evaluate(executeQuickAction, request));
     await page.evaluate(() => {
       chrome.tabs.query = async () => [{ id:7, url:'https://another-tenant.unqork.io/ide/builder/test' }];

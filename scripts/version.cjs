@@ -13,7 +13,8 @@ function checkVersion(root, tag) {
   const read = file => JSON.parse(fs.readFileSync(path.join(root, file), 'utf8'));
   const version = validateVersion(read('package.json').version);
   const lock = read('package-lock.json');
-  if (read('src/manifest.base.json').version !== version || lock.version !== version || lock.packages[''].version !== version) throw new Error('Package, lockfile and manifest versions must match');
+  // WXT writes the package version into both manifests, so the lockfile is the only other copy.
+  if (lock.version !== version || lock.packages[''].version !== version) throw new Error('Package and lockfile versions must match');
   if (tag !== undefined && tag !== `v${version}`) throw new Error(`Release tag must be v${version}`);
   return version;
 }
@@ -30,7 +31,7 @@ function bumpVersion(root, change) {
   const next = version.split('.').map(Number);
   const firstDifference = next.findIndex((value, position) => value !== Number(current.split('.')[position]));
   if (firstDifference === -1 || next[firstDifference] < Number(current.split('.')[firstDifference])) throw new Error('New version must be greater than the current version');
-  for (const file of ['package.json', 'package-lock.json', 'src/manifest.base.json']) {
+  for (const file of ['package.json', 'package-lock.json']) {
     const filename = path.join(root, file);
     const data = JSON.parse(fs.readFileSync(filename, 'utf8'));
     data.version = version;

@@ -17,21 +17,25 @@ assert.equal(firefoxManifest.browser_specific_settings.gecko.strict_min_version,
 assert.deepEqual(firefoxManifest.browser_specific_settings.gecko.data_collection_permissions.required, ['none']);
 for (const [target, manifest] of [['chrome', chromeManifest], ['firefox', firefoxManifest]]) {
   assert.equal(manifest.name, 'Unqlock');
-  assert.deepEqual(manifest.content_scripts[0].matches, ['https://*.unqork.io/ide/*']);
-  assert.deepEqual(manifest.content_scripts[1].matches, ['https://*.unqork.io/*']);
-  const bridge = manifest.content_scripts.find(entry => entry.js.includes('panel-resize-bridge.js'));
+  const script = name => manifest.content_scripts.find(entry => entry.js.includes('content-scripts/' + name));
+  const builder = script('content.js');
+  assert.deepEqual(builder.matches, ['https://*.unqork.io/ide/*']);
+  assert(builder.js.includes('content-scripts/builder-panels.js') && builder.js.includes('content-scripts/canvas-toolbar.js'));
+  const badge = script('environment-badge.js');
+  assert.deepEqual(badge.matches, ['https://*.unqork.io/*']);
+  const bridge = script('panel-resize-bridge.js');
   assert.equal(bridge.world, 'MAIN');
+  assert.equal(bridge.run_at, 'document_start');
   assert.deepEqual(bridge.matches, ['https://*.unqork.io/ide/*']);
-  assert(archives[target]['panel-resize-bridge.js']);
-  assert(bridge.js.includes('canvas-toolbar-bridge.js'));
+  assert(bridge.js.includes('content-scripts/canvas-toolbar-bridge.js'));
+  for (const entry of manifest.content_scripts) for (const file of [...entry.js, ...(entry.css || [])]) assert(archives[target][file], `Missing ${file}`);
   assert.deepEqual(manifest.optional_host_permissions, ['*://*/*']);
-  for (const script of manifest.background.scripts || [manifest.background.service_worker]) assert(archives[target][script], `Missing background script ${script}`);
-  for (const script of manifest.content_scripts[1].js) assert(archives[target][script], `Missing ${script}`);
+  for (const file of manifest.background.scripts || [manifest.background.service_worker]) assert(archives[target][file], `Missing background script ${file}`);
   assert.equal(manifest.action.default_title, 'Unqlock');
   // The Chrome Web Store rejects a manifest description over 132 characters.
   assert(manifest.description.length > 0 && manifest.description.length <= 132, `${target} description is ${manifest.description.length} characters`);
   assert.deepEqual(manifest.permissions, ['storage', 'activeTab', 'scripting']);
-  for (const entry of [...manifest.content_scripts[0].js, ...manifest.content_scripts[0].css, manifest.action.default_popup, ...Object.values(manifest.icons)]) assert(archives[target][entry], `Missing ${entry}`);
+  for (const entry of [manifest.action.default_popup, ...Object.values(manifest.icons)]) assert(archives[target][entry], `Missing ${entry}`);
   assert(!Object.keys(archives[target]).some(name => name.includes('node_modules') || name.startsWith('tests/')));
 }
 const amo = JSON.parse(fs.readFileSync(path.join(project, 'amo-metadata.json'), 'utf8'));

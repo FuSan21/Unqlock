@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { JSDOM } = require('jsdom');
-const source = file => fs.readFileSync(path.join(__dirname, '../src', file), 'utf8');
+const source = file => fs.readFileSync(path.join(__dirname, '../src/public', file), 'utf8');
 (async () => {
   const dom = new JSDOM('<div class="unqorkio-form"></div>', { url:'https://example.test/app', runScripts:'outside-only' });
   const window = dom.window;
@@ -11,7 +11,7 @@ const source = file => fs.readFileSync(path.join(__dirname, '../src', file), 'ut
   let components = [{ key:'run', execute:async () => { executions++; } }];
   window.angular = { element:() => ({ scope:() => ({ submission, form:{} }), injector:() => { throw new Error('No cache'); } }) };
   window.UnqorkioUtils = { eachComponent:(_forms, visit) => components.forEach(visit) };
-  const execute = window.eval(source('quick-actions.js') + '\nrunQuickAction;');
+  const execute = window.eval(require('./lib.cjs').bundle('lib/quick-actions.ts', 'quick') + '\nquick.runQuickAction;');
   const run = overrides => execute({ url:window.location.href, action:'set', key:'test', value:'', type:'text', confirmed:true, ...overrides });
   assert((await run({})).ok);
   assert.equal(submission.data.test, '');
