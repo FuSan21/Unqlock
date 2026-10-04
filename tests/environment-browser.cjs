@@ -5,7 +5,8 @@ const os = require('node:os');
 const assert = require('node:assert/strict');
 // A stalled step reports where it stopped instead of running into the runner's timeout silently.
 let step = 'start';
-const mark = name => { step = name; };
+// Each step is printed as it starts, so CI logs show progress while the test runs.
+const mark = name => { step = name; console.log('  · ' + name); };
 const watchdog = setTimeout(() => { console.error('Stalled at step: ' + step); process.exit(1); }, 4 * 60 * 1000);
 watchdog.unref();
 (async () => {

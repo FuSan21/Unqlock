@@ -44,4 +44,8 @@ assert(amo.summary['en-US'].length > 0 && amo.summary['en-US'].length <= 250, `A
 // AMO renders a limited Markdown subset; keep the description in blocks, not one wall of text.
 assert(/\n\s*\n/.test(amo.description['en-US']), 'AMO description needs blank-line separated sections');
 assert(amo.version.license || amo.version.custom_license);
-console.log('PASS: browser manifests, archive contents, permissions, store listing limits and identical shared runtime assets.');
+// CI runs each test group as its own step; a group missing from the workflow would never run there.
+const workflow = fs.readFileSync(path.join(project, '.github/workflows/build.yml'), 'utf8');
+for (const name of Object.keys(require('../scripts/test-groups.cjs').groups)) assert(workflow.includes(`run: node scripts/test.cjs ${name}
+`), `The workflow does not run test group ${name}`);
+console.log('PASS: browser manifests, archive contents, permissions, store listing limits, identical shared runtime assets and every test group in CI.');

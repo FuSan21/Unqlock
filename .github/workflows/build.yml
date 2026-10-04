@@ -27,7 +27,25 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: npm run version:check -- "$RELEASE_TAG"
       - run: npx playwright install --with-deps chromium firefox
-      - run: npm test
+      # Each test group is its own step, so the run page shows live progress and the failing group.
+      - name: 'Test: Type check and unit tests'
+        run: node scripts/test.cjs unit
+      - name: 'Test: Build and package checks'
+        run: node scripts/test.cjs build
+      - name: 'Test: Environment and background'
+        run: node scripts/test.cjs models
+      - name: 'Test: Component styling'
+        run: node scripts/test.cjs behavior
+      - name: 'Test: Chrome extension integration'
+        run: node scripts/test.cjs chrome
+      - name: 'Test: Canvas toolbar'
+        run: node scripts/test.cjs toolbar
+      - name: 'Test: Builder panels'
+        run: node scripts/test.cjs panels
+      - name: 'Test: Floating launcher and environments'
+        run: node scripts/test.cjs floating
+      - name: 'Test: Firefox package'
+        run: node scripts/test.cjs firefox
       - run: npm run lint:firefox
       - run: npm run package:source
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
