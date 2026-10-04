@@ -1,4 +1,4 @@
-## New in this release
+## New in 1.5.0
 
 - **Switches for builder panels:** each panel's Visibility (Default, Start collapsed, Always collapsed) and Width (Default, Custom, Remember last) are side-by-side switches like the canvas row layout, and every panel's options are shown at once.
 - **Switches for the canvas toolbar:** under Canvas layout → Toolbar, Search bar and Sort mode are switches between Default and Always visible or Switches.
