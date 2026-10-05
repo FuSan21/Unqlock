@@ -19,14 +19,14 @@ for (const [target, manifest] of [['chrome', chromeManifest], ['firefox', firefo
   assert.equal(manifest.name, 'Unqlock');
   const script = name => manifest.content_scripts.find(entry => entry.js.includes('content-scripts/' + name));
   const builder = script('content.js');
-  assert.deepEqual(builder.matches, ['https://*.unqork.io/ide/*']);
+  assert.deepEqual(builder.matches, ['https://*.unqork.io/*']);
   assert(builder.js.includes('content-scripts/builder-panels.js') && builder.js.includes('content-scripts/canvas-toolbar.js'));
   const badge = script('environment-badge.js');
   assert.deepEqual(badge.matches, ['https://*.unqork.io/*']);
   const bridge = script('panel-resize-bridge.js');
   assert.equal(bridge.world, 'MAIN');
   assert.equal(bridge.run_at, 'document_start');
-  assert.deepEqual(bridge.matches, ['https://*.unqork.io/ide/*']);
+  assert.deepEqual(bridge.matches, ['https://*.unqork.io/*']);
   assert(bridge.js.includes('content-scripts/canvas-toolbar-bridge.js'));
   for (const entry of manifest.content_scripts) for (const file of [...entry.js, ...(entry.css || [])]) assert(archives[target][file], `Missing ${file}`);
   assert.deepEqual(manifest.optional_host_permissions, ['*://*/*']);

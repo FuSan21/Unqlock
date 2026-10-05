@@ -37,7 +37,22 @@ const { buildSync } = require('esbuild');
         let result;
         try {
           await browser.storage.local.set({builderPanels:{agent:{sizing:'custom',width:420}}});
-          const tab = await browser.tabs.create({url:${JSON.stringify(origin + '/ide/builder/workspaces/test/modules/first')}});
+          // Unqork's module search reaches the builder by rewriting the URL of a page that started outside /ide/.
+          const tab = await browser.tabs.create({url:${JSON.stringify(origin + '/app/start')}});
+          const moveEnd = Date.now() + 10000;
+          let moved = false;
+          while (!moved && Date.now() < moveEnd) {
+            try {
+              const [entered] = await browser.scripting.executeScript({target:{tabId:tab.id},world:'MAIN',args:['/ide/builder/workspaces/test/modules/first'],func:path => {
+                if (document.readyState !== 'complete') return false;
+                history.pushState(null,'',path);
+                return true;
+              }});
+              moved = entered.result;
+            } catch { /* The tab is still loading. */ }
+            if (!moved) await new Promise(resolve => setTimeout(resolve,100));
+          }
+          if (!moved) throw new Error('Could not enter the builder route');
           const end = Date.now() + 20000;
           while (Date.now() < end) {
             try {
