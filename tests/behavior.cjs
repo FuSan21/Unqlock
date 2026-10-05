@@ -328,6 +328,30 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
     row.remove();
     return shadow;
   }), /inset.*rgb\(0, 188, 200\) 0px 0px 0px 2px/);
+  // Unqork's selection and search-match ring colors are undefined classes; styled rows must show them in real colors
+  // over full borders and backgrounds, the current match must get its amber background back, and nested rows inherit neither.
+  assert.deepEqual(await page.evaluate(() => {
+    const row = (classes, marks, parent = document.body) => {
+      const element = document.createElement('div');
+      element.className = 'border border-border bg-background ' + classes;
+      for (const mark of ['data-uq-family', 'data-uq-accent', ...marks]) element.setAttribute(mark, mark === 'data-uq-family' ? 'inputs' : '');
+      parent.append(element);
+      return element;
+    };
+    const read = element => { const style = getComputedStyle(element); return [style.boxShadow, style.borderTopColor, style.backgroundColor]; };
+    const selected = row('ring-2 ring-unqork-brand/70', ['data-uq-border', 'data-uq-background']);
+    const match = row('ring-2 ring-amber-400/70', ['data-uq-border']);
+    const current = row('bg-amber-50 ring-2 ring-amber-500', ['data-uq-background']);
+    const nested = row('', ['data-uq-border'], selected);
+    const result = { selected:read(selected), match:read(match), current:read(current), nested:read(nested) };
+    selected.remove(); match.remove(); current.remove();
+    return result;
+  }), {
+    selected:['rgb(30, 64, 175) 3px 0px 0px 0px inset, rgb(0, 188, 200) 0px 0px 0px 3px', 'rgb(0, 188, 200)', 'rgb(191, 219, 254)'],
+    match:['rgb(30, 64, 175) 3px 0px 0px 0px inset, rgb(252, 187, 0) 0px 0px 0px 3px', 'rgb(252, 187, 0)', 'rgba(0, 0, 0, 0)'],
+    current:['rgb(30, 64, 175) 3px 0px 0px 0px inset, rgb(249, 156, 0) 0px 0px 0px 4px', 'rgb(23, 32, 51)', 'rgb(255, 251, 235)'],
+    nested:['rgb(30, 64, 175) 3px 0px 0px 0px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px', 'rgb(30, 64, 175)', 'rgba(0, 0, 0, 0)'],
+  });
   await page.waitForSelector('[data-uq-family]');
   assert.equal(await page.locator('[data-tray-type="number"] svg').first().evaluate(element => getComputedStyle(element).color), 'rgb(30, 64, 175)');
   await page.screenshot({ path:path.join(__dirname, '../artifacts/extension-light.png') });
