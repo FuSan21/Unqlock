@@ -1,0 +1,70 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Navigation tabs fixture</title>
+<!-- The builder's navigation tab bar as captured from a saved builder page: the Browser Preview switcher,
+     tab groups with a pill, sortable tabs with an active link and close buttons. Tabs persist the way
+     Unqork's workspace store does, so a reload restores them. -->
+<div data-slot="resizable-panel" data-name="PanelCenter" id="panel-center">
+  <nav class="w-full shrink-0 flex h-10" aria-label="Navigation tabs" data-testid="navigation-tabs" data-shortcut-context="navigation-tabs"></nav>
+  <div data-name="PanelContent"><h1 id="heading"></h1><input id="editor" aria-label="Editor"></div>
+</div>
+<script>
+  const storeKey = 'ide-workspace-store';
+  const defaults = [
+    { route:'/builder/workspaces/test/modules/first', label:'First', group:'app' },
+    { route:'/builder/workspaces/test/modules/second', label:'Second', group:'app' },
+    { route:'/builder/workspaces/test/modules/third', label:'Third', group:'other' }
+  ];
+  const saved = JSON.parse(localStorage.getItem(storeKey) || 'null');
+  const state = { tabs:saved?.tabs || defaults, collapsed:new Set(saved?.collapsed || ['other']) };
+  // Tests turn this on to model a close button that does nothing.
+  window.brokenClose = false;
+  window.closeClicks = 0;
+  const current = () => location.pathname.replace(/^\/ide/, '');
+  const persist = () => localStorage.setItem(storeKey, JSON.stringify({ tabs:state.tabs, collapsed:[...state.collapsed] }));
+  const element = (tag, attributes = {}, children = []) => {
+    const node = document.createElement(tag);
+    for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, value);
+    node.append(...children);
+    return node;
+  };
+  function render() {
+    const nav = document.querySelector('nav');
+    const preview = element('button', { type:'button', 'data-testid':'app-preview-switcher', 'aria-label':'Browser Preview' });
+    const list = element('div', { role:'tablist', 'data-slot':'tabs-list' });
+    for (const group of [...new Set(state.tabs.map(tab => tab.group))]) {
+      const collapsed = state.collapsed.has(group);
+      const pill = element('button', { type:'button', 'aria-expanded':String(!collapsed), 'aria-label':'Applications / ' + group + ' group, ' + (collapsed ? 'collapsed' : 'expanded') }, [group]);
+      pill.addEventListener('click', () => { collapsed ? state.collapsed.delete(group) : state.collapsed.add(group); persist(); render(); });
+      const box = element('div', { 'data-tab-group':group + '__folder' }, [element('div', { 'data-slot':'context-menu-trigger', 'data-tab-group-pill':'true' }, [pill])]);
+      // Unqork renders the active tab even inside a collapsed group.
+      for (const tab of state.tabs.filter(tab => tab.group === group && (!collapsed || tab.route === current()))) {
+        const close = element('button', { type:'button', 'data-slot':'button', 'aria-label':'Close ' + tab.label + ' tab' });
+        close.addEventListener('click', event => {
+          event.preventDefault();
+          event.stopPropagation();
+          window.closeClicks++;
+          if (!window.brokenClose) state.tabs = state.tabs.filter(other => other.route !== tab.route);
+          persist();
+          render();
+        });
+        const link = element('a', { href:'/ide' + tab.route, ...(tab.route === current() ? { 'data-active':'' } : {}) }, [element('span', {}, [tab.label]), close]);
+        link.addEventListener('click', event => { event.preventDefault(); window.go(tab.route); });
+        box.append(element('div', { 'data-sortable-tab':tab.route, role:'button' }, [element('div', { 'data-slot':'context-menu-trigger' }, [link])]));
+      }
+      list.append(box);
+    }
+    nav.replaceChildren(element('div', {}, [preview]), element('div', { 'data-tab-scroll-container':'true' }, [list]));
+    document.getElementById('heading').textContent = current();
+  }
+  // Opening a module the way Unqork's explorer does: a client-side route change that adds its tab.
+  window.go = route => {
+    history.pushState(null, '', '/ide' + route);
+    if (!state.tabs.some(tab => tab.route === route)) state.tabs.push({ route, label:route.split('/').pop(), group:'app' });
+    persist();
+    render();
+  };
+  window.addEventListener('popstate', render);
+  persist();
+  render();
+</script>

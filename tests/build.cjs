@@ -21,6 +21,9 @@ for (const [target, manifest] of [['chrome', chromeManifest], ['firefox', firefo
   const builder = script('content.js');
   assert.deepEqual(builder.matches, ['https://*.unqork.io/*']);
   assert(builder.js.includes('content-scripts/builder-panels.js') && builder.js.includes('content-scripts/canvas-toolbar.js'));
+  const tabs = script('navigation-tabs.js');
+  assert.deepEqual(tabs.matches, ['https://*.unqork.io/*']);
+  assert(tabs.css.includes('content-scripts/navigation-tabs.css'));
   const badge = script('environment-badge.js');
   assert.deepEqual(badge.matches, ['https://*.unqork.io/*']);
   const bridge = script('panel-resize-bridge.js');

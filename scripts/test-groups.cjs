@@ -30,6 +30,10 @@ const groups = {
     ['Canvas toolbar (Chrome)', test('canvas-toolbar.cjs')],
     ['Canvas toolbar (Firefox)', test('canvas-toolbar.cjs'), ['--firefox']]
   ] },
+  tabs:{ title:'Navigation tabs', browsers:['chromium', 'firefox'], tests:[
+    ['Navigation tabs (Chrome)', test('navigation-tabs.cjs')],
+    ['Navigation tabs (Firefox)', test('navigation-tabs.cjs'), ['--firefox']]
+  ] },
   panels:{ title:'Builder panels', browsers:['chromium', 'firefox'], tests:[
     ['Builder panels (Chrome)', test('builder-panels.cjs')],
     ['Builder panels (Firefox)', test('builder-panels.cjs'), ['--firefox']],

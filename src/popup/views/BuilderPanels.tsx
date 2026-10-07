@@ -10,6 +10,7 @@ import { getTargetTab, type TargetTab } from '../runtime';
 type PanelId = Panels.PanelId;
 const visibilityOptions = [['native', 'Default'], ['start', 'Start collapsed'], ['always', 'Always collapsed']] as const;
 const sizingOptions = [['native', 'Default'], ['custom', 'Custom'], ['remember', 'Remember last']] as const;
+const tabsOptions = [['native', 'Default'], ['hidden', 'Hidden']] as const;
 const lockedReason = 'Choose another visibility option to change this panel’s size.';
 const builderUrl = /^https:\/\/[^/]+\/ide\/builder\/workspaces\/[^/]+\/modules\//;
 
@@ -58,6 +59,7 @@ function WidthField({ id, label, value, reason, onCommit, onInvalid }: WidthProp
 export function BuilderPanels() {
   const { current } = usePages();
   const [config, setConfig] = useState(() => Panels.settings());
+  const [tabs, setTabs] = useState<Panels.TabsMode>('native');
   const [widths, setWidths] = useState<Partial<Record<PanelId, number | null>>>({});
   const [sizingErrors, setSizingErrors] = useState<Partial<Record<PanelId, string>>>({});
   const [remembered, setRemembered] = useState<Stored>({});
@@ -89,33 +91,50 @@ export function BuilderPanels() {
   }
 
   async function persist(id: PanelId | null, patch: Partial<Panels.PanelPreference> | null, reset: boolean) {
-    try {
-      const latest = Panels.settings((await api.storage.local.get('builderPanels')).builderPanels);
-      const next = id ? { ...latest, [id]:{ ...latest[id], ...patch } } : Panels.settings();
-      const update: Record<string, unknown> = { builderPanels:next };
-      const cleared = id ? [id] : Panels.panelIds;
-      if (reset) for (const key of cleared) update[Panels.rememberedKey(key)] = null;
-      await api.storage.local.set(update);
-      if (reset) setRemembered((previous: Stored) => ({ ...previous, ...Object.fromEntries(cleared.map(key => [Panels.rememberedKey(key), null])) }));
-      if (pendingSaves.current === 1) {
-        setConfig(next);
-        setStatus('Saved. Start collapsed applies on the next module visit. Widths fit the available space.');
-      }
-    } catch { setStatus('Could not save. Try again.'); }
-    finally {
-      pendingSaves.current--;
-      setBusy(pendingSaves.current > 0);
+    const latest = Panels.settings((await api.storage.local.get('builderPanels')).builderPanels);
+    const next = id ? { ...latest, [id]:{ ...latest[id], ...patch } } : Panels.settings();
+    const update: Record<string, unknown> = { builderPanels:next };
+    const cleared = id ? [id] : Panels.panelIds;
+    if (reset) for (const key of cleared) update[Panels.rememberedKey(key)] = null;
+    // Reset all builder panels brings the tab bar back too.
+    if (!id) update[Panels.tabsKey] = 'native';
+    await api.storage.local.set(update);
+    if (reset) setRemembered((previous: Stored) => ({ ...previous, ...Object.fromEntries(cleared.map(key => [Panels.rememberedKey(key), null])) }));
+    if (pendingSaves.current === 1) {
+      setConfig(next);
+      if (!id) setTabs('native');
+      setStatus('Saved. Start collapsed applies on the next module visit. Widths fit the available space.');
     }
   }
 
   // Keep keyboard focus and serialize every change, including reset requests.
-  function save(id: PanelId | null, patch: Partial<Panels.PanelPreference> | null, reset = false) {
-    setConfig(previous => id ? { ...previous, [id]:{ ...previous[id], ...patch } } : Panels.settings());
+  function enqueue(write: () => Promise<void>) {
     pendingSaves.current++;
     setBusy(true);
     setStatus('Saving…');
-    saveQueue.current = saveQueue.current.then(() => persist(id, patch, reset));
+    saveQueue.current = saveQueue.current.then(async () => {
+      try { await write(); }
+      catch { setStatus('Could not save. Try again.'); }
+      finally {
+        pendingSaves.current--;
+        setBusy(pendingSaves.current > 0);
+      }
+    });
     return saveQueue.current;
+  }
+
+  function save(id: PanelId | null, patch: Partial<Panels.PanelPreference> | null, reset = false) {
+    setConfig(previous => id ? { ...previous, [id]:{ ...previous[id], ...patch } } : Panels.settings());
+    if (!id) setTabs('native');
+    return enqueue(() => persist(id, patch, reset));
+  }
+
+  function saveTabs(mode: Panels.TabsMode) {
+    setTabs(mode);
+    return enqueue(async () => {
+      await api.storage.local.set({ [Panels.tabsKey]:mode });
+      if (pendingSaves.current === 1) setStatus(mode === 'hidden' ? 'Saved. Open builder pages keep only their current tab.' : 'Saved. New tabs open as usual.');
+    });
   }
 
   usePageOpen('panels-page', async () => {
@@ -123,8 +142,9 @@ export function BuilderPanels() {
     setStatus('Loading panel settings…');
     target.current = null;
     try {
-      const result = await api.storage.local.get(['builderPanels', ...Panels.panelIds.map(Panels.rememberedKey)]);
+      const result = await api.storage.local.get(['builderPanels', Panels.tabsKey, ...Panels.panelIds.map(Panels.rememberedKey)]);
       setConfig(Panels.settings(result.builderPanels));
+      setTabs(Panels.tabsMode(result[Panels.tabsKey]));
       setRemembered(result);
       try { await measure(); } catch { setWidths({}); }
       setLoading(false);
@@ -152,6 +172,11 @@ export function BuilderPanels() {
       <Note>Start collapsed applies once each time you enter a module or reload. Always collapsed also prevents reopening. Widths adapt to the available space.</Note>
       <form id="panels-form" aria-busy={busy} onSubmit={event => event.preventDefault()}>
         <fieldset id="panels-fields" disabled={loading}>
+          <Card title="Navigation tabs">
+            <Segmented name="navigation-tabs" legend="Tab bar" label="Navigation tabs" describedBy="navigation-tabs-help" options={tabsOptions} value={tabs}
+              onChange={saveTabs} />
+            <Note id="navigation-tabs-help">Hidden removes the tab bar above the canvas, including Browser Preview, and keeps only the page you are on: Unqlock closes the other tabs, so Unqork no longer keeps or restores them.</Note>
+          </Card>
           {Panels.panelIds.map(id => {
             const meta = Panels.panels[id];
             const pref = config[id];

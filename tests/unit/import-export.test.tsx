@@ -13,6 +13,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
     componentColors:{ grids:{ light:{ ink:'#0EA5E9' }, dark:{ tint:'#0c4a6e', ink:7 } }, inputs:{ light:{ ink:'not a color' } } },
     builderPanels:{ agent:{ visibility:'always', sizing:'custom', width:420 } },
     panelWidth_explore:333,
+    navigationTabs:'hidden',
     floating:{ enabled:true, position:'top-right' },
     environment:{ badge:true, blockProduction:true, autoDiscover:false, groups:[{ id:'org', name:'Org', domains:[{ hostname:'org-prod.unqork.io', environment:'production' }] }] }
   };
@@ -76,6 +77,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   expect(exported.settings.builderPanels.agent.visibility).toBe('always');
   expect(exported.settings.builderPanels.tray.visibility).toBe('native');
   expect(exported.settings.panelWidths).toEqual({ agent:null, explore:333, properties:null, tray:null });
+  expect(exported.settings.navigationTabs).toBe('hidden');
   expect(exported.settings.floating).toEqual({ enabled:true, position:'top-right' });
   expect(exported.settings.environment).toEqual(original.environment);
   click('export-download'); await settle();
@@ -91,7 +93,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
 
   // Invalid input is rejected before anything is written.
   const paste = (text: string) => { type('import-text', text); click('import-review'); };
-  for (const [text, message] of [['', /Paste exported settings/], ['{', /not valid JSON/], ['{"a":1}', /not an Unqlock settings export/], ['{"unqlock":2,"settings":{}}', /newer version/], ['{"unqlock":1,"settings":{}}', /no settings/], ['{"unqlock":1,"settings":{"floating":[]}}', /floating value must be an object/]] as const) {
+  for (const [text, message] of [['', /Paste exported settings/], ['{', /not valid JSON/], ['{"a":1}', /not an Unqlock settings export/], ['{"unqlock":2,"settings":{}}', /newer version/], ['{"unqlock":1,"settings":{}}', /no settings/], ['{"unqlock":1,"settings":{"floating":[]}}', /floating value must be an object/], ['{"unqlock":1,"settings":{"navigationTabs":true}}', /navigationTabs value must be/]] as const) {
     paste(text);
     expect(importStatus()).toMatch(message);
     expect(byId('import-preview').hidden).toBe(true);
@@ -109,6 +111,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   incoming.settings.canvasToolbar = { search:'native', sort:'always' };
   incoming.settings.componentColors = { logic:{ dark:{ ink:'#7c3aed' } } };
   incoming.settings.builderPanels.agent = { visibility:'start', sizing:'native', width:null };
+  incoming.settings.navigationTabs = 'native';
   incoming.settings.floating.position = 'bottom-right';
   incoming.settings.environment = { badge:false, blockProduction:false, autoDiscover:true, groups:[{ id:'team', name:'Team', domains:[{ hostname:'team.example.test', environment:'qa' }] }] };
   paste(JSON.stringify(incoming));
@@ -143,6 +146,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   expect(query<HTMLInputElement>('[data-color="logic-dark-ink"]').value).toBe('#7c3aed');
   expect(store.builderPanels).toEqual(original.builderPanels);
   expect(store.panelWidth_explore).toBe(333);
+  expect(store.navigationTabs).toBe('hidden');
   expect(store.floating).toEqual({ enabled:true, position:'bottom-right' });
   expect(store.environment).toEqual(incoming.settings.environment);
   expect(messages.filter(message => message.replace)).toHaveLength(1);
@@ -175,6 +179,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   expect(query<HTMLInputElement>('input[data-toolbar="sort"]:checked').value).toBe('always');
   expect((store.builderPanels as { agent: { visibility: string } }).agent.visibility).toBe('start');
   expect(store.panelWidth_explore).toBe(333);
+  expect(store.navigationTabs).toBe('native');
   expect(messages.filter(message => message.replace)).toHaveLength(1);
   pick({ name:'huge.json', size:2 * 1024 * 1024, text:async () => '' }); await settle();
   expect(importStatus()).toMatch(/larger than 1 MB/);

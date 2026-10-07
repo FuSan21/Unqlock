@@ -50,3 +50,28 @@ test.each(apiNames)('queued saves and resets, focus, measured widths and validat
   await waitFor(() => expect(saved.builderPanels.agent.width).toBe(500));
   expect(width.hasAttribute('aria-invalid')).toBe(false);
 });
+
+test.each(apiNames)('navigation tabs switch loads, saves and resets with all panels (%s)', async apiName => {
+  const saved: Record<string, any> = { navigationTabs:'hidden' };
+  await renderPopup(apiName, {
+    storage:{ local:{
+      get:async () => structuredClone(saved),
+      set:async (patch: object) => { Object.assign(saved, structuredClone(patch)); }
+    }, onChanged:{ addListener:() => {}, removeListener:() => {} } },
+    tabs:{ query:async () => [{ id:1, url:builder }], sendMessage:async () => ({ widths:{} }) },
+    runtime:{ getManifest:() => ({ version:'1.0.0' }), sendMessage:async () => ({ ok:true, config:{}, missingOrigins:[] }) }
+  });
+  click('open-panels'); await settle();
+  const option = (value: string) => document.querySelector<HTMLInputElement>('input[name="navigation-tabs"][value="' + value + '"]')!;
+  expect(option('hidden').checked).toBe(true);
+  expect(option('hidden').getAttribute('aria-label')).toBe('Navigation tabs: Hidden');
+  click(option('native'));
+  await waitFor(() => expect(saved.navigationTabs).toBe('native'));
+  expect(byId('panels-status').textContent).toMatch(/New tabs open as usual/);
+  click(option('hidden'));
+  await waitFor(() => expect(saved.navigationTabs).toBe('hidden'));
+  expect(byId('panels-status').textContent).toMatch(/keep only their current tab/);
+  click('panels-reset');
+  await waitFor(() => expect(saved.navigationTabs).toBe('native'));
+  expect(option('native').checked).toBe(true);
+});

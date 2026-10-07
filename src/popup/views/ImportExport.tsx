@@ -10,7 +10,7 @@ import { usePageLeave } from '../pages';
 import { embedded, params } from '../runtime';
 import { useSettings } from '../settings';
 
-const storedKeys = ['appearance', 'rowLayout', 'canvasToolbar', 'componentColors', 'builderPanels', 'environment', 'floating', ...Panels.panelIds.map(Panels.rememberedKey)];
+const storedKeys = ['appearance', 'rowLayout', 'canvasToolbar', 'componentColors', 'builderPanels', Panels.tabsKey, 'environment', 'floating', ...Panels.panelIds.map(Panels.rememberedKey)];
 interface Message { text: string; error?: boolean }
 interface Review { parsed: Transfer.Parsed; summary: string; chosen: Transfer.SectionId[] }
 

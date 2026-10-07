@@ -39,6 +39,7 @@ export function create(stored: Stored, { version, now = new Date() }: { version:
       componentColors: Colors.settings(stored.componentColors),
       builderPanels: Panels.settings(stored.builderPanels),
       panelWidths: panelWidths(stored),
+      navigationTabs: Panels.tabsMode(stored[Panels.tabsKey]),
       environment: Environment.settings(stored.environment),
       floating: Environment.floatingSettings(stored.floating)
     }
@@ -61,12 +62,13 @@ export function parse(text: unknown): Parsed {
   for (const key of ['appearance', 'rowLayout', 'canvasToolbar', 'componentColors', 'builderPanels', 'panelWidths', 'environment', 'floating']) {
     if (Object.hasOwn(settings, key) && !isObject(settings[key])) throw new Error('The ' + key + ' value must be an object.');
   }
+  if (Object.hasOwn(settings, Panels.tabsKey) && !['native', 'hidden'].includes(settings[Panels.tabsKey] as string)) throw new Error('The navigationTabs value must be "native" or "hidden".');
   const appearance = settings.appearance || {};
   const isLayoutKey = (key: string) => (layoutKeys as string[]).includes(key);
   const present: Record<SectionId, boolean> = {
     style: Object.keys(appearance).some(key => !isLayoutKey(key)) || Boolean(settings.componentColors),
     layout: Object.keys(appearance).some(isLayoutKey) || Boolean(settings.rowLayout || settings.canvasToolbar),
-    panels: Boolean(settings.builderPanels || settings.panelWidths),
+    panels: Boolean(settings.builderPanels || settings.panelWidths) || Object.hasOwn(settings, Panels.tabsKey),
     environments: Boolean(settings.environment) && ['groups', 'blockProduction', 'autoDiscover'].some(key => Object.hasOwn(settings.environment as object, key)),
     launcher: Boolean(settings.floating) || Object.hasOwn(settings.environment || {}, 'badge')
   };
@@ -108,6 +110,7 @@ export function apply(parsed: Parsed, chosen: SectionId[], stored: Stored) {
   if (selected('panels')) {
     update.builderPanels = Panels.settings(settings.builderPanels);
     for (const id of Panels.panelIds) update[Panels.rememberedKey(id)] = Panels.width(settings.panelWidths?.[id]);
+    update[Panels.tabsKey] = Panels.tabsMode(settings[Panels.tabsKey]);
   }
   if (selected('launcher') && settings.floating) update.floating = Environment.floatingSettings(settings.floating);
   let environment: Environment.EnvironmentSettings | null = null;
