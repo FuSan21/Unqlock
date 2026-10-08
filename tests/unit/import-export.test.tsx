@@ -15,7 +15,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
     panelWidth_explore:333,
     navigationTabs:'hidden',
     navigationTabsCollapsed:true,
-    floating:{ enabled:true, position:'top-right' },
+    floating:{ enabled:true, mode:'draggable', corner:'top-right' },
     environment:{ badge:true, blockProduction:true, autoDiscover:false, groups:[{ id:'org', name:'Org', domains:[{ hostname:'org-prod.unqork.io', environment:'production' }] }] }
   };
   let store: Store = structuredClone(original);
@@ -80,7 +80,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   expect(exported.settings.panelWidths).toEqual({ agent:null, explore:333, properties:null, tray:null });
   expect(exported.settings.navigationTabs).toBe('hidden');
   expect(exported.settings.navigationTabsCollapsed).toBe(true);
-  expect(exported.settings.floating).toEqual({ enabled:true, position:'top-right' });
+  expect(exported.settings.floating).toEqual({ enabled:true, mode:'draggable', corner:'top-right' });
   expect(exported.settings.environment).toEqual(original.environment);
   click('export-download'); await settle();
   expect(downloaded!.name).toMatch(/^unqlock-settings-\d{4}-\d{2}-\d{2}\.json$/);
@@ -115,7 +115,8 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   incoming.settings.builderPanels.agent = { visibility:'start', sizing:'native', width:null };
   incoming.settings.navigationTabs = 'native';
   incoming.settings.navigationTabsCollapsed = false;
-  incoming.settings.floating.position = 'bottom-right';
+  // An export from before Fixed and Draggable has no mode and names the corner position.
+  incoming.settings.floating = { enabled:true, position:'bottom-right' };
   incoming.settings.environment = { badge:false, blockProduction:false, autoDiscover:true, groups:[{ id:'team', name:'Team', domains:[{ hostname:'team.example.test', environment:'qa' }] }] };
   paste(JSON.stringify(incoming));
   expect(byId('import-preview').hidden).toBe(false);
@@ -151,7 +152,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   expect(store.panelWidth_explore).toBe(333);
   expect(store.navigationTabs).toBe('hidden');
   expect(store.navigationTabsCollapsed).toBe(true);
-  expect(store.floating).toEqual({ enabled:true, position:'bottom-right' });
+  expect(store.floating).toEqual({ enabled:true, mode:'fixed', corner:'bottom-right' });
   expect(store.environment).toEqual(incoming.settings.environment);
   expect(messages.filter(message => message.replace)).toHaveLength(1);
   expect(query<HTMLInputElement>('#layout-page [data-appearance="compact"]').checked).toBe(true);
@@ -195,5 +196,5 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   click('import-apply'); await settle();
   expect(store.environment.badge).toBe(true);
   expect(store.environment.groups).toEqual(incoming.settings.environment.groups);
-  expect(store.floating).toEqual({ enabled:true, position:'bottom-right' });
+  expect(store.floating).toEqual({ enabled:true, mode:'fixed', corner:'bottom-right' });
 });

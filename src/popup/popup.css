@@ -60,7 +60,7 @@ header { display:flex; gap:12px; padding:22px 20px 18px; border-bottom:1px solid
 #environment-access { margin-top:12px; border-color:var(--accent); }
 #quick-access { margin-bottom:14px; border-color:var(--accent); }
 
-#floating-position { width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; background:var(--paper); color:var(--ink); font:inherit; }
+#floating-corner { width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; background:var(--paper); color:var(--ink); font:inherit; }
 #launcher-status { font-size:12px; margin-top:10px; }
 #transfer-title { margin-bottom:12px; }
 #transfer-page .action-row { margin-top:8px; }

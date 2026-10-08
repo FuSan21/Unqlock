@@ -54,9 +54,14 @@ const settle = () => new Promise(resolve => setTimeout(resolve, 0));
   badgeListener({ environment:{ newValue:{ badge:false } } }, 'local');
   assert.equal(launcher.shadowRoot.querySelector('span').hidden, true);
   for (const position of ['top-left','top-right','bottom-left','bottom-right']) {
-    badgeListener({ floating:{newValue:{position}} }, 'local');
-    assert.equal(launcher.dataset.position, position);
+    badgeListener({ floating:{newValue:{corner:position}} }, 'local');
+    assert.equal(launcher.dataset.corner, position);
   }
+  // Settings saved before Fixed and Draggable name the corner position; a saved corner wins.
+  badgeListener({ floating:{newValue:{position:'top-right'}} }, 'local');
+  assert.equal(launcher.dataset.corner, 'top-right');
+  badgeListener({ floating:{newValue:{corner:'bottom-left', position:'top-right'}} }, 'local');
+  assert.equal(launcher.dataset.corner, 'bottom-left');
   badgeListener({ floating:{newValue:{enabled:false}} }, 'local');
   assert.equal(dom.window.document.getElementById('unqlock-environment'), null);
   badgeListener({ floating:{newValue:{enabled:true}} }, 'local');

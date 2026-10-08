@@ -7,8 +7,10 @@ export interface Domain { hostname: string; environment: EnvironmentKind }
 export interface Group { id: string; name: string; autoKey?: string; domains: Domain[] }
 export interface EnvironmentSettings { badge: boolean; blockProduction: boolean; autoDiscover: boolean; groups: Group[] }
 export interface Detected { kind: EnvironmentKind; label: string; host: string; groupId?: string; source: string }
-export type Position = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
-export interface FloatingSettings { enabled: boolean; position: Position }
+export type Corner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+// Fixed keeps the launcher in its corner. Draggable starts it there, and a page keeps a dragged spot for its session.
+export type FloatingMode = 'fixed' | 'draggable';
+export interface FloatingSettings { enabled: boolean; mode: FloatingMode; corner: Corner }
 
 export function hostname(value: unknown): string {
   const host = String(value || '').trim().toLowerCase();
@@ -92,6 +94,8 @@ export function customOrigins(value: Stored): string[] {
 }
 
 export function floatingSettings(value?: Stored): FloatingSettings {
-  const positions: Position[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
-  return { enabled:value?.enabled !== false, position:positions.includes(value?.position) ? value.position : 'bottom-left' };
+  const corners: Corner[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+  // Versions before the Fixed and Draggable modes saved the corner as position; their settings and exports still load.
+  const corner = [value?.corner, value?.position].find(candidate => corners.includes(candidate)) || 'bottom-left';
+  return { enabled:value?.enabled !== false, mode:value?.mode === 'draggable' ? 'draggable' : 'fixed', corner };
 }

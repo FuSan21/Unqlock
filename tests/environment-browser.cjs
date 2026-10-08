@@ -54,7 +54,7 @@ watchdog.unref();
     await popup.locator('#open-launcher').click();
     for (const position of ['top-left', 'top-right', 'bottom-left', 'bottom-right']) {
       await popup.getByLabel('Corner', {exact:true}).selectOption(position);
-      await custom.waitForFunction(position => document.querySelector('#unqlock-environment').dataset.position === position, position);
+      await custom.waitForFunction(position => document.querySelector('#unqlock-environment').dataset.corner === position, position);
       const box = await custom.locator('#unqlock-environment').boundingBox();
       const viewport = custom.viewportSize();
       assert.equal(Math.round(position.endsWith('left') ? box.x : viewport.width - box.x - box.width), 16);
@@ -136,7 +136,7 @@ watchdog.unref();
     await custom.waitForFunction(() => !document.querySelector('#unqlock-environment').shadowRoot.querySelector('iframe'));
     mark('top corner menu');
     await popup.getByLabel('Corner', {exact:true}).selectOption('top-right');
-    await custom.waitForFunction(() => document.querySelector('#unqlock-environment').dataset.position === 'top-right');
+    await custom.waitForFunction(() => document.querySelector('#unqlock-environment').dataset.corner === 'top-right');
     await custom.getByRole('button', {name:'Open Unqlock menu'}).click();
     const topBadge = await custom.locator('#unqlock-environment').boundingBox();
     const topMenu = await custom.locator('#unqlock-environment iframe').boundingBox();
@@ -150,6 +150,73 @@ watchdog.unref();
     await reopened.locator('#open-style').focus();
     await reopened.evaluate(() => setTimeout(() => document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key:'Escape', bubbles:true, cancelable:true }))));
     await custom.waitForFunction(() => !document.querySelector('#unqlock-environment').shadowRoot.querySelector('iframe'));
+    mark('drag the launcher');
+    // While Fixed, a drag is an ordinary press and the launcher stays in its corner.
+    const launcher = () => custom.locator('#unqlock-environment').boundingBox();
+    const viewport = custom.viewportSize();
+    async function dragTo(x, y) {
+      const box = await launcher();
+      await custom.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await custom.mouse.down();
+      await custom.mouse.move(x, y, { steps:8 });
+      await custom.mouse.up();
+    }
+    const menuOpen = () => custom.evaluate(() => Boolean(document.querySelector('#unqlock-environment').shadowRoot.querySelector('iframe')));
+    const closeMenu = async () => { await custom.locator('h1').click(); await custom.waitForFunction(() => !document.querySelector('#unqlock-environment').shadowRoot.querySelector('iframe')); };
+    // The menu opens toward the side with more room and stays inside the window.
+    async function menuInWindow() {
+      await custom.getByRole('button', {name:'Open Unqlock menu'}).click();
+      const badge = await launcher();
+      const frame = await custom.locator('#unqlock-environment iframe').boundingBox();
+      const { width, height } = custom.viewportSize();
+      assert(frame.x >= 16 && frame.x + frame.width <= width - 16, 'Menu fits across: ' + JSON.stringify(frame));
+      assert(frame.y >= 16 && frame.y + frame.height <= height - 16, 'Menu fits down: ' + JSON.stringify(frame));
+      return { badge, frame };
+    }
+    await dragTo(300, 400);
+    let box = await launcher();
+    assert.equal(Math.round(viewport.width - box.x - box.width), 16);
+    assert.equal(Math.round(box.y), 16);
+    await closeMenu();
+    await popup.getByLabel('Position: Draggable', {exact:true}).check();
+    await custom.waitForFunction(() => document.querySelector('#unqlock-environment').hasAttribute('data-draggable'));
+    // Dropped in the lower-left quarter, it anchors there and the drop does not open the menu.
+    await dragTo(300, viewport.height - 150);
+    box = await launcher();
+    assert.equal(Math.round(box.x + box.width / 2), 300);
+    assert.equal(Math.round(box.y + box.height / 2), viewport.height - 150);
+    assert.equal(await menuOpen(), false, 'Dropping does not open the menu');
+    assert.deepEqual(await custom.evaluate(() => { const { corner, x, y } = JSON.parse(sessionStorage.getItem('unqlock.launcherSpot')); return { corner, x, y }; }), { corner:'top-right', x:'left', y:'bottom' });
+    let placed = await menuInWindow();
+    assert(placed.frame.y + placed.frame.height <= placed.badge.y, 'Opens above a launcher low on the screen');
+    await closeMenu();
+    // A reload in the same tab keeps the spot.
+    await custom.reload();
+    await custom.waitForSelector('#unqlock-environment');
+    await custom.waitForFunction(() => document.querySelector('#unqlock-environment').style.left !== '');
+    assert.deepEqual(await launcher(), box);
+    // High on the right, the menu opens below, lined up with the launcher's right edge.
+    await dragTo(viewport.width - 120, 140);
+    placed = await menuInWindow();
+    assert(placed.frame.y >= placed.badge.y + placed.badge.height, 'Opens below a launcher high on the screen');
+    assert.equal(Math.round(placed.frame.x + placed.frame.width), Math.round(placed.badge.x + placed.badge.width), 'Lined up with the right edge');
+    await closeMenu();
+    // A smaller window keeps the launcher on screen, and the menu shrinks to fit beside it.
+    await custom.setViewportSize({ width:600, height:400 });
+    box = await launcher();
+    assert(box.x + box.width <= 600 - 8 && box.y + box.height <= 400 - 8, 'Launcher stays on screen: ' + JSON.stringify(box));
+    await menuInWindow();
+    await closeMenu();
+    await custom.setViewportSize(viewport);
+    // Only Fixed places the launcher by its corner; going back to it drops the dragged spot.
+    assert(await popup.getByLabel('Corner', {exact:true}).isDisabled(), 'Corner is unavailable while Draggable');
+    await popup.getByLabel('Position: Fixed', {exact:true}).check();
+    await custom.waitForFunction(() => !document.querySelector('#unqlock-environment').hasAttribute('data-draggable') && !sessionStorage.getItem('unqlock.launcherSpot'));
+    box = await launcher();
+    assert.equal(Math.round(viewport.width - box.x - box.width), 16, 'Fixed returns to the corner');
+    assert.equal(Math.round(box.y), 16);
+    // The form is disabled while it saves, then Corner is available again.
+    await popup.waitForFunction(() => !document.getElementById('floating-corner').matches(':disabled'));
     await popup.getByLabel('Corner', {exact:true}).selectOption('bottom-right');
 
     mark('observed unqork.io host');
@@ -185,7 +252,7 @@ watchdog.unref();
     await custom.goto('https://badge-fixture.test/app');
     await custom.waitForSelector('#unqlock-environment');
     assert.equal(await custom.locator('#unqlock-environment span').innerText(), '● PRODUCTION');
-    assert.equal(await custom.locator('#unqlock-environment').getAttribute('data-position'), 'bottom-right');
+    assert.equal(await custom.locator('#unqlock-environment').getAttribute('data-corner'), 'bottom-right');
     mark('delete group');
     popup = await context.newPage();
     await popup.goto(`chrome-extension://${extensionId}/popup.html`);

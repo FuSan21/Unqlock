@@ -65,7 +65,7 @@ Below them, features are grouped by where they apply:
 
 - **Builder:** **Component style** (sidebar/canvas scope, icons, labels, frames and group colors), **Canvas layout** (Compact components, canvas row layout, containers and the canvas toolbar) and **Builder panels**.
 - **Tools:** **Debug tools**.
-- **Setup:** **Environments** (production guard, auto-discovery and domain groups), **Floating launcher** (show, corner and environment label) and **Import & export** (settings as JSON).
+- **Setup:** **Environments** (production guard, auto-discovery and domain groups), **Floating launcher** (show, fixed or draggable position, corner and environment label) and **Import & export** (settings as JSON).
 
 Use **‹ Home** or Escape to return; focus goes back to the entry you came from. Component style has **Reset style** and Canvas layout has **Reset layout**; each resets only the settings on its own page. Settings save as you change them, and the page's status reads *Saving…* and then *Saved*.
 
@@ -130,7 +130,7 @@ Preferences apply across modern builder modules in this browser profile and pers
 
 ## Environments and the floating launcher
 
-**Floating launcher** turns the launcher on or off and chooses its **Corner**: top left, top right, bottom left or bottom right. The launcher shows the Unqlock icon; click it to open the same menu as the toolbar button. Browsers that cannot open the toolbar popup directly use a small extension window linked to the original tab. **Show environment in badge** adds the environment label beside the icon; hiding the label does not disable production safeguards.
+**Floating launcher** turns the launcher on or off and chooses its **Corner**: top left, top right, bottom left or bottom right. The launcher shows the Unqlock icon; click it to open the same menu as the toolbar button. The menu opens on whichever side of the launcher has more room and stays inside the window. **Position** chooses **Fixed**, which keeps it in the chosen **Corner**, or **Draggable**, which lets you drag it anywhere on the page; it stays there in that tab, across reloads and module changes, while new tabs start from the saved corner, bottom left unless you chose another under Fixed. Corner can be changed only under Fixed, and choosing Fixed returns the launcher to it. Browsers that cannot open the toolbar popup directly use a small extension window linked to the original tab. **Show environment in badge** adds the environment label beside the icon; hiding the label does not disable production safeguards.
 
 **Environments**, also reached through **Manage** in the home strip, holds production protection and domain groups. Settings are stored in extension-local storage and persist across page reloads and browser restarts.
 

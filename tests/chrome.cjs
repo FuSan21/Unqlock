@@ -344,7 +344,7 @@ const lib = require('./lib.cjs');
     const file = JSON.parse(fs.readFileSync(await download.path(), 'utf8'));
     assert.deepEqual(file.settings, copied.settings);
     file.settings.appearance.compact = !copied.settings.appearance.compact;
-    file.settings.floating.position = 'top-left';
+    file.settings.floating.corner = 'top-left';
     await page.getByLabel('Paste exported JSON').fill(JSON.stringify(file));
     await page.getByRole('button', {name:'Review pasted JSON', exact:true}).click();
     await page.getByRole('checkbox', {name:'Floating launcher', exact:true}).uncheck();
