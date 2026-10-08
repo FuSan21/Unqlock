@@ -79,6 +79,25 @@ async function run(firefoxMode) {
       if (!element.previousElementSibling?.matches('.flex-1') || !element.nextElementSibling?.matches('.flex-1')) return 'misplaced';
       return [...element.children].map(part => part.textContent || '<' + part.localName + '>').join(' ');
     });
+    // How many elements matching the selector are added or removed over ten frames after an unrelated change.
+    const replaced = selector => page.evaluate(selector => new Promise(resolve => {
+      let count = 0;
+      const observer = new MutationObserver(list => {
+        for (const record of list) for (const node of [...record.addedNodes, ...record.removedNodes]) if (node.nodeType === 1 && node.matches(selector)) count++;
+      });
+      observer.observe(document.body, { childList:true, subtree:true });
+      // A change elsewhere on the page makes the script look again.
+      document.getElementById('heading').append('');
+      let frames = 10;
+      const tick = () => --frames ? requestAnimationFrame(tick) : (observer.disconnect(), resolve(count));
+      requestAnimationFrame(tick);
+    }), selector);
+    // Each tab's full name as Multi-line shows it, or null where Unqork's own label is showing.
+    const fullNames = () => page.$$eval('nav[data-testid="navigation-tabs"] [data-sortable-tab] a', links => links.map(link => {
+      const full = link.querySelector(':scope > [data-unqlock-tab-name]');
+      const native = link.querySelector(':scope > [data-slot="tooltip-trigger"]');
+      return full && getComputedStyle(native).display === 'none' && full.previousElementSibling === native ? full.textContent : null;
+    }));
     const titleWhen = expected => page.waitForFunction(expected => {
       const element = document.querySelector('[data-unqlock-module-title]');
       return expected === null ? !element : element?.previousElementSibling?.matches('.flex-1') && element.title === expected;
@@ -105,20 +124,7 @@ async function run(firefoxMode) {
     await titleWhen('app / First');
     assert.equal(await title(), 'app / <svg> First');
     // Once shown, the title stays put rather than being replaced on every pass.
-    const replaced = await page.evaluate(() => new Promise(resolve => {
-      let count = 0;
-      const observer = new MutationObserver(list => {
-        for (const record of list) for (const node of [...record.addedNodes, ...record.removedNodes]) if (node.nodeType === 1 && node.matches('[data-unqlock-module-title]')) count++;
-      });
-      observer.observe(document.body, { childList:true, subtree:true });
-      // A change elsewhere on the page makes the script look again.
-      document.getElementById('heading').append('');
-      let frames = 10;
-      const tick = () => --frames ? requestAnimationFrame(tick) : (observer.disconnect(), resolve(count));
-      requestAnimationFrame(tick);
-    }));
-    assert.equal(replaced, 0, 'The title is not replaced while nothing changed');
-    await page.evaluate(() => { const toolbar = document.getElementById('toolbar'); toolbar.innerHTML = toolbar.innerHTML.replace(/<div data-unqlock-module-title[\s\S]*?<\/div>/, ''); });
+    assert.equal(await replaced('[data-unqlock-module-title]'), 0, 'The title is not replaced while nothing changed');    await page.evaluate(() => { const toolbar = document.getElementById('toolbar'); toolbar.innerHTML = toolbar.innerHTML.replace(/<div data-unqlock-module-title[\s\S]*?<\/div>/, ''); });
     await titleWhen('app / First');
 
     // Opening another module keeps only its tab.
@@ -153,6 +159,26 @@ async function run(firefoxMode) {
     for (let i = 0; i < 5; i++) await frames();
     assert.deepEqual(await savedTabs(), [modulePath('sixth'), modulePath('seventh')]);
 
+    // Multi-line keeps every tab, shows each full name in place of Unqork's shortened label, and
+    // leaves the names alone while nothing changes.
+    const long = 'a-module-name-long-enough-to-shorten';
+    await set({ navigationTabs:'wrapped' });
+    await page.evaluate(route => window.go(route), modulePath(long));
+    await page.waitForFunction(() => document.querySelectorAll('[data-unqlock-tab-name]').length === 3, null, { timeout:5000 });
+    assert.deepEqual(await fullNames(), ['sixth', 'seventh', long]);
+    assert.equal(await page.locator(`[data-sortable-tab="${modulePath(long)}"] [data-slot="tooltip-trigger"]`).textContent(), 'a-module-…-shorten');
+    assert(await nav.isVisible());
+    assert.equal(await replaced('[data-unqlock-tab-name]'), 0, 'Full names are not replaced while nothing changed');
+    assert.equal(await title(), null, 'Multi-line adds no toolbar title');
+    // The active tab's fixed-height shape gives way to one drawn in CSS at any height.
+    const shapeDisplay = () => page.locator('a[data-active] > svg:not(.lucide)').evaluate(svg => getComputedStyle(svg).display);
+    assert.equal(await shapeDisplay(), 'none');
+    assert.equal(await page.locator('a[data-active]').evaluate(link => getComputedStyle(link, '::before').borderTopLeftRadius), '12px');
+    assert.deepEqual(await savedTabs(), [modulePath('sixth'), modulePath('seventh'), modulePath(long)]);
+    await set({ navigationTabs:'native' });
+    await page.waitForFunction(() => !document.querySelector('[data-unqlock-tab-name]'), null, { timeout:5000 });
+    assert.deepEqual(await fullNames(), [null, null, null]);
+    assert.notEqual(await shapeDisplay(), 'none');
     // Outside /ide/ nothing runs.
     await set({ navigationTabs:'hidden' });
     await page.goto(origin + '/login');
@@ -180,7 +206,7 @@ async function run(firefoxMode) {
       await nav.waitFor({ state:'visible' });
     }
     assert.deepEqual(errors, []);
-    console.log('PASS: navigation tab bar hiding, the toolbar title, single-tab pruning through collapsed groups, reload, loop guard, Default, scope and popup settings (' + (firefoxMode ? 'Firefox' : 'Chrome extension') + ').');
+    console.log('PASS: navigation tab bar hiding, the toolbar title, Multi-line full names, single-tab pruning through collapsed groups, reload, loop guard, Default, scope and popup settings (' + (firefoxMode ? 'Firefox' : 'Chrome extension') + ').');
   } finally {
     if (context.closeBrowser) await context.closeBrowser();
     else await context.close();

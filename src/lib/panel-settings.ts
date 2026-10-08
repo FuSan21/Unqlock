@@ -28,7 +28,9 @@ export function settings(value?: Stored): PanelSettings {
 
 export const rememberedKey = (id: string) => 'panelWidth_' + id;
 
-// Unqork's navigation tab bar: Default keeps it, Hidden removes it and keeps only the current tab.
-export type TabsMode = 'native' | 'hidden';
+// Unqork's navigation tab bar: Default keeps it, Multi-line keeps it and wraps full tab names,
+// Hidden removes it and keeps only the current tab.
+export const tabsModes = ['native', 'wrapped', 'hidden'] as const;
+export type TabsMode = typeof tabsModes[number];
 export const tabsKey = 'navigationTabs';
-export const tabsMode = (value: unknown): TabsMode => value === 'hidden' ? 'hidden' : 'native';
+export const tabsMode = (value: unknown): TabsMode => tabsModes.includes(value as TabsMode) ? value as TabsMode : 'native';

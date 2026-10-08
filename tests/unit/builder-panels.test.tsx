@@ -68,6 +68,10 @@ test.each(apiNames)('navigation tabs switch loads, saves and resets with all pan
   click(option('native'));
   await waitFor(() => expect(saved.navigationTabs).toBe('native'));
   expect(byId('panels-status').textContent).toMatch(/New tabs open as usual/);
+  expect(option('wrapped').getAttribute('aria-label')).toBe('Navigation tabs: Multi-line');
+  click(option('wrapped'));
+  await waitFor(() => expect(saved.navigationTabs).toBe('wrapped'));
+  expect(byId('panels-status').textContent).toMatch(/full names/);
   click(option('hidden'));
   await waitFor(() => expect(saved.navigationTabs).toBe('hidden'));
   expect(byId('panels-status').textContent).toMatch(/keep only their current tab/);

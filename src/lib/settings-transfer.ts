@@ -62,7 +62,7 @@ export function parse(text: unknown): Parsed {
   for (const key of ['appearance', 'rowLayout', 'canvasToolbar', 'componentColors', 'builderPanels', 'panelWidths', 'environment', 'floating']) {
     if (Object.hasOwn(settings, key) && !isObject(settings[key])) throw new Error('The ' + key + ' value must be an object.');
   }
-  if (Object.hasOwn(settings, Panels.tabsKey) && !['native', 'hidden'].includes(settings[Panels.tabsKey] as string)) throw new Error('The navigationTabs value must be "native" or "hidden".');
+  if (Object.hasOwn(settings, Panels.tabsKey) && !(Panels.tabsModes as readonly unknown[]).includes(settings[Panels.tabsKey])) throw new Error('The navigationTabs value must be "native", "wrapped" or "hidden".');
   const appearance = settings.appearance || {};
   const isLayoutKey = (key: string) => (layoutKeys as string[]).includes(key);
   const present: Record<SectionId, boolean> = {

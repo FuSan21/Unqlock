@@ -14,13 +14,14 @@ export default defineContentScript({
     whenIde(() => {
       const navSelector = 'nav[data-testid="navigation-tabs"]';
       const titleAttribute = 'data-unqlock-module-title';
+      const nameAttribute = 'data-unqlock-tab-name';
       let mode: Panels.TabsMode = 'native';
       let scheduled = false;
       let stopped = false;
       let route = location.pathname;
       // Clicks per tab or group since the last route or settings change.
       let attempts = new Map<string, number>();
-      // Only a hidden bar needs to watch the page; Unqork's default costs nothing.
+      // Only a hidden or wrapped bar needs to watch the page; Unqork's default costs nothing.
       const observer = new MutationObserver(schedule);
 
       // Unqork closes a tab that is not the current page without a dirty check, since the navigation
@@ -67,6 +68,23 @@ export default defineContentScript({
         spacer.after(title);
       }
 
+      // Unqork shortens long tab names in the label text itself, so wrapping alone would not bring them
+      // back. Each tab gets the full name from its close button beside the hidden native label.
+      function showFullNames(nav: Element | null) {
+        for (const link of nav?.querySelectorAll('[data-sortable-tab] a') || []) {
+          const label = link.querySelector(':scope > [data-slot="tooltip-trigger"]');
+          const close = link.querySelector('button[aria-label^="Close "][aria-label$=" tab"]')?.getAttribute('aria-label');
+          const name = close ? close.slice('Close '.length, -' tab'.length) : label?.textContent || '';
+          const current = link.querySelector(`:scope > [${nameAttribute}]`);
+          if (!label || current?.textContent === name && current.previousElementSibling === label) continue;
+          const full = document.createElement('span');
+          full.setAttribute(nameAttribute, '');
+          full.textContent = name;
+          current?.remove();
+          label.after(full);
+        }
+      }
+
       // Keeps only the current tab, through Unqork's own close buttons, so its store and saved
       // workspace tabs shrink the same way they would for a user closing them.
       function render() {
@@ -76,6 +94,7 @@ export default defineContentScript({
           stopped = false;
           attempts = new Map();
         }
+        if (mode === 'wrapped') showFullNames(document.querySelector(navSelector));
         if (mode !== 'hidden') return;
         const nav = document.querySelector(navSelector);
         const active = nav?.querySelector('[data-sortable-tab] a[data-active]');
@@ -106,12 +125,13 @@ export default defineContentScript({
         mode = Panels.tabsMode(value);
         stopped = false;
         attempts = new Map();
-        // style.css hides the bar while this attribute says so.
+        // style.css hides or wraps the bar while this attribute says so.
         document.documentElement.setAttribute('data-unqlock-navigation-tabs', mode);
         observer.disconnect();
-        document.querySelector(`[${titleAttribute}]`)?.remove();
-        if (mode === 'hidden') {
-          observer.observe(document.body, { childList:true, subtree:true });
+        document.querySelectorAll(`[${titleAttribute}], [${nameAttribute}]`).forEach(element => element.remove());
+        if (mode !== 'native') {
+          // A renamed module changes its close button's label in place.
+          observer.observe(document.body, { childList:true, subtree:true, attributes:true, attributeFilter:['aria-label'] });
           schedule();
         }
       }

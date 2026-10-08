@@ -35,6 +35,15 @@
     return node;
   };
   // The module-type icon Unqork draws before each tab's label.
+  // Unqork cuts the middle out of a long name in the label text itself; the close button keeps it whole.
+  const shorten = label => label.length > 20 ? [label.slice(0, 9), element('span', { class:'text-chevron' }, ['…']), label.slice(-8)] : [label];
+  // The active tab's background shape, a fixed-height SVG beside the lucide icons.
+  const shape = () => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'pointer-events-none absolute');
+    svg.setAttribute('height', '33');
+    return svg;
+  };
   const icon = () => {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('class', 'lucide lucide-file-braces size-3.5 text-modules');
@@ -61,7 +70,7 @@
           persist();
           render();
         });
-        const link = element('a', { href:'/ide' + tab.route, ...(tab.route === current() ? { 'data-active':'' } : {}) }, [icon(), element('span', { 'data-slot':'tooltip-trigger' }, [tab.label]), close]);
+        const link = element('a', { href:'/ide' + tab.route, ...(tab.route === current() ? { 'data-active':'' } : {}) }, [...(tab.route === current() ? [shape()] : []), icon(), element('span', { 'data-slot':'tooltip-trigger' }, shorten(tab.label)), close]);
         link.addEventListener('click', event => { event.preventDefault(); window.go(tab.route); });
         box.append(element('div', { 'data-sortable-tab':tab.route, role:'button' }, [element('div', { 'data-slot':'context-menu-trigger' }, [link])]));
       }

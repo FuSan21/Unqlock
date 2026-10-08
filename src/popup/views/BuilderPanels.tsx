@@ -10,7 +10,7 @@ import { getTargetTab, type TargetTab } from '../runtime';
 type PanelId = Panels.PanelId;
 const visibilityOptions = [['native', 'Default'], ['start', 'Start collapsed'], ['always', 'Always collapsed']] as const;
 const sizingOptions = [['native', 'Default'], ['custom', 'Custom'], ['remember', 'Remember last']] as const;
-const tabsOptions = [['native', 'Default'], ['hidden', 'Hidden']] as const;
+const tabsOptions = [['native', 'Default'], ['wrapped', 'Multi-line'], ['hidden', 'Hidden']] as const;
 const lockedReason = 'Choose another visibility option to change this panel’s size.';
 const builderUrl = /^https:\/\/[^/]+\/ide\/builder\/workspaces\/[^/]+\/modules\//;
 
@@ -133,7 +133,7 @@ export function BuilderPanels() {
     setTabs(mode);
     return enqueue(async () => {
       await api.storage.local.set({ [Panels.tabsKey]:mode });
-      if (pendingSaves.current === 1) setStatus(mode === 'hidden' ? 'Saved. Open builder pages keep only their current tab.' : 'Saved. New tabs open as usual.');
+      if (pendingSaves.current === 1) setStatus(mode === 'hidden' ? 'Saved. Open builder pages keep only their current tab.' : mode === 'wrapped' ? 'Saved. Tabs show their full names.' : 'Saved. New tabs open as usual.');
     });
   }
 
@@ -175,7 +175,7 @@ export function BuilderPanels() {
           <Card title="Navigation tabs">
             <Segmented name="navigation-tabs" legend="Tab bar" label="Navigation tabs" describedBy="navigation-tabs-help" options={tabsOptions} value={tabs}
               onChange={saveTabs} />
-            <Note id="navigation-tabs-help">Hidden removes the tab bar above the canvas, including Browser Preview, and keeps only the page you are on: Unqlock closes the other tabs, so Unqork no longer keeps or restores them. The application and module names move to the toolbar.</Note>
+            <Note id="navigation-tabs-help">Multi-line shows full tab names. Hidden removes the bar and Browser Preview, closes other tabs and shows the current module in the toolbar.</Note>
           </Card>
           {Panels.panelIds.map(id => {
             const meta = Panels.panels[id];
