@@ -63,7 +63,7 @@ The popup opens to a home menu with the everyday actions on top:
 
 Below them, features are grouped by where they apply:
 
-- **Builder:** **Component style** (sidebar/canvas scope, icons, labels, frames and group colors), **Canvas layout** (Compact components, canvas row layout, containers and the canvas toolbar) and **Builder panels**.
+- **Builder:** **Component style** (sidebar/canvas scope, icons, labels, frames and group colors), **Canvas layout** (Compact components, component labels, canvas row layout, containers and the canvas toolbar) and **Builder panels**.
 - **Tools:** **Debug tools**.
 - **Setup:** **Environments** (production guard, auto-discovery and domain groups), **Floating launcher** (show, fixed or draggable position, corner and environment label) and **Import & export** (settings as JSON).
 
@@ -74,6 +74,8 @@ Choices between a few options, such as the row layout positions, toolbar modes a
 ## Canvas layout
 
 **Compact components**, on the home menu and under Canvas layout, fits more components in the sidebar and canvas using shorter rows, smaller icon tiles and inline type badges. Names and actions remain available, and narrow headers wrap their type badge when needed. It follows the sidebar/canvas switches, works independently of color effects, and defaults off.
+
+**Component labels**, under Canvas layout, adds each component's label after its property ID on the canvas, in a lighter weight that shortens first when space runs out. **Default** keeps Unqork's rows. **When different** adds only labels that differ from the property ID, and leaves the legacy view as it is, since it already shows such a label with the ID beneath. **Always** adds every label, including one that repeats the ID, so you can see at a glance which components have a label; in the legacy view it adds only those repeated labels. Components without a label get nothing. An edited label updates as you type in Properties, or within a second otherwise.
 
 **Canvas row layout** places each part of a canvas row on the left, in the middle or on the right: the icon, property ID, type badge, dependency count and actions menu. Choose Details right, All left or Details in middle, or Custom to position each part with its own switch. Middle parts sit halfway between the left and right groups; a container's collapse arrow always stays last, and narrow rows wrap. It works with or without Compact components and follows the canvas switch. Native, the default, leaves Unqork's layout untouched, and rows whose structure is not recognized keep it too. Only the visual order changes: keyboard focus follows the original order, and nothing in the module is modified.
 

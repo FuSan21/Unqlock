@@ -330,7 +330,37 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
   assert(tasks.querySelector('[data-slot="dropdown-menu-trigger"]').hasAttribute('data-uq-row-control'));
   assert(!tasks.querySelector('[data-uq-icon],[data-uq-tile],[data-uq-label]'), 'No icon, tile or type marks on a preview row');
   assert(!query('[data-component-key="unread"]').hasAttribute('data-uq-family'));
-  bridgeObserver.disconnect();
+  // Component labels draws the bridge's label after a property ID. When different skips a label that repeats
+  // the ID and leaves the legacy view alone; Always adds every label, in either view.
+  const labelRow = (id, text, legacyView, title) => {
+    const holder = dom.window.document.createElement('div');
+    holder.innerHTML = card(catalog.components[0], id);
+    const row = holder.firstElementChild;
+    row.querySelector('strong').textContent = id;
+    row['__reactFiber$test'] = { memoizedProps:{ component:{ type:title ? 'field-group' : 'basicDropdown', key:id, label:text, title }, renderPreview:legacyView } };
+    legacy.append(row);
+    return row;
+  };
+  const differs = labelRow('fieldStatus', 'Status', false);
+  const repeats = labelRow('pageTitle', 'pageTitle', false);
+  const legacyRepeats = labelRow('legacyTitle', 'legacyTitle', true);
+  // A field group keeps the label shown in Properties in title, with label empty.
+  const fieldGroup = labelRow('fgCounts', '', false, 'Counts');
+  files['__reactFiber$test'] = { memoizedProps:{ component:{ type:'viewgrid', key:'vgFiles', label:'Files' }, renderPreview:true } };
+  const shown = () => [differs, repeats, legacyRepeats, files, tasks, fieldGroup].map(row => row.querySelector('[data-uq-component-label]')?.getAttribute('data-uq-component-label') ?? null);
+  const labelMode = async value => { change({ canvasLabels:{ newValue:value } }, 'local'); await settle(); await settle(); };
+  await labelMode('different');
+  assert(legacyRepeats.hasAttribute('data-unqlock-legacy') && !differs.hasAttribute('data-unqlock-legacy'));
+  assert.deepEqual(shown(), ['Status', null, null, null, null, 'Counts']);
+  await labelMode('always');
+  assert.deepEqual(shown(), ['Status', 'pageTitle', 'legacyTitle', null, null, 'Counts']);
+  // An edit in the Properties panel reaches the row on the next pass.
+  differs['__reactFiber$test'].memoizedProps.component = { type:'basicDropdown', key:'fieldStatus', label:'Order status' };
+  dom.window.document.body.dispatchEvent(new dom.window.Event('input', { bubbles:true }));
+  await settle(); await settle();
+  assert.equal(shown()[0], 'Order status');
+  await labelMode('native');
+  assert.deepEqual(shown(), [null, null, null, null, null, null]);  bridgeObserver.disconnect();
   legacy.remove();
   await settings({});
   dom.window.history.pushState({}, '', '/ide/other');
@@ -386,6 +416,16 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
     nested:['rgb(30, 64, 175) 3px 0px 0px 0px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px', 'rgb(30, 64, 175)', 'rgba(0, 0, 0, 0)'],
   });
   await page.waitForSelector('[data-uq-family]');
+  // A component label follows the property ID in a lighter weight.
+  assert.deepEqual(await page.evaluate(() => {
+    const name = document.createElement('strong');
+    name.setAttribute('data-uq-component-label', 'Status');
+    document.body.append(name);
+    const after = getComputedStyle(name, '::after');
+    const result = [after.content, after.fontWeight];
+    name.remove();
+    return result;
+  }), ['"Status"', '400']);
   assert.equal(await page.locator('[data-tray-type="number"] svg').first().evaluate(element => getComputedStyle(element).color), 'rgb(30, 64, 175)');
   await page.screenshot({ path:path.join(__dirname, '../artifacts/extension-light.png') });
   await page.evaluate(() => document.documentElement.classList.add('dark'));

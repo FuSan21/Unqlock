@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom';
 import { api } from '@/lib/api';
 import { appearanceSettings, type Appearance, type AppearanceKey } from '@/lib/appearance';
 import * as Colors from '@/lib/component-colors';
+import * as Labels from '@/lib/label-settings';
 import * as RowLayout from '@/lib/row-layout';
 import * as Toolbar from '@/lib/toolbar-settings';
 
@@ -10,6 +11,7 @@ interface StoredSettings {
   appearance: Appearance;
   rowLayout: RowLayout.RowLayout;
   canvasToolbar: Toolbar.ToolbarSettings;
+  canvasLabels: Labels.LabelMode;
   componentColors: Colors.ColorSettings;
 }
 export type SettingsUpdate = { [Key in keyof StoredSettings]?: unknown };
@@ -36,18 +38,19 @@ function normalize(items: SettingsUpdate, previous: StoredSettings): StoredSetti
     appearance: 'appearance' in items ? appearanceSettings(items.appearance) : previous.appearance,
     rowLayout: 'rowLayout' in items ? RowLayout.settings(items.rowLayout) : previous.rowLayout,
     canvasToolbar: 'canvasToolbar' in items ? Toolbar.settings(items.canvasToolbar) : previous.canvasToolbar,
+    canvasLabels: 'canvasLabels' in items ? Labels.mode(items.canvasLabels) : previous.canvasLabels,
     componentColors: 'componentColors' in items ? Colors.settings(items.componentColors) : previous.componentColors
   };
 }
 
 // Component style, Canvas layout and the home switches share these stored values and one save.
 export function SettingsProvider({ children }: { children: ReactNode }) {
-  const [values, setValues] = useState<StoredSettings>(() => normalize({ appearance:undefined, rowLayout:undefined, canvasToolbar:undefined, componentColors:undefined }, {} as StoredSettings));
+  const [values, setValues] = useState<StoredSettings>(() => normalize({ appearance:undefined, rowLayout:undefined, canvasToolbar:undefined, canvasLabels:undefined, componentColors:undefined }, {} as StoredSettings));
   const [busy, setBusy] = useState(true);
   const [status, setStatus] = useState('Loading…');
 
   useEffect(() => {
-    api.storage.local.get(['appearance', 'rowLayout', 'canvasToolbar', 'componentColors']).then(result => {
+    api.storage.local.get(['appearance', 'rowLayout', 'canvasToolbar', Labels.key, 'componentColors']).then(result => {
       setValues(previous => normalize(result, previous));
       setStatus('Ready');
       setBusy(false);

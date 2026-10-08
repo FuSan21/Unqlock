@@ -232,3 +232,6 @@
 @media (forced-colors:active) {
   [data-unqlock-sort] > button[aria-checked="true"] { outline:1px solid CanvasText; }
 }
+
+/* A component's label after its property ID, from the row's React definition. It shortens first. */
+[data-uq-component-label]::after { content:attr(data-uq-component-label); flex:0 100 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:400; color:var(--color-muted-foreground, currentColor); }

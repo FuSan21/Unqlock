@@ -1,4 +1,5 @@
 import { appearanceDefaults, layoutKeys } from '@/lib/appearance';
+import * as Labels from '@/lib/label-settings';
 import * as RowLayout from '@/lib/row-layout';
 import * as Toolbar from '@/lib/toolbar-settings';
 import { AppearanceToggle } from '../components/AppearanceToggle';
@@ -10,9 +11,12 @@ const pick = <T extends object>(source: T, keys: (keyof T)[]) => Object.fromEntr
 const presetOptions: Option<string>[] = [['native', 'Native'], ...Object.entries(RowLayout.presets).map(([id, preset]) => [id, preset.label] as const), ['custom', 'Custom']];
 const slotOptions = RowLayout.slots.map(slot => [slot, slot[0].toUpperCase() + slot.slice(1)] as const);
 
+// Why canvas row settings are unavailable, given the switches they depend on.
+const canvasReason = (appearance: { enabled: boolean; canvas: boolean }, use: string) => !appearance.enabled ? 'Turn on Component styling on the home menu to ' + use + '.' : !appearance.canvas ? 'Turn on Component style → Style canvas components to ' + use + '.' : '';
+
 function RowLayoutSettings() {
   const { appearance, rowLayout, save } = useSettings();
-  const reason = !appearance.enabled ? 'Turn on Component styling on the home menu to arrange canvas rows.' : !appearance.canvas ? 'Turn on Component style → Style canvas components to arrange canvas rows.' : '';
+  const reason = canvasReason(appearance, 'arrange canvas rows');
   return (
     <>
       <Select id="row-preset" label="Canvas row layout" inline aria-describedby="row-layout-help" options={presetOptions} value={RowLayout.preset(rowLayout)} reason={reason}
@@ -25,6 +29,14 @@ function RowLayoutSettings() {
         ))}
       </div>
     </>
+  );
+}
+
+function LabelSettings() {
+  const { appearance, canvasLabels, save } = useSettings();
+  return (
+    <Segmented name="component-labels" legend="Component labels" label="Component labels" describedBy="component-labels-help" options={Labels.modes} value={canvasLabels}
+      reason={canvasReason(appearance, 'show component labels')} onChange={mode => save({ canvasLabels:mode })} />
   );
 }
 
@@ -50,6 +62,8 @@ export function CanvasLayout() {
       <fieldset id="layout-fields" className="appearance-fields" disabled={busy}>
         <AppearanceToggle setting="compact" label="Compact components" describedBy="compact-help" />
         <Note id="compact-help">Fit more components in view with shorter rows and clear type badges. Names, icons and actions stay visible.</Note>
+        <LabelSettings />
+        <Note id="component-labels-help">Show each component's label after its property ID on the canvas. When different skips labels that repeat the ID, and leaves the legacy view as it is. Edited labels update within a second.</Note>
         <SettingsHeading>Row layout</SettingsHeading>
         <RowLayoutSettings />
         <Note id="row-layout-help">Place each part of a canvas row on the left, in the middle or on the right. Native keeps Unqork’s layout. Keyboard focus follows the original order.</Note>
@@ -66,7 +80,7 @@ export function CanvasLayout() {
         <Note id="toolbar-help">Keep the canvas search field open, and show the sort modes as switches instead of a dropdown. These work even when Component styling is off.</Note>
       </fieldset>
       <PageFooter resetId="reset-layout" resetText="Reset layout" statusId="layout-status" status={status} busy={busy}
-        onReset={() => save({ appearance:{ ...appearance, ...pick(appearanceDefaults, layoutKeys) }, rowLayout:RowLayout.settings(), canvasToolbar:Toolbar.settings() })} />
+        onReset={() => save({ appearance:{ ...appearance, ...pick(appearanceDefaults, layoutKeys) }, rowLayout:RowLayout.settings(), canvasToolbar:Toolbar.settings(), canvasLabels:Labels.mode(undefined) })} />
     </Page>
   );
 }

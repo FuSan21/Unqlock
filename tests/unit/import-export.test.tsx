@@ -14,6 +14,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
     builderPanels:{ agent:{ visibility:'always', sizing:'custom', width:420 } },
     panelWidth_explore:333,
     navigationTabs:'hidden',
+    canvasLabels:'always',
     navigationTabsCollapsed:true,
     floating:{ enabled:true, mode:'draggable', corner:'top-right' },
     environment:{ badge:true, blockProduction:true, autoDiscover:false, groups:[{ id:'org', name:'Org', domains:[{ hostname:'org-prod.unqork.io', environment:'production' }] }] }
@@ -79,6 +80,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   expect(exported.settings.builderPanels.tray.visibility).toBe('native');
   expect(exported.settings.panelWidths).toEqual({ agent:null, explore:333, properties:null, tray:null });
   expect(exported.settings.navigationTabs).toBe('hidden');
+  expect(exported.settings.canvasLabels).toBe('always');
   expect(exported.settings.navigationTabsCollapsed).toBe(true);
   expect(exported.settings.floating).toEqual({ enabled:true, mode:'draggable', corner:'top-right' });
   expect(exported.settings.environment).toEqual(original.environment);
@@ -95,7 +97,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
 
   // Invalid input is rejected before anything is written.
   const paste = (text: string) => { type('import-text', text); click('import-review'); };
-  for (const [text, message] of [['', /Paste exported settings/], ['{', /not valid JSON/], ['{"a":1}', /not an Unqlock settings export/], ['{"unqlock":2,"settings":{}}', /newer version/], ['{"unqlock":1,"settings":{}}', /no settings/], ['{"unqlock":1,"settings":{"floating":[]}}', /floating value must be an object/], ['{"unqlock":1,"settings":{"navigationTabsCollapsed":"yes"}}', /navigationTabsCollapsed value must be true or false/], ['{"unqlock":1,"settings":{"navigationTabs":true}}', /navigationTabs value must be/]] as const) {
+  for (const [text, message] of [['', /Paste exported settings/], ['{', /not valid JSON/], ['{"a":1}', /not an Unqlock settings export/], ['{"unqlock":2,"settings":{}}', /newer version/], ['{"unqlock":1,"settings":{}}', /no settings/], ['{"unqlock":1,"settings":{"floating":[]}}', /floating value must be an object/], ['{"unqlock":1,"settings":{"canvasLabels":"off"}}', /canvasLabels value must be/], ['{"unqlock":1,"settings":{"navigationTabsCollapsed":"yes"}}', /navigationTabsCollapsed value must be true or false/], ['{"unqlock":1,"settings":{"navigationTabs":true}}', /navigationTabs value must be/]] as const) {
     paste(text);
     expect(importStatus()).toMatch(message);
     expect(byId('import-preview').hidden).toBe(true);
@@ -114,6 +116,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   incoming.settings.componentColors = { logic:{ dark:{ ink:'#7c3aed' } } };
   incoming.settings.builderPanels.agent = { visibility:'start', sizing:'native', width:null };
   incoming.settings.navigationTabs = 'native';
+  incoming.settings.canvasLabels = 'different';
   incoming.settings.navigationTabsCollapsed = false;
   // An export from before Fixed and Draggable has no mode and names the corner position.
   incoming.settings.floating = { enabled:true, position:'bottom-right' };
@@ -151,6 +154,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   expect(store.builderPanels).toEqual(original.builderPanels);
   expect(store.panelWidth_explore).toBe(333);
   expect(store.navigationTabs).toBe('hidden');
+  expect(store.canvasLabels).toBe('always');
   expect(store.navigationTabsCollapsed).toBe(true);
   expect(store.floating).toEqual({ enabled:true, mode:'fixed', corner:'bottom-right' });
   expect(store.environment).toEqual(incoming.settings.environment);
@@ -185,6 +189,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   expect((store.builderPanels as { agent: { visibility: string } }).agent.visibility).toBe('start');
   expect(store.panelWidth_explore).toBe(333);
   expect(store.navigationTabs).toBe('native');
+  expect(store.canvasLabels).toBe('different');
   expect(store.navigationTabsCollapsed).toBe(false);
   expect(messages.filter(message => message.replace)).toHaveLength(1);
   pick({ name:'huge.json', size:2 * 1024 * 1024, text:async () => '' }); await settle();

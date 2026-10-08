@@ -4,6 +4,7 @@ import { api, type Stored } from '@/lib/api';
 import { appearanceDefaults as defaults, appearanceSettings, containerKeys as containers, type Appearance } from '@/lib/appearance';
 import { components, type CatalogEntry } from '@/lib/catalog';
 import * as Colors from '@/lib/component-colors';
+import * as Labels from '@/lib/label-settings';
 import * as RowLayout from '@/lib/row-layout';
 import './style.css';
 
@@ -75,6 +76,7 @@ export default defineContentScript({
       const selector = "[data-tray-type], [data-component-key]";
       let settings: Appearance = { ...defaults };
       let layout = RowLayout.settings();
+      let labels = Labels.mode(undefined);
       type Marks = Map<Element, Record<string, string>>;
       let decorated: Marks = new Map();
       let scheduled = false;
@@ -143,7 +145,7 @@ export default defineContentScript({
         const mark = (element: Element | null | undefined, attributes: Record<string, string>) => {
           if (element) next.set(element, { ...next.get(element), ...attributes });
         };
-        const hasEffects = settings.compact || settings.icons || settings.tiles || settings.trayLabels || settings.labels || settings.accents || settings.backgrounds || settings.borders || layout.enabled || containers.some(key => settings[key]);
+        const hasEffects = settings.compact || labels !== "native" || settings.icons || settings.tiles || settings.trayLabels || settings.labels || settings.accents || settings.backgrounds || settings.borders || layout.enabled || containers.some(key => settings[key]);
         if (settings.enabled && hasEffects && location.pathname.startsWith("/ide/builder/")) {
           for (const card of document.querySelectorAll(selector)) {
             const isTray = card.hasAttribute("data-tray-type");
@@ -196,6 +198,14 @@ export default defineContentScript({
                   else place(child, "chip");
                 }
               }
+            }
+            // A row whose name line shows its property ID can get its label after it, from the canvas-components
+            // bridge, drawn by style.css. Labels.shows decides by the mode and whether the row is in the legacy view.
+            if (!isTray && labels !== "native" && label) {
+              const name = label.parentElement?.firstElementChild;
+              const id = card.getAttribute("data-component-key");
+              const text = card.getAttribute("data-unqlock-label");
+              if (name && name !== label && name.textContent?.trim() === id && Labels.shows(labels, text, id, card.hasAttribute("data-unqlock-legacy"))) mark(name, { "data-uq-component-label": text! });
             }
             const component = isTray ? trayComponent(card) : canvasComponent(card, label, icon);
             // Every collapsible canvas component shares this structure, whatever its type.
@@ -282,7 +292,7 @@ export default defineContentScript({
           schedule();
         }
       });
-      observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["data-tray-type", "data-component-key", "data-unqlock-type", "class"] });
+      observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["data-tray-type", "data-component-key", "data-unqlock-type", "data-unqlock-label", "data-unqlock-legacy", "class"] });
       window.addEventListener("popstate", schedule);
       function applyLayout(value?: Stored) {
         layout = RowLayout.settings(value);
@@ -292,10 +302,11 @@ export default defineContentScript({
       api.storage.onChanged.addListener((changes, area) => {
         if (area !== "local") return;
         if (changes.rowLayout) applyLayout(changes.rowLayout.newValue);
+        if (changes[Labels.key]) { labels = Labels.mode(changes[Labels.key].newValue); schedule(); }
         if (changes.appearance) applySettings(changes.appearance.newValue);
         if (changes.componentColors) applyColors(changes.componentColors.newValue);
       });
-      api.storage.local.get(["appearance", "rowLayout", "componentColors"]).then(result => { layout = RowLayout.settings(result.rowLayout); applyColors(result.componentColors); applySettings(result.appearance); }).catch(() => applySettings(defaults));
+      api.storage.local.get(["appearance", "rowLayout", Labels.key, "componentColors"]).then(result => { layout = RowLayout.settings(result.rowLayout); labels = Labels.mode(result[Labels.key]); applyColors(result.componentColors); applySettings(result.appearance); }).catch(() => applySettings(defaults));
     });
   }
 });
