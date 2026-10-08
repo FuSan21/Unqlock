@@ -9,6 +9,7 @@ const root = path.resolve(__dirname, '../dist', firefoxMode ? 'firefox' : 'chrom
 const catalog = JSON.parse(fs.readFileSync(path.join(__dirname, '../docs/component-catalog.json'), 'utf8'));
 const script = fs.readFileSync(path.join(root, 'content-scripts/content.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'content-scripts/content.css'), 'utf8');
+const bridge = fs.readFileSync(path.join(root, 'content-scripts/canvas-components-bridge.js'), 'utf8');
 const icon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 9v12"/></svg>';
 const tray = component => `<div data-tray-type="${component.type}" role="button" tabindex="0">${icon}<span>${component.label}</span><svg data-handle="true"></svg></div>`;
 const card = (component, key = component.type) => `<div data-component-key="${key}" role="button" tabindex="0"><div class="header"><div class="tile">${icon}</div><div><strong>${component.label} example</strong><div class="text-2xs">${component.label === 'Plug-In' ? 'PLUGIN' : component.label.toUpperCase()}</div></div><div class="trailing"><button data-slot="popover-trigger" aria-label="1 dependencies"><span>1</span></button><button data-slot="dropdown-menu-trigger" aria-label="Actions for ${key}">⋮</button></div></div></div>`;
@@ -300,6 +301,38 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
   await settle();
   dom.window.requestAnimationFrame = frameRequest;
   unrelated.remove();
+  // Unqork's legacy view names a labeled component by its label and moves the property ID into the
+  // type line, and draws inputs, buttons and content as a preview with no icon, ID or type.
+  const legacy = dom.window.document.createElement('section');
+  legacy.innerHTML = `<div data-component-key="vgFiles"><div class="header"><div class="tile">${icon}</div><div><strong>Files</strong><div class="text-2xs">vgFiles · VIEW GRID</div></div><div class="trailing"><button data-slot="dropdown-menu-trigger" aria-label="Actions for Files">⋮</button></div></div></div>`
+    + `<div data-component-key="btnTasks"><div class="header"><div class="preview"><span role="button">Tasks</span></div><div class="trailing"><button data-slot="dropdown-menu-trigger" aria-label="Actions for Tasks">${icon}</button></div></div></div>`
+    + `<div data-component-key="unread"><div class="header"><div class="preview"><input readonly></div><div class="trailing"><button data-slot="dropdown-menu-trigger" aria-label="Actions for unread">${icon}</button></div></div></div>`;
+  dom.window.document.body.append(legacy);
+  await settings({ icons:true, tiles:true, labels:true, accents:true, backgrounds:true });
+  const files = query('[data-component-key="vgFiles"]');
+  assert.equal(files.dataset.uqFamily, 'grids', 'The type follows the property ID');
+  assert(files.querySelector('.tile').hasAttribute('data-uq-tile'));
+  const tasks = query('[data-component-key="btnTasks"]');
+  assert(!tasks.hasAttribute('data-uq-family'), 'A preview row waits for its type');
+  // The canvas-components bridge reads the type from React in the page and marks the row with it.
+  const contentObserver = testObserver;
+  tasks['__reactFiber$test'] = { memoizedProps:{}, return:{ memoizedProps:{}, return:{ memoizedProps:{ component:{ type:'button', key:'btnTasks', label:'Tasks' } } } } };
+  dom.window.eval(bridge);
+  const bridgeObserver = testObserver;
+  testObserver = contentObserver;
+  await settle(); await settle();
+  assert.equal(tasks.getAttribute('data-unqlock-type'), 'button');
+  assert.equal(tasks.getAttribute('data-unqlock-label'), 'Tasks');
+  assert(!query('[data-component-key="unread"]').hasAttribute('data-unqlock-type'), 'A row without a React definition stays unmarked');
+  // It takes the row-wide effects; its only icon belongs to the actions menu and stays as it is.
+  assert.equal(tasks.dataset.uqFamily, 'actions');
+  assert(tasks.hasAttribute('data-uq-accent') && tasks.hasAttribute('data-uq-background'));
+  assert(tasks.querySelector('[data-slot="dropdown-menu-trigger"]').hasAttribute('data-uq-row-control'));
+  assert(!tasks.querySelector('[data-uq-icon],[data-uq-tile],[data-uq-label]'), 'No icon, tile or type marks on a preview row');
+  assert(!query('[data-component-key="unread"]').hasAttribute('data-uq-family'));
+  bridgeObserver.disconnect();
+  legacy.remove();
+  await settings({});
   dom.window.history.pushState({}, '', '/ide/other');
   dom.window.document.body.append(dom.window.document.createElement('div'));
   await settle();

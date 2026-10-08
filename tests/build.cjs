@@ -30,7 +30,7 @@ for (const [target, manifest] of [['chrome', chromeManifest], ['firefox', firefo
   assert.equal(bridge.world, 'MAIN');
   assert.equal(bridge.run_at, 'document_start');
   assert.deepEqual(bridge.matches, ['https://*.unqork.io/*']);
-  assert(bridge.js.includes('content-scripts/canvas-toolbar-bridge.js'));
+  assert(bridge.js.includes('content-scripts/canvas-toolbar-bridge.js') && bridge.js.includes('content-scripts/canvas-components-bridge.js'));
   for (const entry of manifest.content_scripts) for (const file of [...entry.js, ...(entry.css || [])]) assert(archives[target][file], `Missing ${file}`);
   assert.deepEqual(manifest.optional_host_permissions, ['*://*/*']);
   for (const file of manifest.background.scripts || [manifest.background.service_worker]) assert(archives[target][file], `Missing background script ${file}`);

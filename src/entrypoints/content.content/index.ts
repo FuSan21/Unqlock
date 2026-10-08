@@ -63,9 +63,14 @@ export default defineContentScript({
         return block?.type === "uiBlock" ? block : undefined;
       }
       // On the canvas a custom component shows its own name as the type, with a package icon.
-      function canvasComponent(label: Element | null, icon: Element) {
-        if (icon.matches(".lucide-package") && label) return custom;
-        return byLabel.get(normalize(label?.textContent || ""));
+      function canvasComponent(card: Element, label: Element | null, icon?: Element | null) {
+        if (icon?.matches(".lucide-package") && label) return custom;
+        // The legacy view puts the property ID before the type: "key · TYPE".
+        const shown = byLabel.get(normalize((label?.textContent || "").split(/[·•]/).pop()!));
+        if (shown) return shown;
+        // Its preview rows show no type at all; the canvas-components bridge copies it from React.
+        const type = card.getAttribute("data-unqlock-type");
+        return type?.startsWith("byoc::") ? custom : type ? byType.get(type) : undefined;
       }
       const selector = "[data-tray-type], [data-component-key]";
       let settings: Appearance = { ...defaults };
@@ -144,10 +149,13 @@ export default defineContentScript({
             const isTray = card.hasAttribute("data-tray-type");
             if (!(isTray ? settings.tray : settings.canvas)) continue;
             const owned = (element: Element) => element.closest(selector) === card;
-            const icon = ownedMatch(card, "svg", owned);
-            if (!icon) continue;
             const label = isTray ? null : typeLabel(card, owned);
-            if (settings.compact) {
+            // A legacy-view preview row has no icon tile or type, only the component's preview and its
+            // actions; it takes the row-wide effects, and its first icon is the actions menu's.
+            const preview = !isTray && !label;
+            const icon = preview ? null : ownedMatch(card, "svg", owned);
+            if (!icon && !preview) continue;
+            if (settings.compact && icon) {
               if (isTray) {
                 mark(card, { "data-uq-compact": "tray" });
                 mark(icon, { "data-uq-compact-icon": "" });
@@ -167,7 +175,7 @@ export default defineContentScript({
                 }
               }
             }
-            if (!isTray && layout.enabled) {
+            if (!isTray && layout.enabled && icon) {
               const tile = icon.parentElement;
               const header = tile?.parentElement;
               const identity = label?.parentElement;
@@ -189,7 +197,7 @@ export default defineContentScript({
                 }
               }
             }
-            const component = isTray ? trayComponent(card) : canvasComponent(label, icon);
+            const component = isTray ? trayComponent(card) : canvasComponent(card, label, icon);
             // Every collapsible canvas component shares this structure, whatever its type.
             const container = isTray ? null : frameOf(card);
             if (container && containers.some(key => settings[key])) {
@@ -214,8 +222,8 @@ export default defineContentScript({
             }
             if (!component) continue;
             mark(card, { "data-uq-family": component.family, "data-uq-surface": isTray ? "tray" : "canvas" });
-            if (settings.icons) mark(icon, { "data-uq-icon": "", ...(settings.symbols ? { "data-uq-symbol": component.type } : {}) });
-            if (settings.tiles) {
+            if (settings.icons && icon) mark(icon, { "data-uq-icon": "", ...(settings.symbols ? { "data-uq-symbol": component.type } : {}) });
+            if (settings.tiles && icon) {
               if (isTray) mark(icon, { "data-uq-icon-background": "" });
               else if (icon.parentElement !== card) mark(icon.parentElement, { "data-uq-tile": "" });
             }
@@ -274,7 +282,7 @@ export default defineContentScript({
           schedule();
         }
       });
-      observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["data-tray-type", "data-component-key", "class"] });
+      observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["data-tray-type", "data-component-key", "data-unqlock-type", "class"] });
       window.addEventListener("popstate", schedule);
       function applyLayout(value?: Stored) {
         layout = RowLayout.settings(value);
