@@ -179,7 +179,50 @@ async function run(firefoxMode) {
     await page.waitForFunction(() => !document.querySelector('[data-unqlock-tab-name]'), null, { timeout:5000 });
     assert.deepEqual(await fullNames(), [null, null, null]);
     assert.notEqual(await shapeDisplay(), 'none');
-    // Outside /ide/ nothing runs.
+
+    // Collapsed keeps every tab but puts the bar out of sight, as Hidden does with the toolbar title,
+    // until the header is hovered; the bar then stays while the pointer is on it.
+    const collapsedAttribute = () => page.evaluate(() => document.documentElement.hasAttribute('data-unqlock-navigation-tabs-collapsed'));
+    await page.mouse.move(400, 600);
+    await set({ navigationTabsCollapsed:true });
+    await nav.waitFor({ state:'hidden' });
+    await titleWhen('app / ' + long);
+    assert.equal(await title(), 'app / <svg> ' + long, 'The title shows the full name');
+    await page.hover('header');
+    await nav.waitFor({ state:'visible' });
+    await nav.hover();
+    await page.waitForTimeout(600);
+    assert(await nav.isVisible(), 'The bar stays open under the pointer');
+    await page.mouse.move(400, 600);
+    await nav.waitFor({ state:'hidden' });
+    assert.deepEqual(await savedTabs(), [modulePath('sixth'), modulePath('seventh'), modulePath(long)]);
+
+    // Multi-line shows its full names when the collapsed bar opens.
+    await set({ navigationTabs:'wrapped' });
+    await page.waitForFunction(() => document.querySelectorAll('[data-unqlock-tab-name]').length === 3, null, { timeout:5000 });
+    assert(await collapsedAttribute());
+    await page.hover('header');
+    await nav.waitFor({ state:'visible' });
+    assert.deepEqual(await fullNames(), ['sixth', 'seventh', long]);
+    // Every pill and tab fills the bar's height, so shorter ones stay centered beside the wrapped name.
+    const heights = await nav.evaluate(nav => [...nav.querySelectorAll('[data-tab-group]')].map(group => [group, ...group.querySelectorAll('[data-tab-group-pill], [data-sortable-tab] a')]
+      .map(element => Math.round(element.getBoundingClientRect().height))));
+    assert(heights.every(([group, ...inside]) => inside.every(height => height === group)), 'Pills and tabs fill the collapsed bar: ' + JSON.stringify(heights));
+    await page.mouse.move(400, 600);
+    await nav.waitFor({ state:'hidden' });
+
+    // Hidden has no bar to collapse, and the preference returns with Default.
+    await set({ navigationTabs:'hidden' });
+    await page.waitForFunction(() => !document.documentElement.hasAttribute('data-unqlock-navigation-tabs-collapsed'), null, { timeout:5000 });
+    await savedWhen([modulePath(long)]);
+    await set({ navigationTabs:'native' });
+    await page.waitForFunction(() => document.documentElement.hasAttribute('data-unqlock-navigation-tabs-collapsed'), null, { timeout:5000 });
+    await titleWhen('app / ' + long);
+    await set({ navigationTabsCollapsed:false });
+    await nav.waitFor({ state:'visible' });
+    await titleWhen(null);
+    assert(!await collapsedAttribute());
+    await page.evaluate(route => window.go(route), modulePath('seventh'));    // Outside /ide/ nothing runs.
     await set({ navigationTabs:'hidden' });
     await page.goto(origin + '/login');
     await frames(); await frames();
@@ -206,7 +249,7 @@ async function run(firefoxMode) {
       await nav.waitFor({ state:'visible' });
     }
     assert.deepEqual(errors, []);
-    console.log('PASS: navigation tab bar hiding, the toolbar title, Multi-line full names, single-tab pruning through collapsed groups, reload, loop guard, Default, scope and popup settings (' + (firefoxMode ? 'Firefox' : 'Chrome extension') + ').');
+    console.log('PASS: navigation tab bar hiding, the toolbar title, Multi-line full names, collapsed until header hover, single-tab pruning through collapsed groups, reload, loop guard, Default, scope and popup settings (' + (firefoxMode ? 'Firefox' : 'Chrome extension') + ').');
   } finally {
     if (context.closeBrowser) await context.closeBrowser();
     else await context.close();

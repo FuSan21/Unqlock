@@ -34,3 +34,7 @@ export const tabsModes = ['native', 'wrapped', 'hidden'] as const;
 export type TabsMode = typeof tabsModes[number];
 export const tabsKey = 'navigationTabs';
 export const tabsMode = (value: unknown): TabsMode => tabsModes.includes(value as TabsMode) ? value as TabsMode : 'native';
+// Default and Multi-line can keep the bar collapsed until the builder header is hovered. Hidden has no
+// bar to show, so it ignores this.
+export const tabsCollapsedKey = 'navigationTabsCollapsed';
+export const tabsCollapsed = (value: unknown) => value === true;

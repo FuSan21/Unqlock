@@ -16,6 +16,9 @@ export default defineContentScript({
       const titleAttribute = 'data-unqlock-module-title';
       const nameAttribute = 'data-unqlock-tab-name';
       let mode: Panels.TabsMode = 'native';
+      // Collapsed until the header is hovered; Hidden has no bar to collapse, so it keeps the preference unused.
+      let collapsePreference = false;
+      const collapsed = () => collapsePreference && mode !== 'hidden';
       let scheduled = false;
       let stopped = false;
       let route = location.pathname;
@@ -34,6 +37,13 @@ export default defineContentScript({
         button.click();
       }
 
+      // A tab's full name. Unqork shortens long names in the label text itself, cutting out the middle,
+      // but its close button is labelled "Close <name> tab" with the whole name.
+      function tabName(link: Element) {
+        const close = link.querySelector('button[aria-label^="Close "][aria-label$=" tab"]')?.getAttribute('aria-label');
+        return close ? close.slice('Close '.length, -' tab'.length) : link.querySelector(':scope > [data-slot="tooltip-trigger"]')?.textContent?.trim() || '';
+      }
+
       // The hidden bar was the only place naming the application and module, so its current tab is
       // repeated in the toolbar row, between the two spacers after the view selector. The attribute
       // holds what was rendered, so the mutations this causes find nothing to change.
@@ -46,7 +56,7 @@ export default defineContentScript({
           current?.remove();
           return;
         }
-        const module = (active.querySelector('[data-slot="tooltip-trigger"]') || active).textContent?.trim() || '';
+        const module = tabName(active);
         const pill = active.closest('[data-tab-group]')?.querySelector('[data-tab-group-pill] button');
         const app = (pill?.querySelector('[data-slot="tooltip-trigger"]') || pill)?.textContent?.trim() || '';
         const icon = active.querySelector(':scope > svg.lucide');
@@ -68,13 +78,12 @@ export default defineContentScript({
         spacer.after(title);
       }
 
-      // Unqork shortens long tab names in the label text itself, so wrapping alone would not bring them
-      // back. Each tab gets the full name from its close button beside the hidden native label.
+      // Wrapping Unqork's shortened label would not bring the rest of the name back, so each tab gets its
+      // full name beside the native label, which style.css hides.
       function showFullNames(nav: Element | null) {
         for (const link of nav?.querySelectorAll('[data-sortable-tab] a') || []) {
           const label = link.querySelector(':scope > [data-slot="tooltip-trigger"]');
-          const close = link.querySelector('button[aria-label^="Close "][aria-label$=" tab"]')?.getAttribute('aria-label');
-          const name = close ? close.slice('Close '.length, -' tab'.length) : label?.textContent || '';
+          const name = tabName(link);
           const current = link.querySelector(`:scope > [${nameAttribute}]`);
           if (!label || current?.textContent === name && current.previousElementSibling === label) continue;
           const full = document.createElement('span');
@@ -94,13 +103,13 @@ export default defineContentScript({
           stopped = false;
           attempts = new Map();
         }
-        if (mode === 'wrapped') showFullNames(document.querySelector(navSelector));
-        if (mode !== 'hidden') return;
         const nav = document.querySelector(navSelector);
         const active = nav?.querySelector('[data-sortable-tab] a[data-active]');
-        showTitle(active);
+        if (mode === 'wrapped') showFullNames(nav);
+        // Whenever the bar is out of sight, hidden or collapsed, the toolbar names the current module.
+        if (mode === 'hidden' || collapsed()) showTitle(active);
         // A route without a tab of its own, such as a preview, has nothing to keep.
-        if (stopped || !nav || !active) return;
+        if (mode !== 'hidden' || stopped || !nav || !active) return;
         // A collapsed group does not render its tabs; open it so they can be closed.
         for (const pill of nav.querySelectorAll<HTMLButtonElement>('[data-tab-group-pill] button[aria-expanded="false"]')) {
           press('group:' + (pill.closest('[data-tab-group]')?.getAttribute('data-tab-group') || ''), pill);
@@ -121,25 +130,31 @@ export default defineContentScript({
         }
       }
 
-      function apply(value?: unknown) {
-        mode = Panels.tabsMode(value);
+      // Takes the stored values that changed; a key left out keeps its current value.
+      function apply(values: Record<string, unknown>) {
+        if (Object.hasOwn(values, Panels.tabsKey)) mode = Panels.tabsMode(values[Panels.tabsKey]);
+        if (Object.hasOwn(values, Panels.tabsCollapsedKey)) collapsePreference = Panels.tabsCollapsed(values[Panels.tabsCollapsedKey]);
         stopped = false;
         attempts = new Map();
-        // style.css hides or wraps the bar while this attribute says so.
+        // style.css hides, wraps or collapses the bar while these attributes say so.
         document.documentElement.setAttribute('data-unqlock-navigation-tabs', mode);
+        document.documentElement.toggleAttribute('data-unqlock-navigation-tabs-collapsed', collapsed());
         observer.disconnect();
         document.querySelectorAll(`[${titleAttribute}], [${nameAttribute}]`).forEach(element => element.remove());
-        if (mode !== 'native') {
+        if (mode !== 'native' || collapsed()) {
           // A renamed module changes its close button's label in place.
           observer.observe(document.body, { childList:true, subtree:true, attributes:true, attributeFilter:['aria-label'] });
           schedule();
         }
       }
 
+      const keys = [Panels.tabsKey, Panels.tabsCollapsedKey];
       api.storage.onChanged.addListener((changes, area) => {
-        if (area === 'local' && changes[Panels.tabsKey]) apply(changes[Panels.tabsKey].newValue);
+        const changed = keys.filter(key => changes[key]);
+        if (area === 'local' && changed.length) apply(Object.fromEntries(changed.map(key => [key, changes[key].newValue])));
       });
-      api.storage.local.get(Panels.tabsKey).then(result => apply(result[Panels.tabsKey])).catch(() => apply());
+      // Without storage, the defaults apply.
+      api.storage.local.get(keys).then(apply).catch(() => apply({}));
     });
   }
 });

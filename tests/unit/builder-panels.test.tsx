@@ -52,7 +52,7 @@ test.each(apiNames)('queued saves and resets, focus, measured widths and validat
 });
 
 test.each(apiNames)('navigation tabs switch loads, saves and resets with all panels (%s)', async apiName => {
-  const saved: Record<string, any> = { navigationTabs:'hidden' };
+  const saved: Record<string, any> = { navigationTabs:'hidden', navigationTabsCollapsed:true };
   await renderPopup(apiName, {
     storage:{ local:{
       get:async () => structuredClone(saved),
@@ -65,9 +65,21 @@ test.each(apiNames)('navigation tabs switch loads, saves and resets with all pan
   const option = (value: string) => document.querySelector<HTMLInputElement>('input[name="navigation-tabs"][value="' + value + '"]')!;
   expect(option('hidden').checked).toBe(true);
   expect(option('hidden').getAttribute('aria-label')).toBe('Navigation tabs: Hidden');
+  // Hidden has no bar to collapse, so the switch is unavailable but keeps its saved value.
+  const collapse = () => document.querySelector<HTMLInputElement>('input[name="navigation-tabs-collapsed"]')!;
+  expect(collapse().checked).toBe(true);
+  expect(collapse().disabled).toBe(true);
+  expect(document.querySelector('[aria-label="Why Collapse until header hover is unavailable"]')).not.toBeNull();
   click(option('native'));
   await waitFor(() => expect(saved.navigationTabs).toBe('native'));
   expect(byId('panels-status').textContent).toMatch(/New tabs open as usual/);
+  expect(collapse().disabled).toBe(false);
+  click(collapse());
+  await waitFor(() => expect(saved.navigationTabsCollapsed).toBe(false));
+  expect(byId('panels-status').textContent).toMatch(/stays open/);
+  click(collapse());
+  await waitFor(() => expect(saved.navigationTabsCollapsed).toBe(true));
+  expect(byId('panels-status').textContent).toMatch(/hover the header/);
   expect(option('wrapped').getAttribute('aria-label')).toBe('Navigation tabs: Multi-line');
   click(option('wrapped'));
   await waitFor(() => expect(saved.navigationTabs).toBe('wrapped'));
@@ -78,4 +90,6 @@ test.each(apiNames)('navigation tabs switch loads, saves and resets with all pan
   click('panels-reset');
   await waitFor(() => expect(saved.navigationTabs).toBe('native'));
   expect(option('native').checked).toBe(true);
+  expect(saved.navigationTabsCollapsed).toBe(false);
+  expect(collapse().checked).toBe(false);
 });

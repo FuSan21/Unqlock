@@ -40,6 +40,7 @@ export function create(stored: Stored, { version, now = new Date() }: { version:
       builderPanels: Panels.settings(stored.builderPanels),
       panelWidths: panelWidths(stored),
       navigationTabs: Panels.tabsMode(stored[Panels.tabsKey]),
+      navigationTabsCollapsed: Panels.tabsCollapsed(stored[Panels.tabsCollapsedKey]),
       environment: Environment.settings(stored.environment),
       floating: Environment.floatingSettings(stored.floating)
     }
@@ -63,12 +64,13 @@ export function parse(text: unknown): Parsed {
     if (Object.hasOwn(settings, key) && !isObject(settings[key])) throw new Error('The ' + key + ' value must be an object.');
   }
   if (Object.hasOwn(settings, Panels.tabsKey) && !(Panels.tabsModes as readonly unknown[]).includes(settings[Panels.tabsKey])) throw new Error('The navigationTabs value must be "native", "wrapped" or "hidden".');
+  if (Object.hasOwn(settings, Panels.tabsCollapsedKey) && typeof settings[Panels.tabsCollapsedKey] !== 'boolean') throw new Error('The navigationTabsCollapsed value must be true or false.');
   const appearance = settings.appearance || {};
   const isLayoutKey = (key: string) => (layoutKeys as string[]).includes(key);
   const present: Record<SectionId, boolean> = {
     style: Object.keys(appearance).some(key => !isLayoutKey(key)) || Boolean(settings.componentColors),
     layout: Object.keys(appearance).some(isLayoutKey) || Boolean(settings.rowLayout || settings.canvasToolbar),
-    panels: Boolean(settings.builderPanels || settings.panelWidths) || Object.hasOwn(settings, Panels.tabsKey),
+    panels: Boolean(settings.builderPanels || settings.panelWidths) || [Panels.tabsKey, Panels.tabsCollapsedKey].some(key => Object.hasOwn(settings, key)),
     environments: Boolean(settings.environment) && ['groups', 'blockProduction', 'autoDiscover'].some(key => Object.hasOwn(settings.environment as object, key)),
     launcher: Boolean(settings.floating) || Object.hasOwn(settings.environment || {}, 'badge')
   };
@@ -111,6 +113,7 @@ export function apply(parsed: Parsed, chosen: SectionId[], stored: Stored) {
     update.builderPanels = Panels.settings(settings.builderPanels);
     for (const id of Panels.panelIds) update[Panels.rememberedKey(id)] = Panels.width(settings.panelWidths?.[id]);
     update[Panels.tabsKey] = Panels.tabsMode(settings[Panels.tabsKey]);
+    update[Panels.tabsCollapsedKey] = Panels.tabsCollapsed(settings[Panels.tabsCollapsedKey]);
   }
   if (selected('launcher') && settings.floating) update.floating = Environment.floatingSettings(settings.floating);
   let environment: Environment.EnvironmentSettings | null = null;

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, type Stored } from '@/lib/api';
 import * as Panels from '@/lib/panel-settings';
-import { Segmented } from '../components/controls';
+import { Segmented, Toggle } from '../components/controls';
 import { Unavailable } from '../components/Unavailable';
 import { ActionRow, Button, Card, Note, Page, Status } from '../components/layout';
 import { usePageOpen, usePages } from '../pages';
@@ -11,6 +11,7 @@ type PanelId = Panels.PanelId;
 const visibilityOptions = [['native', 'Default'], ['start', 'Start collapsed'], ['always', 'Always collapsed']] as const;
 const sizingOptions = [['native', 'Default'], ['custom', 'Custom'], ['remember', 'Remember last']] as const;
 const tabsOptions = [['native', 'Default'], ['wrapped', 'Multi-line'], ['hidden', 'Hidden']] as const;
+const collapseReason = 'Choose Default or Multi-line to collapse the tab bar.';
 const lockedReason = 'Choose another visibility option to change this panel’s size.';
 const builderUrl = /^https:\/\/[^/]+\/ide\/builder\/workspaces\/[^/]+\/modules\//;
 
@@ -60,6 +61,7 @@ export function BuilderPanels() {
   const { current } = usePages();
   const [config, setConfig] = useState(() => Panels.settings());
   const [tabs, setTabs] = useState<Panels.TabsMode>('native');
+  const [collapsed, setCollapsed] = useState(false);
   const [widths, setWidths] = useState<Partial<Record<PanelId, number | null>>>({});
   const [sizingErrors, setSizingErrors] = useState<Partial<Record<PanelId, string>>>({});
   const [remembered, setRemembered] = useState<Stored>({});
@@ -97,12 +99,12 @@ export function BuilderPanels() {
     const cleared = id ? [id] : Panels.panelIds;
     if (reset) for (const key of cleared) update[Panels.rememberedKey(key)] = null;
     // Reset all builder panels brings the tab bar back too.
-    if (!id) update[Panels.tabsKey] = 'native';
+    if (!id) Object.assign(update, { [Panels.tabsKey]:'native', [Panels.tabsCollapsedKey]:false });
     await api.storage.local.set(update);
     if (reset) setRemembered((previous: Stored) => ({ ...previous, ...Object.fromEntries(cleared.map(key => [Panels.rememberedKey(key), null])) }));
     if (pendingSaves.current === 1) {
       setConfig(next);
-      if (!id) setTabs('native');
+      if (!id) { setTabs('native'); setCollapsed(false); }
       setStatus('Saved. Start collapsed applies on the next module visit. Widths fit the available space.');
     }
   }
@@ -125,16 +127,26 @@ export function BuilderPanels() {
 
   function save(id: PanelId | null, patch: Partial<Panels.PanelPreference> | null, reset = false) {
     setConfig(previous => id ? { ...previous, [id]:{ ...previous[id], ...patch } } : Panels.settings());
-    if (!id) setTabs('native');
+    if (!id) { setTabs('native'); setCollapsed(false); }
     return enqueue(() => persist(id, patch, reset));
+  }
+
+  // The tab bar's own preferences save on their own, outside the panel settings.
+  function saveTabBar(key: string, value: unknown, message: string) {
+    return enqueue(async () => {
+      await api.storage.local.set({ [key]:value });
+      if (pendingSaves.current === 1) setStatus(message);
+    });
   }
 
   function saveTabs(mode: Panels.TabsMode) {
     setTabs(mode);
-    return enqueue(async () => {
-      await api.storage.local.set({ [Panels.tabsKey]:mode });
-      if (pendingSaves.current === 1) setStatus(mode === 'hidden' ? 'Saved. Open builder pages keep only their current tab.' : mode === 'wrapped' ? 'Saved. Tabs show their full names.' : 'Saved. New tabs open as usual.');
-    });
+    return saveTabBar(Panels.tabsKey, mode, mode === 'hidden' ? 'Saved. Open builder pages keep only their current tab.' : mode === 'wrapped' ? 'Saved. Tabs show their full names.' : 'Saved. New tabs open as usual.');
+  }
+
+  function saveCollapsed(value: boolean) {
+    setCollapsed(value);
+    return saveTabBar(Panels.tabsCollapsedKey, value, value ? 'Saved. The tab bar shows while you hover the header.' : 'Saved. The tab bar stays open.');
   }
 
   usePageOpen('panels-page', async () => {
@@ -142,9 +154,10 @@ export function BuilderPanels() {
     setStatus('Loading panel settings…');
     target.current = null;
     try {
-      const result = await api.storage.local.get(['builderPanels', Panels.tabsKey, ...Panels.panelIds.map(Panels.rememberedKey)]);
+      const result = await api.storage.local.get(['builderPanels', Panels.tabsKey, Panels.tabsCollapsedKey, ...Panels.panelIds.map(Panels.rememberedKey)]);
       setConfig(Panels.settings(result.builderPanels));
       setTabs(Panels.tabsMode(result[Panels.tabsKey]));
+      setCollapsed(Panels.tabsCollapsed(result[Panels.tabsCollapsedKey]));
       setRemembered(result);
       try { await measure(); } catch { setWidths({}); }
       setLoading(false);
@@ -175,7 +188,9 @@ export function BuilderPanels() {
           <Card title="Navigation tabs">
             <Segmented name="navigation-tabs" legend="Tab bar" label="Navigation tabs" describedBy="navigation-tabs-help" options={tabsOptions} value={tabs}
               onChange={saveTabs} />
-            <Note id="navigation-tabs-help">Multi-line shows full tab names. Hidden removes the bar and Browser Preview, closes other tabs and shows the current module in the toolbar.</Note>
+            <Toggle name="navigation-tabs-collapsed" label="Collapse until header hover" checked={collapsed} reason={tabs === 'hidden' ? collapseReason : ''}
+              aria-describedby="navigation-tabs-help" onChange={saveCollapsed} />
+            <Note id="navigation-tabs-help">Multi-line shows full tab names. Hidden removes the bar and Browser Preview, closes other tabs and shows the current module in the toolbar. Collapsed shows the bar while you hover the header.</Note>
           </Card>
           {Panels.panelIds.map(id => {
             const meta = Panels.panels[id];

@@ -5,6 +5,19 @@
      tab groups with a pill, sortable tabs with an active link and close buttons. Tabs persist the way
      Unqork's workspace store does, so a reload restores them. Below it, the toolbar row with the view selector
      and the two spacers Unqork leaves between it and the save controls. -->
+<!-- The tab bar's layout from Unqork's classes: a 40px bar whose groups, pills and tabs take 100% of it. -->
+<style>
+  nav[data-testid="navigation-tabs"] { display:flex; align-items:stretch; height:40px; overflow:hidden; }
+  [data-tab-scroll-container] { flex:1; height:100%; padding-top:6px; box-sizing:border-box; }
+  [role="tablist"], [data-tab-group] { display:flex; align-items:stretch; height:100%; }
+  [data-tab-group-pill] { display:flex; align-items:center; height:100%; }
+  [data-sortable-tab], [data-sortable-tab] > div { display:flex; height:100%; }
+  [data-sortable-tab] a { position:relative; display:flex; align-items:center; width:200px; height:calc(100% - 1px); white-space:nowrap; }
+  [data-sortable-tab] a > svg.lucide { flex:none; width:14px; height:14px; }
+  [data-sortable-tab] a > svg:not(.lucide) { position:absolute; top:0; left:0; width:100%; }
+</style>
+<!-- The builder header, with the logo and search; hovering it shows a collapsed tab bar. -->
+<header style="height:48px"><span>unqork</span> <input aria-label="Search"></header>
 <div data-slot="resizable-panel" data-name="PanelCenter" id="panel-center">
   <nav class="w-full shrink-0 flex h-10" aria-label="Navigation tabs" data-testid="navigation-tabs" data-shortcut-context="navigation-tabs"></nav>
   <div class="flex shrink-0 items-center h-13 px-4 border-b" id="toolbar">

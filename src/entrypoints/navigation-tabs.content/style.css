@@ -1,8 +1,31 @@
 :root[data-unqlock-navigation-tabs="hidden"] nav[data-testid="navigation-tabs"] { display:none !important; }
 
+/* Collapsed: out of sight like Hidden until the builder header is hovered. It then overlays the toolbar
+   row in its chosen style, so the canvas does not move, and stays while the pointer or keyboard focus is
+   in it or one of its menus is open. Visibility switches after the fade, so the bar can still be reached
+   while it closes. */
+:root[data-unqlock-navigation-tabs-collapsed] :has(> nav[data-testid="navigation-tabs"]) { position:relative; }
+:root[data-unqlock-navigation-tabs-collapsed] nav[data-testid="navigation-tabs"] {
+  position:absolute !important; top:0; left:0; right:0; z-index:50;
+  box-shadow:inset 0 -1px 0 var(--color-border), 0 8px 16px -8px rgb(0 0 0 / .35);
+  visibility:hidden; opacity:0; transform:translateY(-6px);
+  transition:opacity .12s ease .25s, transform .12s ease .25s, visibility 0s linear .37s;
+}
+:root[data-unqlock-navigation-tabs-collapsed]:has(header:hover, nav[data-testid="navigation-tabs"]:hover, nav[data-testid="navigation-tabs"] :focus-visible, nav[data-testid="navigation-tabs"] [aria-haspopup][aria-expanded="true"]) nav[data-testid="navigation-tabs"] {
+  visibility:visible; opacity:1; transform:none;
+  transition:opacity .12s ease, transform .12s ease, visibility 0s;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-unqlock-navigation-tabs-collapsed] nav[data-testid="navigation-tabs"] { transform:none !important; transition-duration:0s !important; }
+}
+
 /* Multi-line: the bar grows to the tallest tab, whose full name replaces Unqork's shortened label. */
 :root[data-unqlock-navigation-tabs="wrapped"] nav[data-testid="navigation-tabs"] { height:auto !important; min-height:40px; }
 :root[data-unqlock-navigation-tabs="wrapped"] nav[data-testid="navigation-tabs"] [data-sortable-tab] a { white-space:normal; }
+/* Unqork sizes group pills and tabs at 100% of the bar's fixed height. Once the bar's height comes from
+   its content, as it does here and in the collapsed overlay, that percentage can fall back to each
+   element's own height, leaving shorter ones at the top. Stretching sizes them all to the tallest. */
+:root[data-unqlock-navigation-tabs="wrapped"] nav[data-testid="navigation-tabs"] :is([data-tab-group], [data-tab-group-pill], [data-sortable-tab], [data-sortable-tab] > *, [data-sortable-tab] a) { height:auto !important; }
 :root[data-unqlock-navigation-tabs="wrapped"] nav[data-testid="navigation-tabs"] [data-sortable-tab] a:has(> [data-unqlock-tab-name]) > [data-slot="tooltip-trigger"] { display:none; }
 [data-unqlock-tab-name] { flex:1 1 0; min-width:0; padding:4px 0; line-height:16px; overflow-wrap:anywhere; }
 /* Unqork draws the active tab's shape as a 33px SVG, which would distort when stretched. The same shape
