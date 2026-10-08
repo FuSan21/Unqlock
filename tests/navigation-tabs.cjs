@@ -72,6 +72,17 @@ async function run(firefoxMode) {
     };
     const nav = page.locator('nav[data-testid="navigation-tabs"]');
     const clicks = () => page.evaluate(() => window.closeClicks);
+    // The title in the toolbar row, part by part with the icon as <svg>, or null when it is absent or misplaced.
+    const title = () => page.evaluate(() => {
+      const element = document.querySelector('[data-unqlock-module-title]');
+      if (!element) return null;
+      if (!element.previousElementSibling?.matches('.flex-1') || !element.nextElementSibling?.matches('.flex-1')) return 'misplaced';
+      return [...element.children].map(part => part.textContent || '<' + part.localName + '>').join(' ');
+    });
+    const titleWhen = expected => page.waitForFunction(expected => {
+      const element = document.querySelector('[data-unqlock-module-title]');
+      return expected === null ? !element : element?.previousElementSibling?.matches('.flex-1') && element.title === expected;
+    }, expected, { timeout:5000 }).catch(async () => assert.equal(await title(), expected));
 
     // Default leaves the bar and every tab alone.
     await load();
@@ -81,6 +92,7 @@ async function run(firefoxMode) {
     assert(await nav.isVisible());
     assert.deepEqual(await savedTabs(), [modulePath('first'), modulePath('second'), modulePath('third')]);
     assert.equal(await clicks(), 0);
+    assert.equal(await title(), null, 'Default adds no title');
 
     // Hidden removes the bar and closes every other tab, opening a collapsed group to reach its tabs.
     await set({ navigationTabs:'hidden' });
@@ -89,9 +101,30 @@ async function run(firefoxMode) {
     assert.equal(await clicks(), 2);
     assert.equal(await page.locator('#heading').textContent(), modulePath('first'), 'The current page stays open');
 
+    // The toolbar row names the application and module between its spacers, and returns after a remount.
+    await titleWhen('app / First');
+    assert.equal(await title(), 'app / <svg> First');
+    // Once shown, the title stays put rather than being replaced on every pass.
+    const replaced = await page.evaluate(() => new Promise(resolve => {
+      let count = 0;
+      const observer = new MutationObserver(list => {
+        for (const record of list) for (const node of [...record.addedNodes, ...record.removedNodes]) if (node.nodeType === 1 && node.matches('[data-unqlock-module-title]')) count++;
+      });
+      observer.observe(document.body, { childList:true, subtree:true });
+      // A change elsewhere on the page makes the script look again.
+      document.getElementById('heading').append('');
+      let frames = 10;
+      const tick = () => --frames ? requestAnimationFrame(tick) : (observer.disconnect(), resolve(count));
+      requestAnimationFrame(tick);
+    }));
+    assert.equal(replaced, 0, 'The title is not replaced while nothing changed');
+    await page.evaluate(() => { const toolbar = document.getElementById('toolbar'); toolbar.innerHTML = toolbar.innerHTML.replace(/<div data-unqlock-module-title[\s\S]*?<\/div>/, ''); });
+    await titleWhen('app / First');
+
     // Opening another module keeps only its tab.
     await page.evaluate(route => window.go(route), modulePath('fourth'));
     await savedWhen([modulePath('fourth')]);
+    await titleWhen('app / fourth');
 
     // Tabs Unqork restores on reload are closed on the first pass.
     await page.evaluate(() => localStorage.setItem('ide-workspace-store', JSON.stringify({ tabs:[
@@ -115,6 +148,7 @@ async function run(firefoxMode) {
     // Default shows the bar again and stops closing tabs.
     await set({ navigationTabs:'native' });
     await nav.waitFor({ state:'visible' });
+    await titleWhen(null);
     await page.evaluate(route => window.go(route), modulePath('seventh'));
     for (let i = 0; i < 5; i++) await frames();
     assert.deepEqual(await savedTabs(), [modulePath('sixth'), modulePath('seventh')]);
@@ -124,6 +158,7 @@ async function run(firefoxMode) {
     await page.goto(origin + '/login');
     await frames(); await frames();
     assert(await nav.isVisible());
+    assert.equal(await title(), null);
 
     if (popup) {
       await set({ navigationTabs:'native' });
@@ -145,7 +180,7 @@ async function run(firefoxMode) {
       await nav.waitFor({ state:'visible' });
     }
     assert.deepEqual(errors, []);
-    console.log('PASS: navigation tab bar hiding, single-tab pruning through collapsed groups, reload, loop guard, Default, scope and popup settings (' + (firefoxMode ? 'Firefox' : 'Chrome extension') + ').');
+    console.log('PASS: navigation tab bar hiding, the toolbar title, single-tab pruning through collapsed groups, reload, loop guard, Default, scope and popup settings (' + (firefoxMode ? 'Firefox' : 'Chrome extension') + ').');
   } finally {
     if (context.closeBrowser) await context.closeBrowser();
     else await context.close();

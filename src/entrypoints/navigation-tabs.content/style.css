@@ -1,1 +1,9 @@
 :root[data-unqlock-navigation-tabs="hidden"] nav[data-testid="navigation-tabs"] { display:none !important; }
+
+/* The current application and module, in the toolbar row while the bar is hidden. */
+[data-unqlock-module-title] { display:flex; flex:0 1 auto; align-items:center; gap:6px; min-width:0; font-size:12px; line-height:16px; white-space:nowrap; }
+[data-unqlock-module-title] > span { overflow:hidden; text-overflow:ellipsis; }
+[data-unqlock-module-title] > [data-part="app"] { flex:0 2 auto; min-width:24px; color:var(--color-muted-foreground, inherit); }
+[data-unqlock-module-title] > [data-part="separator"] { flex:none; color:var(--color-muted-foreground, inherit); opacity:.6; }
+[data-unqlock-module-title] > [data-part="module"] { flex:0 1 auto; min-width:24px; color:var(--color-foreground, inherit); font-weight:500; }
+[data-unqlock-module-title] > svg { flex:none; width:14px; height:14px; margin:0; }

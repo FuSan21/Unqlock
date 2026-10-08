@@ -175,7 +175,7 @@ export function BuilderPanels() {
           <Card title="Navigation tabs">
             <Segmented name="navigation-tabs" legend="Tab bar" label="Navigation tabs" describedBy="navigation-tabs-help" options={tabsOptions} value={tabs}
               onChange={saveTabs} />
-            <Note id="navigation-tabs-help">Hidden removes the tab bar above the canvas, including Browser Preview, and keeps only the page you are on: Unqlock closes the other tabs, so Unqork no longer keeps or restores them.</Note>
+            <Note id="navigation-tabs-help">Hidden removes the tab bar above the canvas, including Browser Preview, and keeps only the page you are on: Unqlock closes the other tabs, so Unqork no longer keeps or restores them. The application and module names move to the toolbar.</Note>
           </Card>
           {Panels.panelIds.map(id => {
             const meta = Panels.panels[id];

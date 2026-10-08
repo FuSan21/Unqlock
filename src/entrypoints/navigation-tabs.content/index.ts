@@ -13,6 +13,7 @@ export default defineContentScript({
   main() {
     whenIde(() => {
       const navSelector = 'nav[data-testid="navigation-tabs"]';
+      const titleAttribute = 'data-unqlock-module-title';
       let mode: Panels.TabsMode = 'native';
       let scheduled = false;
       let stopped = false;
@@ -32,6 +33,40 @@ export default defineContentScript({
         button.click();
       }
 
+      // The hidden bar was the only place naming the application and module, so its current tab is
+      // repeated in the toolbar row, between the two spacers after the view selector. The attribute
+      // holds what was rendered, so the mutations this causes find nothing to change.
+      function showTitle(active?: Element | null) {
+        const current = document.querySelector(`[${titleAttribute}]`);
+        const spacer = document.querySelector('button[aria-label="Select view"]')?.parentElement?.nextElementSibling;
+        // The title already shown sits between the spacers; look past it.
+        const next = spacer?.nextElementSibling === current ? current?.nextElementSibling : spacer?.nextElementSibling;
+        if (!active || !spacer?.classList.contains('flex-1') || !next?.classList.contains('flex-1')) {
+          current?.remove();
+          return;
+        }
+        const module = (active.querySelector('[data-slot="tooltip-trigger"]') || active).textContent?.trim() || '';
+        const pill = active.closest('[data-tab-group]')?.querySelector('[data-tab-group-pill] button');
+        const app = (pill?.querySelector('[data-slot="tooltip-trigger"]') || pill)?.textContent?.trim() || '';
+        const icon = active.querySelector(':scope > svg.lucide');
+        const key = [app, module, icon?.getAttribute('class') || ''].join('\n');
+        if (current?.getAttribute(titleAttribute) === key && current.previousElementSibling === spacer) return;
+        const part = (name: string, text: string) => {
+          const span = document.createElement('span');
+          span.setAttribute('data-part', name);
+          span.textContent = text;
+          return span;
+        };
+        const title = document.createElement('div');
+        title.setAttribute(titleAttribute, key);
+        title.title = app ? app + ' / ' + module : module;
+        if (app) title.append(part('app', app), part('separator', '/'));
+        if (icon) title.append(icon.cloneNode(true));
+        title.append(part('module', module));
+        current?.remove();
+        spacer.after(title);
+      }
+
       // Keeps only the current tab, through Unqork's own close buttons, so its store and saved
       // workspace tabs shrink the same way they would for a user closing them.
       function render() {
@@ -41,10 +76,12 @@ export default defineContentScript({
           stopped = false;
           attempts = new Map();
         }
-        if (mode !== 'hidden' || stopped) return;
+        if (mode !== 'hidden') return;
         const nav = document.querySelector(navSelector);
+        const active = nav?.querySelector('[data-sortable-tab] a[data-active]');
+        showTitle(active);
         // A route without a tab of its own, such as a preview, has nothing to keep.
-        if (!nav?.querySelector('[data-sortable-tab] a[data-active]')) return;
+        if (stopped || !nav || !active) return;
         // A collapsed group does not render its tabs; open it so they can be closed.
         for (const pill of nav.querySelectorAll<HTMLButtonElement>('[data-tab-group-pill] button[aria-expanded="false"]')) {
           press('group:' + (pill.closest('[data-tab-group]')?.getAttribute('data-tab-group') || ''), pill);
@@ -72,6 +109,7 @@ export default defineContentScript({
         // style.css hides the bar while this attribute says so.
         document.documentElement.setAttribute('data-unqlock-navigation-tabs', mode);
         observer.disconnect();
+        document.querySelector(`[${titleAttribute}]`)?.remove();
         if (mode === 'hidden') {
           observer.observe(document.body, { childList:true, subtree:true });
           schedule();

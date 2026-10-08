@@ -3,9 +3,15 @@
 <title>Navigation tabs fixture</title>
 <!-- The builder's navigation tab bar as captured from a saved builder page: the Browser Preview switcher,
      tab groups with a pill, sortable tabs with an active link and close buttons. Tabs persist the way
-     Unqork's workspace store does, so a reload restores them. -->
+     Unqork's workspace store does, so a reload restores them. Below it, the toolbar row with the view selector
+     and the two spacers Unqork leaves between it and the save controls. -->
 <div data-slot="resizable-panel" data-name="PanelCenter" id="panel-center">
   <nav class="w-full shrink-0 flex h-10" aria-label="Navigation tabs" data-testid="navigation-tabs" data-shortcut-context="navigation-tabs"></nav>
+  <div class="flex shrink-0 items-center h-13 px-4 border-b" id="toolbar">
+    <div class="flex items-center gap-2"><button type="button" role="combobox" aria-label="Select view">Definition</button></div>
+    <div class="flex-1"></div><div class="flex-1"></div>
+    <div class="flex items-center gap-1"><button type="button">Save</button></div>
+  </div>
   <div data-name="PanelContent"><h1 id="heading"></h1><input id="editor" aria-label="Editor"></div>
 </div>
 <script>
@@ -28,13 +34,20 @@
     node.append(...children);
     return node;
   };
+  // The module-type icon Unqork draws before each tab's label.
+  const icon = () => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'lucide lucide-file-braces size-3.5 text-modules');
+    return svg;
+  };
   function render() {
     const nav = document.querySelector('nav');
     const preview = element('button', { type:'button', 'data-testid':'app-preview-switcher', 'aria-label':'Browser Preview' });
     const list = element('div', { role:'tablist', 'data-slot':'tabs-list' });
     for (const group of [...new Set(state.tabs.map(tab => tab.group))]) {
       const collapsed = state.collapsed.has(group);
-      const pill = element('button', { type:'button', 'aria-expanded':String(!collapsed), 'aria-label':'Applications / ' + group + ' group, ' + (collapsed ? 'collapsed' : 'expanded') }, [group]);
+      const pill = element('button', { type:'button', 'aria-expanded':String(!collapsed), 'aria-label':'Applications / ' + group + ' group, ' + (collapsed ? 'collapsed' : 'expanded') },
+        [element('span', { 'data-slot':'tooltip-trigger' }, [group])]);
       pill.addEventListener('click', () => { collapsed ? state.collapsed.delete(group) : state.collapsed.add(group); persist(); render(); });
       const box = element('div', { 'data-tab-group':group + '__folder' }, [element('div', { 'data-slot':'context-menu-trigger', 'data-tab-group-pill':'true' }, [pill])]);
       // Unqork renders the active tab even inside a collapsed group.
@@ -48,7 +61,7 @@
           persist();
           render();
         });
-        const link = element('a', { href:'/ide' + tab.route, ...(tab.route === current() ? { 'data-active':'' } : {}) }, [element('span', {}, [tab.label]), close]);
+        const link = element('a', { href:'/ide' + tab.route, ...(tab.route === current() ? { 'data-active':'' } : {}) }, [icon(), element('span', { 'data-slot':'tooltip-trigger' }, [tab.label]), close]);
         link.addEventListener('click', event => { event.preventDefault(); window.go(tab.route); });
         box.append(element('div', { 'data-sortable-tab':tab.route, role:'button' }, [element('div', { 'data-slot':'context-menu-trigger' }, [link])]));
       }
