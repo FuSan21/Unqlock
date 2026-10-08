@@ -145,7 +145,7 @@ export default defineContentScript({
         const mark = (element: Element | null | undefined, attributes: Record<string, string>) => {
           if (element) next.set(element, { ...next.get(element), ...attributes });
         };
-        const hasEffects = settings.compact || labels !== "native" || settings.icons || settings.tiles || settings.trayLabels || settings.labels || settings.accents || settings.backgrounds || settings.borders || layout.enabled || containers.some(key => settings[key]);
+        const hasEffects = settings.canvas || settings.compact || labels !== "native" || settings.icons || settings.tiles || settings.trayLabels || settings.labels || settings.accents || settings.backgrounds || settings.borders || layout.enabled || containers.some(key => settings[key]);
         if (settings.enabled && hasEffects && location.pathname.startsWith("/ide/builder/")) {
           for (const card of document.querySelectorAll(selector)) {
             const isTray = card.hasAttribute("data-tray-type");
@@ -198,6 +198,13 @@ export default defineContentScript({
                   else place(child, "chip");
                 }
               }
+            }
+            // The legacy view writes "key · TYPE" in the type line. style.css draws the parts apart, the ID small and
+            // muted and only the type in the type's style, whenever canvas components are styled.
+            if (!isTray && label) {
+              const parts = label.textContent?.split(/\s[·•]\s/);
+              const id = card.getAttribute("data-component-key");
+              if (id && parts?.length === 2 && parts[0].trim() === id && parts[1].trim()) mark(label, { "data-uq-legacy-id": id, "data-uq-legacy-type": parts[1].trim() });
             }
             // A row whose name line shows its property ID can get its label after it, from the canvas-components
             // bridge, drawn by style.css. Labels.shows decides by the mode and whether the row is in the legacy view.

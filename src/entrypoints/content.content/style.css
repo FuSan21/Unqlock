@@ -234,4 +234,18 @@
 }
 
 /* A component's label after its property ID, from the row's React definition. It shortens first. */
-[data-uq-component-label]::after { content:attr(data-uq-component-label); flex:0 100 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:400; color:var(--color-muted-foreground, currentColor); }
+[data-uq-component-label]::after { content:attr(data-uq-component-label); flex:0 100 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:400; color:var(--muted-foreground, currentColor); }
+
+/* Legacy view: the type line reads "key · TYPE". The original text is hidden and its parts are drawn
+   apart: the property ID small and muted, then the type, which alone takes the type's color and, when
+   compact, its badge. In a narrow row the ID shortens first, so the type stays whole. */
+[data-uq-legacy-type] { display:flex !important; align-items:center !important; gap:6px !important; font-size:0 !important; }
+[data-uq-legacy-type]::before, [data-uq-legacy-type]::after { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+[data-uq-legacy-type]::before { content:attr(data-uq-legacy-id); flex:0 1 auto; font-size:10px; line-height:15px; font-weight:400; letter-spacing:normal; color:var(--muted-foreground, currentColor); }
+[data-uq-legacy-type]::after { content:attr(data-uq-legacy-type); flex:none; font-size:10px; line-height:15px; }
+[data-uq-compact-type][data-uq-legacy-type] { padding:0 !important; border:0 !important; background:none !important; font-size:0 !important; }
+[data-uq-compact-type][data-uq-legacy-type]::before { line-height:16px; }
+[data-uq-compact-type][data-uq-legacy-type]::after {
+  display:inline-block; padding:1px 5px; border:1px solid color-mix(in srgb, currentColor 22%, transparent); border-radius:4px;
+  background:color-mix(in srgb, currentColor 6%, transparent); font-size:10px; line-height:14px; font-weight:600; letter-spacing:.025em;
+}

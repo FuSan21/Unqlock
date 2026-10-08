@@ -312,6 +312,10 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
   const files = query('[data-component-key="vgFiles"]');
   assert.equal(files.dataset.uqFamily, 'grids', 'The type follows the property ID');
   assert(files.querySelector('.tile').hasAttribute('data-uq-tile'));
+  // Its type line is drawn apart: the property ID muted, then the type alone in the type's style.
+  const filesType = files.querySelector('.text-2xs');
+  assert.deepEqual([filesType.getAttribute('data-uq-legacy-id'), filesType.getAttribute('data-uq-legacy-type')], ['vgFiles', 'VIEW GRID']);
+  assert(!query('[data-component-key="number"] .text-2xs').hasAttribute('data-uq-legacy-type'), 'A plain type line stays as it is');
   const tasks = query('[data-component-key="btnTasks"]');
   assert(!tasks.hasAttribute('data-uq-family'), 'A preview row waits for its type');
   // The canvas-components bridge reads the type from React in the page and marks the row with it.
@@ -416,6 +420,21 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
     nested:['rgb(30, 64, 175) 3px 0px 0px 0px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px', 'rgb(30, 64, 175)', 'rgba(0, 0, 0, 0)'],
   });
   await page.waitForSelector('[data-uq-family]');
+  // The legacy type line shows the property ID muted and the type in the type's color; compact puts the badge on the type alone.
+  assert.deepEqual(await page.evaluate(() => {
+    const line = document.createElement('div');
+    line.className = 'text-2xs';
+    for (const [name, value] of [['data-uq-legacy-id', 'vgFiles'], ['data-uq-legacy-type', 'VIEW GRID'], ['data-uq-label', ''], ['data-uq-family', 'grids']]) line.setAttribute(name, value);
+    document.body.style.setProperty('--muted-foreground', 'rgb(1, 2, 3)');
+    document.body.append(line);
+    const read = () => { const own = getComputedStyle(line), id = getComputedStyle(line, '::before'), type = getComputedStyle(line, '::after'); return [own.fontSize, id.content, id.color, type.content, type.color === own.color, type.borderTopStyle, own.borderTopStyle]; };
+    const plain = read();
+    line.setAttribute('data-uq-compact-type', '');
+    const compact = read();
+    line.remove();
+    document.body.style.removeProperty('--muted-foreground');
+    return { plain, compact };
+  }), { plain:['0px', '"vgFiles"', 'rgb(1, 2, 3)', '"VIEW GRID"', true, 'none', 'none'], compact:['0px', '"vgFiles"', 'rgb(1, 2, 3)', '"VIEW GRID"', true, 'solid', 'none'] });
   // A component label follows the property ID in a lighter weight.
   assert.deepEqual(await page.evaluate(() => {
     const name = document.createElement('strong');
