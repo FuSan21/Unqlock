@@ -145,7 +145,10 @@ export default defineContentScript({
         const mark = (element: Element | null | undefined, attributes: Record<string, string>) => {
           if (element) next.set(element, { ...next.get(element), ...attributes });
         };
-        const hasEffects = settings.canvas || settings.compact || labels !== "native" || settings.icons || settings.tiles || settings.trayLabels || settings.labels || settings.accents || settings.backgrounds || settings.borders || layout.enabled || containers.some(key => settings[key]);
+        // Effects that color or rearrange rows. With none of them, styled canvas rows still split the legacy
+        // type line and take component labels, but keep Unqork's look, selection and search rings included.
+        const styled = settings.compact || settings.icons || settings.tiles || settings.trayLabels || settings.labels || settings.accents || settings.backgrounds || settings.borders || layout.enabled || containers.some(key => settings[key]);
+        const hasEffects = styled || settings.canvas || labels !== "native";
         if (settings.enabled && hasEffects && location.pathname.startsWith("/ide/builder/")) {
           for (const card of document.querySelectorAll(selector)) {
             const isTray = card.hasAttribute("data-tray-type");
@@ -237,7 +240,7 @@ export default defineContentScript({
               if (settings.containerDepth) mark(body, { "data-uq-container-shade": String(Math.min(depth, 3)) });
               if (settings.containerEnd) mark(body, { "data-uq-container-end": card.getAttribute("data-component-key")! });
             }
-            if (!component) continue;
+            if (!component || !styled) continue;
             mark(card, { "data-uq-family": component.family, "data-uq-surface": isTray ? "tray" : "canvas" });
             if (settings.icons && icon) mark(icon, { "data-uq-icon": "", ...(settings.symbols ? { "data-uq-symbol": component.type } : {}) });
             if (settings.tiles && icon) {
