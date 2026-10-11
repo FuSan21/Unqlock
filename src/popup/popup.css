@@ -32,6 +32,7 @@ h2 { font-size:14px; margin:0 0 12px; }
 .debug-feedback[data-state="error"] { border-inline-start-color:#dc6b55; }
 #quick-page button[data-quick-action] { margin-top:10px; }
 #quick-page h3 { font-size:13px; margin:18px 0 0; border-top:1px solid var(--line); padding-top:12px; }
+#quick-page .panel-settings-card h3 { margin:0; border-top:0; padding-top:0; }
 #quick-status { margin-top:14px; font-size:12px; }
 .action-row { display:flex; gap:8px; }
 button:disabled, input:disabled, select:disabled { opacity:.6; cursor:not-allowed; }
