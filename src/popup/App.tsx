@@ -18,11 +18,7 @@ import { ImportExport } from './views/ImportExport';
 function Startup({ main }: { main: RefObject<HTMLElement | null> }) {
   const { open } = usePages();
   useEffect(() => {
-    // Firefox opens import in a tab, since its toolbar popup closes when the file picker appears.
-    if (params().get('page') === 'transfer-page') open('transfer-page');
-    // The site-access window for Debug tools opens straight on its page.
-    else if (params().get('permission') === 'debug') open('quick-page');
-    else if (embedded()) {
+    if (embedded()) {
       if (params().get('input') === 'keyboard') document.getElementById('environment-manage')?.focus();
       // Keep keyboard input inside the popup without selecting a menu item.
       else main.current?.focus();

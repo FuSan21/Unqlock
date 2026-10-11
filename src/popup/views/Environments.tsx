@@ -3,6 +3,7 @@ import { api } from '@/lib/api';
 import * as Environment from '@/lib/environment';
 import { Toggle } from '../components/controls';
 import { ActionRow, Button, Note, Page, Status } from '../components/layout';
+import { requestAccess, useAccessChanged } from '../access';
 import { useEnvironment, type EnvironmentResult } from '../environment';
 import { usePageOpen } from '../pages';
 
@@ -62,6 +63,14 @@ export function Environments() {
       setLoading(false);
       setStatus(result.missingOrigins.length ? 'Saved custom domains need site access for automatic badges.' : '');
     } catch (error) { setStatus((error as Error).message); }
+  });
+
+  // Access granted in the prompt window, which has already registered and injected the badges.
+  useAccessChanged(() => {
+    const waiting = missingOrigins.length > 0;
+    environment.message({ type:'environment.sync' }).then(result => {
+      if (waiting && !result.missingOrigins.length) setStatus('Automatic badges enabled. Site access and mappings persist after reloads and browser restarts.');
+    }).catch(() => {});
   });
 
   async function injectCurrentBadge(settings: Environment.EnvironmentSettings) {
@@ -172,10 +181,11 @@ export function Environments() {
         const requested = [...missingOrigins];
         setAccessPending(true);
         try {
-          const granted = await api.permissions.request({ origins:requested });
+          const access = await requestAccess('badges', requested);
           const result = await environment.message({ type:'environment.sync' });
-          setStatus(granted ? 'Automatic badges enabled. Site access and mappings persist after reloads and browser restarts.' : 'Mappings saved. Site access was not granted; automatic custom-domain badges remain off.');
-          if (granted) await injectCurrentBadge(result.config);
+          if (access === 'window') { setStatus('Allow access in the Unqlock window to enable automatic badges.'); return; }
+          setStatus(access === 'granted' ? 'Automatic badges enabled. Site access and mappings persist after reloads and browser restarts.' : 'Mappings saved. Site access was not granted; automatic custom-domain badges remain off.');
+          if (access === 'granted') await injectCurrentBadge(result.config);
         } catch (error) { setStatus('Could not enable automatic badges: ' + (error as Error).message); }
         finally { setAccessPending(false); }
       }}>Enable automatic badges on saved custom domains</button>

@@ -35,6 +35,9 @@ for (const [target, manifest] of [['chrome', chromeManifest], ['firefox', firefo
   assert(!script('dev-overlay.js') && !script('dev-overlay-guard.js'), 'Dev overlay scripts are not in the manifest');
   for (const file of ['dev-overlay.js', 'dev-overlay.css', 'dev-overlay-guard.js']) assert(archives[target]['content-scripts/' + file], `Missing ${file}`);
   assert.equal(manifest.host_permissions, undefined);
+  // The prompt window ships in both packages, and only the extension can open it.
+  assert(archives[target]['prompt.html'], 'Missing prompt.html');
+  assert(!manifest.web_accessible_resources.some(entry => entry.resources.includes('prompt.html')), 'prompt.html must not be web accessible');
   for (const entry of manifest.content_scripts) for (const file of [...entry.js, ...(entry.css || [])]) assert(archives[target][file], `Missing ${file}`);
   assert.deepEqual(manifest.optional_host_permissions, ['*://*/*']);
   for (const file of manifest.background.scripts || [manifest.background.service_worker]) assert(archives[target][file], `Missing background script ${file}`);

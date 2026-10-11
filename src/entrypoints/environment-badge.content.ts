@@ -199,8 +199,8 @@ export default defineContentScript({
       button.setAttribute('aria-expanded', 'true');
     });
     api.runtime.onMessage.addListener((message, _sender, respond) => {
-      if (message?.type === 'debug.accessChanged') {
-        frame?.contentWindow?.postMessage({ type:'unqlock.debugAccessChanged' }, new URL(api.runtime.getURL('/popup.html')).origin);
+      if (message?.type === 'access.changed') {
+        frame?.contentWindow?.postMessage({ type:'unqlock.accessChanged', kind:message.kind }, new URL(api.runtime.getURL('/popup.html')).origin);
         respond({ ok:true });
         return;
       }

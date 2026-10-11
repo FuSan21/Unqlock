@@ -1,16 +1,14 @@
 import { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { api } from '@/lib/api';
-import * as Panels from '@/lib/panel-settings';
 import * as Transfer from '@/lib/settings-transfer';
 import { Toggle } from '../components/controls';
 import { ActionRow, Note, Page, SettingsHeading } from '../components/layout';
 import { useEnvironment } from '../environment';
 import { usePageLeave } from '../pages';
-import { embedded, params } from '../runtime';
+import { embedded, firefox } from '../runtime';
 import { useSettings } from '../settings';
-
-const storedKeys = ['appearance', 'rowLayout', 'canvasToolbar', 'canvasLabels', 'componentColors', 'builderPanels', Panels.tabsKey, Panels.tabsCollapsedKey, 'environment', 'floating', ...Panels.panelIds.map(Panels.rememberedKey)];
+import { importSections, origin, readFile, storedKeys } from '../transfer';
 interface Message { text: string; error?: boolean }
 interface Review { parsed: Transfer.Parsed; summary: string; chosen: Transfer.SectionId[] }
 
@@ -18,8 +16,8 @@ function TransferStatus({ id, message }: { id: string; message: Message }) {
   return <p id={id} className="transfer-status" role="status" aria-live="polite" data-state={message.error ? 'error' : undefined}>{message.text}</p>;
 }
 
-// Firefox closes its toolbar popup when the file picker opens, so the picker runs in a tab there.
-const firefoxToolbarPopup = () => typeof (api.runtime as { getBrowserInfo?: unknown }).getBrowserInfo === 'function' && !embedded() && !['page', 'targetTab'].some(key => params().has(key));
+// Firefox closes its toolbar popup when the file picker opens, so files are chosen in the prompt window there.
+const firefoxToolbarPopup = () => firefox() && !embedded();
 
 export function ImportExport() {
   const settings = useSettings();
@@ -65,9 +63,9 @@ export function ImportExport() {
     let parsed: Transfer.Parsed;
     try { parsed = Transfer.parse(value); }
     catch (error) { setImportMessage({ text:'Not imported. ' + (error as Error).message, error:true }); return; }
-    const origin = [parsed.extensionVersion && 'Unqlock ' + parsed.extensionVersion, parsed.exportedAt && 'exported ' + parsed.exportedAt.toLocaleString(), source].filter(Boolean).join(' · ');
+    const from = origin(parsed, source);
     flushSync(() => {
-      setReview({ parsed, summary:(origin ? origin + '. ' : '') + 'Choose the settings to replace:', chosen:[...parsed.sections] });
+      setReview({ parsed, summary:(from ? from + '. ' : '') + 'Choose the settings to replace:', chosen:[...parsed.sections] });
       setImportMessage({ text:'' });
     });
     sections.current?.querySelector('input')?.focus();
@@ -80,19 +78,14 @@ export function ImportExport() {
     setBusy(true);
     setImportMessage({ text:'Importing…' });
     try {
-      const stored = await api.storage.local.get(storedKeys);
-      const { update, environment:imported } = Transfer.apply(review.parsed, chosen, stored);
-      // The background owns environment storage and registers badges for custom domains.
-      const saved = imported ? await environment.message({ type:'environment.save', replace:imported }) : null;
-      if (Object.keys(update).length) await api.storage.local.set(update);
+      const { update, names, missingOrigins } = await importSections(review.parsed, chosen, replace => environment.message({ type:'environment.save', replace }));
       settings.show(update);
-      const names = chosen.map(id => Transfer.sections[id]).join(', ');
       // Finish in one render, with the buttons enabled, so focus can return to Review.
       flushSync(() => {
         setBusy(false);
         cancel();
         setText('');
-        setImportMessage({ text:'Imported ' + names + '.' + (chosen.includes('environments') && (saved?.missingOrigins.length ?? environment.missingOrigins.length) ? ' Open Environments to enable automatic badges on custom domains.' : '') });
+        setImportMessage({ text:'Imported ' + names + '.' + (chosen.includes('environments') && (missingOrigins ?? environment.missingOrigins).length ? ' Open Environments to enable automatic badges on custom domains.' : '') });
       });
       reviewButton.current?.focus();
     } catch (error) { setImportMessage({ text:'Not imported. ' + ((error as Error).message || 'Try again.'), error:true }); }
@@ -149,7 +142,8 @@ export function ImportExport() {
         <button id="import-file-button" type="button" disabled={busy} onClick={async () => {
           if (!firefoxToolbarPopup()) { fileInput.current!.click(); return; }
           try {
-            await api.tabs.create({ url:api.runtime.getURL('/popup.html') + '?page=transfer-page' });
+            const result = await api.runtime.sendMessage({ type:'prompt.open', kind:'import' });
+            if (!result?.ok) throw new Error();
             window.close();
           } catch { setImportMessage({ text:'Could not open the file picker. Paste the JSON instead.', error:true }); }
         }}>Choose file</button>
@@ -158,9 +152,10 @@ export function ImportExport() {
         const [file] = event.target.files || [];
         event.target.value = '';
         if (!file) return;
-        if (file.size > 1024 * 1024) { cancel(); setImportMessage({ text:'Not imported. This file is larger than 1 MB and is not an Unqlock export.', error:true }); return; }
-        try { start(await file.text(), file.name); }
-        catch { setImportMessage({ text:'Could not read ' + file.name + '. Try again.', error:true }); }
+        let value: string;
+        try { value = await readFile(file); }
+        catch (error) { cancel(); setImportMessage({ text:'Not imported. ' + (error as Error).message, error:true }); return; }
+        start(value, file.name);
       }} />
       <div id="import-preview" className="debug-confirmation" hidden={!review}>
         <p id="import-summary">{review?.summary}</p>

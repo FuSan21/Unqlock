@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import * as Environment from '@/lib/environment';
 import { apiNames, byId, click, press, query, renderPopup, settle, type } from './harness';
 
@@ -83,4 +83,36 @@ test.each(apiNames)('production guard, saved-host switcher and group editing (%s
   press('Escape');
   expect(byId('home').hidden).toBe(false);
   expect(document.activeElement?.id).toBe('open-environment');
+});
+
+test('in Firefox, custom-domain badges ask in the prompt window, and the floating menu hears back', async () => {
+  let missing = ['*://custom.test/*'];
+  const messages: { type: string; kind?: string }[] = [];
+  const request = vi.fn();
+  const config = { groups:[{ id:'custom', name:'Custom', domains:[{ hostname:'custom.test', environment:'production' }] }] };
+  const api = {
+    storage:{ local:{ get:async () => ({ environment:config }), set:async () => {} }, onChanged:{ addListener:() => {}, removeListener:() => {} } },
+    tabs:{ query:async () => [{ id:7, url:'https://custom.test/app' }] },
+    runtime:{ getBrowserInfo:async () => ({ name:'Firefox' }), getManifest:() => ({ version:'1.0.0' }), sendMessage:async (message: { type: string; kind?: string }) => {
+      messages.push(message);
+      if (message.type === 'prompt.open') return { ok:true, granted:false };
+      if (message.type === 'floating.target') return { ok:true, tab:{ id:7, url:'https://custom.test/app' } };
+      return { ok:true, config:Environment.settings(config), missingOrigins:missing };
+    } },
+    permissions:{ request },
+    scripting:{ executeScript:async () => [{ result:true }] }
+  };
+  await renderPopup('browser', api, { embedded:true });
+  click('open-environment'); await settle();
+  click('environment-access'); await settle();
+  expect(request).not.toHaveBeenCalled();
+  expect(messages.filter(message => message.type === 'prompt.open')).toEqual([{ type:'prompt.open', kind:'badges' }]);
+  expect(byId('environment-status').textContent).toMatch(/Unqlock window/);
+  expect(byId('environment-access').hidden).toBe(false);
+
+  // The window grants access and the page passes the news to its floating menu.
+  missing = [];
+  window.dispatchEvent(new MessageEvent('message', { source:window.parent, data:{ type:'unqlock.accessChanged', kind:'badges' } })); await settle();
+  expect(byId('environment-access').hidden).toBe(true);
+  expect(byId('environment-status').textContent).toMatch(/Automatic badges enabled/);
 });
