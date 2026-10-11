@@ -1,6 +1,6 @@
 # Unqlock
 
-Manifest V3 extension for Chrome and Firefox that styles the Unqork Config builder and adds debug tools. TypeScript built with WXT from one source tree in src/: entrypoints in src/entrypoints, shared models in src/lib, the React popup in src/popup, and the manifest in wxt.config.ts. Reproducible packages land in artifacts/.
+Manifest V3 extension for Chrome and Firefox that styles the Unqork Config builder and adds debug tools. TypeScript built with WXT from one source tree in src/: entrypoints in src/entrypoints, shared models in src/lib, the React popup and the prompt window in src/popup, and the manifest in wxt.config.ts. Reproducible packages land in artifacts/.
 
 README.md is the user-facing documentation: features, installation and privacy. Everything about building, testing, versioning and publishing to the two stores lives in @.claude/development.md — read it before changing the build scripts, the workflow or anything release-related.
 

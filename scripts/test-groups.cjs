@@ -43,6 +43,9 @@ const groups = {
     ['Detached dev overlay (Chrome)', test('dev-overlay.cjs')],
     ['Detached dev overlay (Firefox)', test('dev-overlay.cjs'), ['--firefox']]
   ] },
+  prompt:{ title:'Prompt window', browsers:['chromium'], tests:[
+    ['Site access and file import window (Chrome)', test('prompt-window.cjs')]
+  ] },
   floating:{ title:'Floating launcher and environments', browsers:['chromium'], tests:[
     ['Floating launcher, badges and restart', test('environment-browser.cjs')]
   ] },

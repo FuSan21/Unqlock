@@ -37,6 +37,17 @@ export async function renderPopup(apiName: ApiName, double: object, { url = 'htt
   return result;
 }
 
+// Renders a fresh copy of the prompt window at its address, such as ?kind=import.
+export async function renderPrompt(apiName: ApiName, double: object, query: string) {
+  vi.resetModules();
+  history.replaceState(null, '', 'https://extension.test/prompt.html?' + query);
+  (globalThis as Scope)[apiName] = double;
+  const { Prompt } = await import('@/popup/prompt/Prompt');
+  const result = render(<Prompt />);
+  await settle();
+  return result;
+}
+
 // Lets pending promises, timers and React updates finish.
 export async function settle(rounds = 10) {
   for (let round = 0; round < rounds; round++) await act(() => new Promise(resolve => setTimeout(resolve, 0)));

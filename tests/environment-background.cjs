@@ -21,12 +21,17 @@ const background = fs.readFileSync(path.join(__dirname, '../dist/chrome/backgrou
     let popupWindows = [];
     let temporaryAccess = false;
     let injection;
+    // Pages told that access was granted in the prompt window.
+    const notices = [];
     const events = {};
     const event = key => ({ addListener:fn => { events[key] = fn; } });
     const api = {
       storage:{
         onChanged:event('changed'),
-        local:{ get:async () => ({ environment:structuredClone(stored), floating, devOverlayDetach:overlayOn }), set:async value => { stored = structuredClone(value.environment); } },
+        local:{ get:async () => ({ environment:structuredClone(stored), floating, devOverlayDetach:overlayOn }), set:async value => {
+          if ('environment' in value) stored = structuredClone(value.environment);
+          if ('devOverlayDetach' in value) overlayOn = value.devOverlayDetach;
+        } },
         session:{
           get:async key => (key in session ? { [key]:session[key] } : {}),
           set:async value => { Object.assign(session, value); },
@@ -39,7 +44,7 @@ const background = fs.readFileSync(path.join(__dirname, '../dist/chrome/backgrou
         onMessage:{ addListener:fn => { messageListener = fn; } },
         onStartup:event('startup'), onInstalled:event('installed')
       },
-      permissions:{ contains:async ({ origins }) => origins.every(origin => granted.has(origin)), onAdded:event('added'), onRemoved:event('removed') },
+      permissions:{ contains:async ({ origins }) => origins.every(origin => granted.has(origin)), remove:async ({ origins }) => { origins.forEach(origin => granted.delete(origin)); return true; }, onAdded:event('added'), onRemoved:event('removed') },
       scripting:{
         getRegisteredContentScripts:async ({ ids }) => scripts.filter(script => ids.includes(script.id)),
         registerContentScripts:async added => {
@@ -64,6 +69,7 @@ const background = fs.readFileSync(path.join(__dirname, '../dist/chrome/backgrou
       tabs:{
         query:async () => openTabs, get:async id => ({ id, windowId:3, active:true }),
         sendMessage:async (id, message, options) => {
+          if (message.type === 'access.changed') { notices.push({ tab:id, kind:message.kind }); return { ok:true }; }
           assert.equal(message.type, 'floating.source');
           assert.equal(options.frameId, 0);
           if (!pageUrl) throw new Error('Receiving end does not exist.');
@@ -74,7 +80,7 @@ const background = fs.readFileSync(path.join(__dirname, '../dist/chrome/backgrou
       action:{ openPopup:async options => { popupCalls.push(options); } },
       windows:{ create:async options => { popupWindows.push(options); } }
     };
-    const context = vm.createContext({ [apiName]:api, URL });
+    const context = vm.createContext({ [apiName]:api, URL, URLSearchParams });
     vm.runInContext(background, context);
     const popup = { url:'extension://test/popup.html' };
     const send = (message, sender = popup) => new Promise(resolve => {
@@ -101,7 +107,22 @@ const background = fs.readFileSync(path.join(__dirname, '../dist/chrome/backgrou
     assert.equal(popupWindows.length, 0, 'Saved access needs no permission window');
     granted.clear();
     assert.equal((await send({type:'debug.permission'}, embedded)).granted, false);
-    assert.equal(popupWindows[0].url, 'extension://test/popup.html?targetTab=7&permission=debug');
+    assert.equal(popupWindows[0].url, 'extension://test/prompt.html?kind=debug&tab=7');
+    assert.equal(popupWindows[0].type, 'popup');
+    // The prompt window asks the background what to request; its address names only the kind and tab.
+    const prompt = { url:'extension://test/prompt.html?kind=debug&tab=7', frameId:0, tab:{ id:40 } };
+    const described = await send({ type:'prompt.describe', kind:'debug', tab:'7' }, prompt);
+    assert.deepEqual([...described.origins], ['https://first-prod.unqork.io/*']);
+    assert.equal(described.host, 'first-prod.unqork.io');
+    assert.equal(await send({ type:'prompt.describe', kind:'debug', tab:'7' }, popup), undefined, 'Only the prompt window describes a request');
+    assert.equal(await send({ type:'prompt.describe', kind:'everything', tab:'7' }, prompt), undefined);
+    assert.equal(await send({ type:'prompt.describe', kind:'debug', tab:'-1' }, prompt), undefined);
+    assert.equal((await send({ type:'prompt.granted', kind:'debug', tab:'7' }, prompt)).ok, false, 'A grant the browser does not hold finishes nothing');
+    assert.equal(notices.length, 0);
+    granted.add('https://first-prod.unqork.io/*');
+    assert.equal((await send({ type:'prompt.granted', kind:'debug', tab:'7' }, prompt)).ok, true);
+    assert.deepEqual(notices, [{ tab:7, kind:'debug' }], 'The floating menu learns through its page');
+    granted.clear();
     const request = { action:'log', url:pageUrl };
     assert.equal((await send({type:'debug.execute', request}, embedded)).result.ok, true);
     assert.equal(injection.target.tabId, 7);
@@ -223,6 +244,54 @@ const background = fs.readFileSync(path.join(__dirname, '../dist/chrome/backgrou
     assert.deepEqual(overlayScripts(), []);
     assert.equal(registrations().length, 1);
     openTabs = [];
+
+    // Detach dev overlay, custom-domain badges and Firefox file imports open the prompt window too.
+    const prompted = () => popupWindows.at(-1);
+    const overlayPrompt = { ...prompt, url:'extension://test/prompt.html?kind=devOverlay&tab=7' };
+    granted.delete('https://*.unqork.io/*');
+    assert.equal((await send({ type:'prompt.open', kind:'devOverlay' }, embedded)).granted, false);
+    assert.equal(prompted().url, 'extension://test/prompt.html?kind=devOverlay&tab=7', 'A floating menu names its tab');
+    assert.deepEqual([...(await send({ type:'prompt.describe', kind:'devOverlay' }, overlayPrompt)).origins], ['https://*.unqork.io/*']);
+    assert.equal((await send({ type:'prompt.open', kind:'import' }, popup)).ok, true);
+    assert.equal(prompted().url, 'extension://test/prompt.html?kind=import', 'A toolbar popup names no tab');
+    assert.equal(prompted().width, 460);
+    assert.equal(await send({ type:'prompt.open', kind:'debug' }, popup), undefined, 'Debug tools go through debug.permission');
+    assert.equal(await send({ type:'prompt.open', kind:'import' }, { url:'https://evil.test/', frameId:0, tab:{ id:7 } }), undefined);
+    // Granting turns the option on in the background, since a Firefox toolbar popup has closed by then.
+    granted.add('https://*.unqork.io/*');
+    notices.length = 0;
+    assert.equal((await send({ type:'prompt.granted', kind:'devOverlay', tab:'7' }, overlayPrompt)).ok, true);
+    assert.equal(overlayOn, true);
+    assert.deepEqual(notices, [{ tab:7, kind:'devOverlay' }]);
+    // The option itself is read and changed here, for menus without a permissions API.
+    assert.deepEqual({ ...await send({ type:'devOverlay.state' }, embedded) }, { ok:true, on:true });
+    assert.equal(await send({ type:'devOverlay.state' }, page), undefined, 'Pages cannot read it');
+    assert.equal(await send({ type:'devOverlay.set', on:false }, { url:'https://evil.test/', frameId:0, tab:{ id:7 } }), undefined);
+    assert.deepEqual({ ...await send({ type:'devOverlay.set', on:false }, embedded) }, { ok:true, on:false });
+    assert.equal(overlayOn, false);
+    assert(!granted.has('https://*.unqork.io/*'), 'Turning it off gives the access back');
+    assert.deepEqual({ ...await send({ type:'devOverlay.set', on:true }, embedded) }, { ok:true, on:false, needsAccess:true }, 'On needs the access first');
+    assert.equal(overlayOn, false);
+    granted.add('https://*.unqork.io/*');
+    assert.deepEqual({ ...await send({ type:'devOverlay.set', on:true }, embedded) }, { ok:true, on:true });
+    assert.equal(overlayOn, true);
+    const windows = popupWindows.length;
+    assert.equal((await send({ type:'prompt.open', kind:'devOverlay' }, popup)).granted, true, 'Access already held needs no window');
+    assert.equal(popupWindows.length, windows);
+    // Badges ask for the saved custom domains still missing, then register and inject them.
+    granted.delete('*://custom.test/*');
+    assert.equal((await send({ type:'prompt.open', kind:'badges' }, popup)).granted, false);
+    const badgePrompt = { ...prompt, url:'extension://test/prompt.html?kind=badges' };
+    assert.deepEqual([...(await send({ type:'prompt.describe', kind:'badges' }, badgePrompt)).origins], ['*://custom.test/*']);
+    granted.add('*://custom.test/*');
+    openTabs = [{ id:12, url:'https://custom.test/app' }];
+    injected.length = 0;
+    assert.equal((await send({ type:'prompt.granted', kind:'badges' }, badgePrompt)).ok, true);
+    assert.equal(registrations()[0].matches[0], '*://custom.test/*');
+    assert(injected.includes('/content-scripts/environment-badge.js'), 'Open tabs on the domain get the badge');
+    openTabs = [];
+    // The prompt window imports settings files through the same environment messages.
+    assert.equal((await send({ type:'environment.read' }, { ...prompt, url:'extension://test/prompt.html?kind=import' })).ok, true);
   }
-  console.log('PASS: serialized discovery, group edits, sender validation, persistent custom-domain registration, Detach dev overlay registration, grants, revocation, deletion, imports and startup in both API branches.');
+  console.log('PASS: serialized discovery, group edits, sender validation, persistent custom-domain registration, Detach dev overlay registration, prompt window requests and grants, revocation, deletion, imports and startup in both API branches.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

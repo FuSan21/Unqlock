@@ -5,6 +5,8 @@ import { api } from '@/lib/api';
 export const params = () => new URL(location.href).searchParams;
 export const embedded = () => window.top !== window;
 export const detached = () => params().has('targetTab');
+// Only Firefox's API has getBrowserInfo.
+export const firefox = () => typeof (api.runtime as { getBrowserInfo?: unknown } | undefined)?.getBrowserInfo === 'function';
 
 export interface TargetTab { id: number; url: string }
 

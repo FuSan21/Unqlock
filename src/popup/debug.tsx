@@ -3,8 +3,9 @@ import { flushSync } from 'react-dom';
 import { api } from '@/lib/api';
 import * as Environment from '@/lib/environment';
 import { runQuickAction, type QuickRequest, type QuickResult } from '@/lib/quick-actions';
+import { promptWindow, useAccessChanged } from './access';
 import { usePages } from './pages';
-import { detached, embedded, getTargetTab, params, type TargetTab } from './runtime';
+import { detached, embedded, getTargetTab, type TargetTab } from './runtime';
 
 export type FeedbackId = 'inspect' | 'data' | 'execute' | 'home';
 export interface Feedback { text: string; state?: 'pending' | 'success' | 'error' }
@@ -127,22 +128,16 @@ export function DebugProvider({ children }: { children: ReactNode }) {
     if (!target.current) return;
     setAccessPending(true);
     try {
-      if (!api.permissions?.request) {
+      if (promptWindow()) {
         const result = await api.runtime.sendMessage({ type:'debug.permission' });
         if (!result?.ok) throw new Error(result?.error || 'Could not open the site access window.');
         if (result.granted) enableControls();
-        else setStatus('Approve site access in the Unqlock window, then continue here.');
+        else setStatus('Allow site access in the Unqlock window, then continue here.');
         return;
       }
       // Call directly from the gesture, before awaits (required by Firefox).
       const granted = await api.permissions.request({ origins:[pageOrigin()] });
-      if (granted) {
-        enableControls();
-        if (params().get('permission') === 'debug') {
-          const result = await api.runtime.sendMessage({ type:'debug.granted' });
-          if (result?.ok) window.close();
-        }
-      }
+      if (granted) enableControls();
       else setStatus('Site access was not granted. Open Unqlock from the browser toolbar to use debug tools once.');
     } catch (error) { setStatus('Could not request site access: ' + ((error as Error).message || 'open Unqlock from the browser toolbar instead.')); }
     finally { setAccessPending(false); }
@@ -251,20 +246,12 @@ export function DebugProvider({ children }: { children: ReactNode }) {
     return () => api.storage.onChanged?.removeListener(listener);
   }, [cancel, describe]);
 
-  // The floating menu learns from its page when site access was granted in another window.
-  const recheck = useRef<() => void>(() => {});
-  recheck.current = async () => {
+  // Access granted in the prompt window enables the controls here.
+  useAccessChanged(async () => {
+    if (!target.current || busyRef.current) return;
     try { if (await hasPageAccess()) enableControls(); }
     catch { setStatus('Reopen Debug tools to check site access.'); }
-  };
-  useEffect(() => {
-    const listener = (event: MessageEvent) => {
-      if (!embedded() || event.source !== parent || event.data?.type !== 'unqlock.debugAccessChanged' || !target.current) return;
-      recheck.current();
-    };
-    window.addEventListener('message', listener);
-    return () => window.removeEventListener('message', listener);
-  }, []);
+  });
 
   const value: Debug = {
     form, setForm, controlsDisabled, busy, status, accessOrigin, accessPending, productionReason, feedback, pending,

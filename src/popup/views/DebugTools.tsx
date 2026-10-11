@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import * as DevOverlay from '@/lib/dev-overlay';
 import { Segmented, Select, TextField, Toggle } from '../components/controls';
 import { Tabs } from '../components/Tabs';
 import { Unavailable } from '../components/Unavailable';
 import { ActionRow, Button, Card, Note, Page, Status } from '../components/layout';
+import { requestAccess } from '../access';
 import { useDebug, type FeedbackId, type ValueType } from '../debug';
 import { usePageLeave, usePageOpen } from '../pages';
 
@@ -32,26 +33,37 @@ function DevOverlayOption() {
   const [detach, setDetach] = useState(false);
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState('');
-  usePageOpen('quick-page', () => {
-    (async () => {
-      const on = DevOverlay.enabled((await api.storage.local.get(DevOverlay.key))[DevOverlay.key]);
-      setDetach(on && await api.permissions.contains({ origins:DevOverlay.matches }));
-    })().catch(() => setDetach(false));
-  });
+  // The background answers for the option and its access, since a floating menu frame may have no
+  // permissions API to check or remove access with.
+  const send = async (message: { type: 'devOverlay.state' } | { type: 'devOverlay.set'; on: boolean }) => {
+    const result = await api.runtime.sendMessage(message);
+    if (!result?.ok) throw new Error(result?.error || 'Could not reach Unqlock. Reopen the menu and try again.');
+    setDetach(result.on === true);
+    return result as { on: boolean; needsAccess?: boolean };
+  };
+  const load = () => { send({ type:'devOverlay.state' }).catch(() => setDetach(false)); };
+  usePageOpen('quick-page', load);
+  // The prompt window saves the option once access is granted there.
+  useEffect(() => {
+    const listener = (changes: Record<string, { newValue?: unknown }>, area: string) => {
+      if (area !== 'local' || !changes[DevOverlay.key]) return;
+      load();
+      if (DevOverlay.enabled(changes[DevOverlay.key].newValue)) setStatus('On. Open builder tabs show Detach on the SSE Debugger drawer.');
+    };
+    api.storage.onChanged?.addListener(listener);
+    return () => api.storage.onChanged?.removeListener(listener);
+  }, []);
   async function change(value: boolean) {
     setPending(true);
     try {
       if (value) {
-        if (!api.permissions?.request) { setStatus('Open Unqlock from the browser toolbar to turn this on.'); return; }
-        // Call directly from the gesture, before awaits (required by Firefox).
-        if (!await api.permissions.request({ origins:DevOverlay.matches })) { setStatus('Site access was not granted, so the option stays off.'); return; }
-        await api.storage.local.set({ [DevOverlay.key]:true });
-        setDetach(true);
-        setStatus('On. Open builder tabs show Detach on the SSE Debugger drawer.');
+        const access = await requestAccess('devOverlay', DevOverlay.matches);
+        if (access === 'window') { setStatus('Allow access in the Unqlock window to turn this on.'); return; }
+        if (access === 'denied') { setStatus('Site access was not granted, so the option stays off.'); return; }
+        const result = await send({ type:'devOverlay.set', on:true });
+        setStatus(result.on ? 'On. Open builder tabs show Detach on the SSE Debugger drawer.' : 'Site access was not granted, so the option stays off.');
       } else {
-        await api.storage.local.set({ [DevOverlay.key]:false });
-        setDetach(false);
-        await api.permissions?.remove({ origins:DevOverlay.matches }).catch(() => false);
+        await send({ type:'devOverlay.set', on:false });
         setStatus('Off. Nothing is added to Unqork pages.');
       }
     } catch (error) { setStatus('Could not save: ' + (error as Error).message); }

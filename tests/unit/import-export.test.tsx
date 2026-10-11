@@ -24,7 +24,6 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   let clipboard = '';
   let clipboardBlocked = false;
   let downloaded: { href: string; name: string } | undefined;
-  let created: { url: string } | undefined;
   let pickerOpened = false;
   const close = vi.spyOn(window, 'close').mockImplementation(() => {});
   Object.defineProperty(navigator, 'clipboard', { configurable:true, value:{ writeText:async (text: string) => { if (clipboardBlocked) throw new Error('Blocked'); clipboard = text; } } });
@@ -40,8 +39,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
     },
     tabs:{
       query:async () => [{ id:7, url:'https://org-prod.unqork.io/app' }],
-      sendMessage:async () => ({}),
-      create:async (options: { url: string }) => { created = options; }
+      sendMessage:async () => ({})
     },
     runtime:{
       ...(apiName === 'browser' ? { getBrowserInfo:async () => ({ name:'Firefox' }) } : {}),
@@ -164,12 +162,12 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   // The home strip follows the imported groups.
   expect(byId('environment-summary').textContent).toMatch(/PRODUCTION · org-prod\.unqork\.io/);
 
-  // The rest, from a file. Firefox's toolbar popup picks files in a tab instead.
+  // The rest, from a file. Firefox's toolbar popup picks files in the prompt window instead.
   const fileInput = byId<HTMLInputElement>('import-file');
   fileInput.click = () => { pickerOpened = true; };
   click('import-file-button'); await settle();
   if (apiName === 'browser') {
-    expect(created!.url).toBe('https://extension.test/popup.html?page=transfer-page');
+    expect(messages.at(-1)).toEqual({ type:'prompt.open', kind:'import' });
     expect(close).toHaveBeenCalled();
     expect(pickerOpened).toBe(false);
   } else expect(pickerOpened).toBe(true);

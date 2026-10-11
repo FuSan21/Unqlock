@@ -1,5 +1,6 @@
 import { defineBackground } from 'wxt/utils/define-background';
 import { api, type Stored } from '@/lib/api';
+import * as Access from '@/lib/access';
 import * as DevOverlay from '@/lib/dev-overlay';
 import * as Environment from '@/lib/environment';
 import { runQuickAction, type QuickRequest } from '@/lib/quick-actions';
@@ -77,8 +78,104 @@ export default defineBackground(() => {
       return results[0]?.result === true;
     } catch { return false; }
   }
+  // The prompt window asks for access or picks a settings file where a popup cannot (src/lib/access.ts).
+  const fromPage = (sender: { url?: string }, file: '/popup.html' | typeof Access.page) => sender.url?.split('?')[0] === api.runtime.getURL(file);
+  async function openPrompt(kind: Access.AccessKind | 'import', tabId?: number) {
+    const query = new URLSearchParams({ kind, ...(tabId === undefined ? {} : { tab:String(tabId) }) });
+    await api.windows.create({ url:api.runtime.getURL(Access.page) + '?' + query, type:'popup', ...Access.sizes[kind === 'import' ? 'import' : 'access'] });
+  }
+  // A configured web page in a tab, read through the page itself since host access may be missing.
+  async function configuredPage(tabId: number) {
+    await api.tabs.get(tabId);
+    const href = await resolveSource(tabId);
+    const url = new URL(href);
+    if (!['https:', 'http:'].includes(url.protocol)) throw new Error('Unsupported page.');
+    const config = await readConfig();
+    if (!url.hostname.endsWith('.unqork.io') && !config.groups.some(group => group.domains.some(domain => domain.hostname === url.hostname))) throw new Error('Page is not configured.');
+    return { href, url, config };
+  }
+  // What each kind of request asks for. Badges ask for the saved custom domains not yet granted.
+  async function accessOrigins(kind: Access.AccessKind, tabId?: number) {
+    if (kind === 'devOverlay') return DevOverlay.matches;
+    if (kind === 'debug') {
+      if (tabId === undefined) throw new Error('Debug tools need a page.');
+      return [(await configuredPage(tabId)).url.origin + '/*'];
+    }
+    const missing: string[] = [];
+    for (const origin of Environment.customOrigins(await readConfig())) if (!await api.permissions.contains({ origins:[origin] })) missing.push(origin);
+    return missing;
+  }
+  // Finishes a granted request in the background, since a Firefox toolbar popup has closed by now.
+  async function afterGrant(kind: Access.AccessKind, tabId?: number) {
+    if (kind === 'devOverlay') await api.storage.local.set({ [DevOverlay.key]:true });
+    if (kind === 'badges') {
+      const config = await readConfig();
+      await serial(() => syncScripts(config));
+      const permitted: string[] = [];
+      for (const origin of Environment.customOrigins(config)) if (await api.permissions.contains({ origins:[origin] })) permitted.push(origin);
+      if (permitted.length) for (const tab of await api.tabs.query({ url:permitted })) {
+        if (tab.id !== undefined) api.scripting.executeScript({ target:{ tabId:tab.id }, files:['/content-scripts/environment-badge.js'] }).catch(() => {});
+      }
+    }
+    // The floating menu that asked learns through its page.
+    if (tabId !== undefined) await api.tabs.sendMessage(tabId, { type:'access.changed', kind }, { frameId:0 }).catch(() => {});
+  }
   api.tabs.onRemoved.addListener(tabId => api.storage.session.remove(sourceKey(tabId)).catch(() => {}));
   api.runtime.onMessage.addListener((message, sender, respond) => {
+    if (message?.type === 'prompt.open') {
+      // Debug tools open theirs through debug.permission, which resolves and checks the page first.
+      if (!fromPage(sender, '/popup.html') || !['devOverlay', 'badges', 'import'].includes(message.kind)) return;
+      // A floating menu names its own tab, to be told when access is granted.
+      const tabId = sender.frameId ? sender.tab?.id : undefined;
+      (async () => {
+        if (message.kind !== 'import') {
+          const origins = await accessOrigins(message.kind);
+          if (!origins.length || await api.permissions.contains({ origins })) return { ok:true, granted:true };
+        }
+        await openPrompt(message.kind, tabId);
+        return { ok:true, granted:false };
+      })().then(respond, error => respond({ ok:false, error:error.message }));
+      return true;
+    }
+    // Detach dev overlay is read and changed here, since a floating menu frame may have no permissions API.
+    if (message?.type === 'devOverlay.state' || message?.type === 'devOverlay.set') {
+      if (!fromPage(sender, '/popup.html')) return;
+      (async () => {
+        const granted = await api.permissions.contains({ origins:DevOverlay.matches });
+        if (message.type === 'devOverlay.set') {
+          if (message.on === true) {
+            // Turning on needs the access first; the popup asks for it, directly or in the prompt window.
+            if (!granted) return { ok:true, on:false, needsAccess:true };
+            await api.storage.local.set({ [DevOverlay.key]:true });
+          } else {
+            await api.storage.local.set({ [DevOverlay.key]:false });
+            // Gives the access back, so nothing more runs on Unqork pages for this option.
+            await api.permissions.remove({ origins:DevOverlay.matches }).catch(() => false);
+          }
+        }
+        const on = DevOverlay.enabled((await api.storage.local.get(DevOverlay.key))[DevOverlay.key]);
+        return { ok:true, on:on && await api.permissions.contains({ origins:DevOverlay.matches }) };
+      })().then(respond, error => respond({ ok:false, error:error.message }));
+      return true;
+    }
+    if (message?.type === 'prompt.describe' || message?.type === 'prompt.granted') {
+      if (!fromPage(sender, Access.page) || !Access.isAccessKind(message.kind)) return;
+      const tabId = message.tab === undefined ? undefined : Number(message.tab);
+      if (tabId !== undefined && (!Number.isInteger(tabId) || tabId <= 0)) return;
+      (async () => {
+        if (message.type === 'prompt.describe') {
+          const origins = await accessOrigins(message.kind, tabId);
+          const host = message.kind === 'debug' ? new URL(origins[0].slice(0, -2)).hostname : undefined;
+          return { ok:true, origins, host };
+        }
+        // Only a grant the browser holds finishes the request.
+        const missing = message.kind === 'badges' ? (await accessOrigins('badges')).length > 0 : !await api.permissions.contains({ origins:await accessOrigins(message.kind, tabId) });
+        if (missing) throw new Error('Site access was not granted.');
+        await afterGrant(message.kind, tabId);
+        return { ok:true };
+      })().then(respond, error => respond({ ok:false, error:error.message }));
+      return true;
+    }
     if (message?.type === 'floating.open') {
       if (!sender.tab?.id || sender.frameId !== 0 || !sender.url) return;
       let url;
@@ -90,33 +187,21 @@ export default defineBackground(() => {
       })().then(respond, error => respond({ ok:false, error:error.message }));
       return true;
     }
-    if (['floating.target', 'debug.access', 'debug.permission', 'debug.execute', 'debug.granted'].includes(message?.type)) {
+    if (['floating.target', 'debug.access', 'debug.permission', 'debug.execute'].includes(message?.type)) {
       if (sender.url?.split('?')[0] !== api.runtime.getURL('/popup.html')) return;
       const detachedTarget = new URL(sender.url).searchParams.get('targetTab');
       const tabId = detachedTarget === null ? sender.tab?.id : Number(detachedTarget);
       if (typeof tabId !== 'number' || !Number.isInteger(tabId) || tabId <= 0) return;
       if (detachedTarget === null ? !sender.frameId : sender.frameId !== 0) return;
       (async () => {
-        await api.tabs.get(tabId);
-        const href = await resolveSource(tabId);
-        const url = new URL(href);
-        if (!['https:', 'http:'].includes(url.protocol)) throw new Error('Unsupported page.');
-        const config = await readConfig();
-        if (!url.hostname.endsWith('.unqork.io') && !config.groups.some(group => group.domains.some(domain => domain.hostname === url.hostname))) throw new Error('Page is not configured.');
+        const { href, config } = await configuredPage(tabId);
         const tab = { id:tabId, url:href };
         if (message.type === 'floating.target') return { ok:true, tab };
         if (message.type === 'debug.access') return { ok:true, granted:await debugAccess(tab) };
         if (message.type === 'debug.permission') {
           if (await debugAccess(tab)) return { ok:true, granted:true };
-          await api.windows.create({
-            url:api.runtime.getURL('/popup.html') + '?targetTab=' + tabId + '&permission=debug',
-            type:'popup', width:380, height:650
-          });
+          await openPrompt('debug', tabId);
           return { ok:true, granted:false };
-        }
-        if (message.type === 'debug.granted') {
-          await api.tabs.sendMessage(tabId, { type:'debug.accessChanged' }, { frameId:0 });
-          return { ok:true };
         }
         const request: QuickRequest | undefined = message.request;
         if (!request || request.url !== href) throw new Error('Page changed. Reopen Debug tools and try again.');
@@ -141,8 +226,9 @@ export default defineBackground(() => {
       serial(() => observe(url.hostname)).then(config => respond({ ok:true, config }), () => respond({ ok:false }));
       return true;
     }
-    // Configuration messages must come from the extension, never a website content script.
-    if (sender.url?.split('?')[0] !== api.runtime.getURL('/popup.html')) return;
+    // Configuration messages must come from the extension, never a website content script. The prompt
+    // window imports settings files.
+    if (!fromPage(sender, '/popup.html') && !fromPage(sender, Access.page)) return;
     if (!['environment.save', 'environment.sync', 'environment.read'].includes(message?.type)) return;
     serial(async () => {
       let config = await readConfig();
