@@ -16,6 +16,7 @@ COMPONENT APPEARANCE
 • Recognize 54 supported component types and your custom components, colored by role: inputs, layout, grids, logic and more, with distinct icons.
 • Turn on Compact components for shorter rows, smaller icon tiles and inline type badges.
 • Arrange canvas rows: place the icon, property ID, type badge, dependency count and actions menu on the left, in the middle or on the right.
+• Show each component's label after its property ID on the canvas, always or only when it differs from the ID.
 • Make panels, field groups and other containers stand out with spacing, tinted headers, guide lines, depth shading, pinned headers and end markers.
 • Pick your own foreground and background color for each group, separately for light and dark themes. Customize icon colors, icon backgrounds, sidebar names and canvas type labels.
 • Enable subtle accents, full backgrounds or colored borders; dependency counts and row menus follow the row’s colors.
@@ -28,6 +29,7 @@ BUILDER PANELS
 • Locked expand controls explain how to enable the panel again.
 • Use native sizing, set a custom default width, or remember the last width you chose by dragging or keyboard resizing.
 • Capture an open panel’s current width, reset one panel or reset all four.
+• Keep Unqork's navigation tab bar, show full tab names over several lines, collapse it until the header is hovered, or hide it and keep only the current tab with its module named in the toolbar.
 
 ENVIRONMENT TOOLS
 • Show an optional environment label in the floating badge. Unrecognized hosts stay UNKNOWN until mapped.
@@ -40,16 +42,17 @@ DEBUG TOOLS
 • Data: add, update or remove in-memory submission properties using Text, Number or JSON values.
 • Execute: run a component by its exact key.
 • Review an inline confirmation before changing data or executing a component. Production actions are called out explicitly.
+• Detach dev overlay (optional): open Unqork's SSE Debugger drawer in its own window, with every control working and the builder still in view.
 
 YOUR WORKSPACE
 • Open the menu from the browser toolbar or floating Unqlock launcher.
 • The home menu shows the current environment with switch links, quick styling and compact switches, and one-click page data logging.
-• Choose any corner for the launcher, show its environment label, or hide it.
+• Pin the launcher to any corner or drag it anywhere on the page, show its environment label, or hide it.
 • Back up or share settings as JSON: copy or download an export, then paste or choose a file to import only the sections you want.
 • Preferences save locally and persist across browser restarts.
 
 COMPATIBILITY
-Appearance and panel controls support the modern Unqork Config builder on HTTPS Unqork subdomains. Compact styling and row layout also apply to custom components with a compatible header, and container options apply to any collapsible canvas component. Legacy canvas, Logic view and UI preview are outside the supported appearance scope. Debug tools require a compatible Angular-based Unqork application page. Native panel limits and available space constrain widths.
+Appearance and panel controls support the modern Unqork Config builder on HTTPS Unqork subdomains. Compact styling and row layout also apply to custom components with a compatible header, and container options apply to any collapsible canvas component. The legacy canvas view is styled too, with the property ID shown muted beside the type; components drawn as previews keep their group's accent, background and border. Logic view and UI preview are outside the supported appearance scope. Debug tools require a compatible Angular-based Unqork application page. Native panel limits and available space constrain widths.
 
 PRIVACY AND SAFETY
 Preferences, panel widths and saved hostname groups remain in browser-local storage. Automatic discovery records hostnames only, not paths, queries or module content. Settings exports go only to your clipboard or a file you save. Unqlock does not collect analytics or transmit page data to developer-operated servers.
@@ -84,6 +87,6 @@ All images show light and dark themes and contain only example data.
 
 ## Update notes
 
-Builder panels and the canvas toolbar settings now use side-by-side switches instead of dropdowns, like the canvas row layout, and every builder panel's options are shown at once. Component style and Canvas layout show when a change is saving.
+Navigation tab bar options, component labels after the property ID, styling in the legacy canvas view, a draggable floating launcher, and an optional Detach dev overlay in Debug tools that opens Unqork's SSE Debugger in its own window. Builder features now also load when Unqork's module search opens the builder, and selected rows and search matches stand out on styled rows.
 
 Do not submit an older package alongside this copy: it describes the current repository build. Updating these files does not publish a store release.
