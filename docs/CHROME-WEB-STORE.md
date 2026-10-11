@@ -54,7 +54,7 @@ Appearance and panel controls support the modern Unqork Config builder on HTTPS 
 PRIVACY AND SAFETY
 Preferences, panel widths and saved hostname groups remain in browser-local storage. Automatic discovery records hostnames only, not paths, queries or module content. Settings exports go only to your clipboard or a file you save. Unqlock does not collect analytics or transmit page data to developer-operated servers.
 
-Debug tools use active-tab access from the toolbar. From the floating launcher, they request optional access to that hostname when enabled. Automatic badges on saved custom domains also require optional site access. Declining leaves other settings usable.
+Debug tools use active-tab access from the toolbar. From the floating launcher, they request optional access to that hostname when enabled. Automatic badges on saved custom domains also require optional site access, and so does the Detach dev overlay option in Debug tools, which requests access to unqork.io sites when turned on and gives it back when turned off. Declining leaves other settings usable.
 
 Logged data may contain sensitive information. Property edits affect in-memory data; executed components may save data or call external integrations. Environment-switch links preserve the URL path, query and fragment. Production safeguards apply to Unqlock actions, not the application’s own controls.
 

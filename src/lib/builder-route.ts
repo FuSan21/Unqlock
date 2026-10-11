@@ -4,7 +4,13 @@
 // route reaches /ide/; until then they only compare the path.
 export const inIde = () => location.pathname.startsWith('/ide/');
 
+// A detached dev overlay is a second copy of the builder in a popup opened under this window name,
+// which survives its reloads. Only the overlay is shown there, so the builder scripts stand down.
+export const detachedName = 'unqlock-dev-overlay';
+export const isDetached = () => window.name === detachedName;
+
 export function whenIde(start: () => void) {
+  if (isDetached()) return;
   if (inIde()) { start(); return; }
   const navigation = (window as Window & { navigation?: EventTarget }).navigation;
   // pushState fires no event; the Navigation API reports it where available, a light poll elsewhere.

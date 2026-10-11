@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { byId, click, press, query, renderPopup, settle, type, type ApiName } from './harness';
+import { apiNames, byId, click, press, query, renderPopup, settle, type, type ApiName } from './harness';
 
 // Toolbar popups run actions directly; detached windows and the floating menu go through the
 // background and need site access first.
@@ -113,4 +113,57 @@ test.each(cases)('home logging, site access, confirmation and tabs (%s, detached
     press('Escape');
     expect(window.parent.postMessage).toHaveBeenCalledWith({ type:'unqlock.close' }, 'https://example.test');
   }
+});
+
+test.each(apiNames)('Detach dev overlay asks for unqork.io access before saving, and gives it back when off (%s)', async apiName => {
+  const stored: Record<string, unknown> = {};
+  let granted = false;
+  const requests: string[][] = [];
+  const removed: string[][] = [];
+  const api = {
+    storage:{ local:{ get:async () => ({ ...stored }), set:async (values: Record<string, unknown>) => { Object.assign(stored, values); } } },
+    tabs:{ query:async () => [{ id:7, url:'https://example.test/app' }] },
+    permissions:{
+      contains:async () => granted,
+      request:async ({ origins }: { origins: string[] }) => { requests.push(origins); return granted; },
+      remove:async ({ origins }: { origins: string[] }) => { removed.push(origins); granted = false; return true; }
+    },
+    runtime:{ getManifest:() => ({ version:'1.0.0' }), sendMessage:async () => ({ ok:true, config:{}, missingOrigins:[] }) },
+    scripting:{ executeScript:async () => [{ result:true }] }
+  };
+  await renderPopup(apiName, api);
+  click(query('[aria-controls="quick-page"]')); await settle();
+  const option = query<HTMLInputElement>('input[name="dev-overlay-detach"]');
+  expect(option.checked).toBe(false);
+  expect(option.closest('fieldset')).toBeNull();
+
+  // Declining the prompt saves nothing and leaves the switch off.
+  click(option); await settle();
+  expect(requests).toEqual([['https://*.unqork.io/*']]);
+  expect(stored.devOverlayDetach).toBeUndefined();
+  expect(option.checked).toBe(false);
+  expect(byId('dev-overlay-status').textContent).toMatch(/not granted/);
+
+  granted = true;
+  click(option); await settle();
+  expect(stored.devOverlayDetach).toBe(true);
+  expect(option.checked).toBe(true);
+
+  click(option); await settle();
+  expect(stored.devOverlayDetach).toBe(false);
+  expect(option.checked).toBe(false);
+  expect(removed).toEqual([['https://*.unqork.io/*']]);
+});
+
+test('Detach dev overlay shows off when its access was revoked', async () => {
+  const api = {
+    storage:{ local:{ get:async () => ({ devOverlayDetach:true }), set:async () => {} } },
+    tabs:{ query:async () => [{ id:7, url:'https://example.test/app' }] },
+    permissions:{ contains:async () => false },
+    runtime:{ getManifest:() => ({ version:'1.0.0' }), sendMessage:async () => ({ ok:true, config:{}, missingOrigins:[] }) },
+    scripting:{ executeScript:async () => [{ result:true }] }
+  };
+  await renderPopup('chrome', api);
+  click(query('[aria-controls="quick-page"]')); await settle();
+  expect(query<HTMLInputElement>('input[name="dev-overlay-detach"]').checked).toBe(false);
 });
