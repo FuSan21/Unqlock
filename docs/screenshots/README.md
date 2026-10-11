@@ -6,9 +6,9 @@ Five 1280 × 800 RGB PNGs for the Chrome Web Store and Firefox listing, in this 
 
 1. [Compact builder](listing-01-compact-builder.png): the real sidebar and canvas with subtle accents in the light theme and full colors in the dark theme.
 2. [Component appearance](listing-02-component-appearance.png): Component style switches, the per-group color pickers and the canvas row layout switches.
-3. [Builder panels](listing-03-builder-panels.png): visibility and width switches for the four panels.
+3. [Builder panels](listing-03-builder-panels.png): the navigation tab options, and visibility and width switches for the four panels.
 4. [Environment and home menu](listing-04-environment-menu.png): the home menu with the environment strip, the production guard and an example domain group.
-5. [Debug tools](listing-05-debug-tools.png): the Inspect, Data and Execute tabs.
+5. [Debug tools](listing-05-debug-tools.png): the Inspect, Data and Execute tabs, and the Detach dev overlay option.
 
 Each settings image shows one popup view in the light and the dark theme side by side, plus a third view. The images crop the captures in SS/light and SS/dark at their native pixels, without resizing, sharpening or re-rendering text; only the builder captures are downscaled to fit. They show actual extension UI, never simulated controls or a combination of states the popup cannot show. Upload them with the build whose features they depict; repository assets do not upload themselves to either store. Chrome's image guidance: https://developer.chrome.com/docs/webstore/images
 
