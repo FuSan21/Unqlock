@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Segmented, Select, TextField } from '../components/controls';
+import { api } from '@/lib/api';
+import * as DevOverlay from '@/lib/dev-overlay';
+import { Segmented, Select, TextField, Toggle } from '../components/controls';
 import { Tabs } from '../components/Tabs';
 import { Unavailable } from '../components/Unavailable';
-import { ActionRow, Button, Note, Page, Status } from '../components/layout';
+import { ActionRow, Button, Card, Note, Page, Status } from '../components/layout';
 import { useDebug, type FeedbackId, type ValueType } from '../debug';
 import { usePageLeave, usePageOpen } from '../pages';
 
@@ -20,6 +22,47 @@ function ActionButton({ action, feedback, primary, children }: { action: 'log' |
   return (
     <Button className={primary ? 'debug-primary' : undefined} data-quick-action={action} reason={reason}
       onClick={event => debug.run(action, event.currentTarget, feedback)}>{children}</Button>
+  );
+}
+
+// Unqork's own dev overlay, the drawer holding the SSE Debugger. A browser preference rather than a page
+// action: turning it on asks for access to Unqork's builder hosts, and the background registers the
+// scripts only while it is on and that access is granted.
+function DevOverlayOption() {
+  const [detach, setDetach] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [status, setStatus] = useState('');
+  usePageOpen('quick-page', () => {
+    (async () => {
+      const on = DevOverlay.enabled((await api.storage.local.get(DevOverlay.key))[DevOverlay.key]);
+      setDetach(on && await api.permissions.contains({ origins:DevOverlay.matches }));
+    })().catch(() => setDetach(false));
+  });
+  async function change(value: boolean) {
+    setPending(true);
+    try {
+      if (value) {
+        if (!api.permissions?.request) { setStatus('Open Unqlock from the browser toolbar to turn this on.'); return; }
+        // Call directly from the gesture, before awaits (required by Firefox).
+        if (!await api.permissions.request({ origins:DevOverlay.matches })) { setStatus('Site access was not granted, so the option stays off.'); return; }
+        await api.storage.local.set({ [DevOverlay.key]:true });
+        setDetach(true);
+        setStatus('On. Open builder tabs show Detach on the SSE Debugger drawer.');
+      } else {
+        await api.storage.local.set({ [DevOverlay.key]:false });
+        setDetach(false);
+        await api.permissions?.remove({ origins:DevOverlay.matches }).catch(() => false);
+        setStatus('Off. Nothing is added to Unqork pages.');
+      }
+    } catch (error) { setStatus('Could not save: ' + (error as Error).message); }
+    finally { setPending(false); }
+  }
+  return (
+    <Card title="Unqork dev overlay">
+      <Toggle name="dev-overlay-detach" label="Detach dev overlay" checked={detach} disabled={pending} aria-describedby="dev-overlay-help" onChange={change} />
+      <Note id="dev-overlay-help">Adds a button to the SSE Debugger drawer that opens it in its own window, with the builder still in view. Turning it on asks for access to unqork.io sites; while off, nothing is added to Unqork pages.</Note>
+      <Status id="dev-overlay-status">{status}</Status>
+    </Card>
   );
 }
 
@@ -85,6 +128,7 @@ export function DebugTools() {
         </div>
       </fieldset>
       <Status id="quick-status">{debug.status}</Status>
+      <DevOverlayOption />
     </Page>
   );
 }

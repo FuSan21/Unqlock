@@ -39,6 +39,10 @@ const groups = {
     ['Builder panels (Firefox)', test('builder-panels.cjs'), ['--firefox']],
     ['Firefox MAIN-world panel bridge', test('firefox-panel-bridge.cjs')]
   ] },
+  overlay:{ title:'Dev overlay', browsers:['chromium', 'firefox'], tests:[
+    ['Detached dev overlay (Chrome)', test('dev-overlay.cjs')],
+    ['Detached dev overlay (Firefox)', test('dev-overlay.cjs'), ['--firefox']]
+  ] },
   floating:{ title:'Floating launcher and environments', browsers:['chromium'], tests:[
     ['Floating launcher, badges and restart', test('environment-browser.cjs')]
   ] },

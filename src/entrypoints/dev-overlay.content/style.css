@@ -1,0 +1,11 @@
+/* Unqork's overlay header spreads its children apart; an added button joins Minimize on the right. */
+[data-unqlock-detach], [data-unqlock-reattach] { margin-left:auto; }
+
+/* Detached: the popup shows only the overlay, filling the window over the builder underneath. Menus and
+   tooltips portal to <body> above it, as they do over the drawer in the main tab. */
+:root[data-unqlock-dev-overlay="detached"] [data-testid="dev-overlay"] {
+  top:0 !important; height:auto !important; transform:none !important; border-top:0 !important;
+}
+:root[data-unqlock-dev-overlay="detached"] :is([data-testid="dev-overlay-toolbar"], [data-testid="dev-overlay-drag-handle"], button[aria-label="Minimize dev overlay"]) {
+  display:none !important;
+}

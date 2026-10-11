@@ -1,5 +1,6 @@
 import { defineBackground } from 'wxt/utils/define-background';
 import { api, type Stored } from '@/lib/api';
+import * as DevOverlay from '@/lib/dev-overlay';
 import * as Environment from '@/lib/environment';
 import { runQuickAction, type QuickRequest } from '@/lib/quick-actions';
 
@@ -27,6 +28,27 @@ export default defineBackground(() => {
       else await api.scripting.registerContentScripts([script]);
     }
     return origins.filter(origin => !permitted.includes(origin));
+  }
+  // Detach dev overlay's scripts exist only while the option is on and its site access is granted:
+  // Chrome does not extend the manifest content scripts' access to registered ones. Turning it on also
+  // adds the button to builder tabs already open; the guard can only take effect from their next load.
+  async function syncOverlay(inject = false) {
+    const on = DevOverlay.enabled((await api.storage.local.get(DevOverlay.key))[DevOverlay.key])
+      && await api.permissions.contains({ origins:DevOverlay.matches });
+    const ids = DevOverlay.scripts.map(script => script.id);
+    const existing = (await api.scripting.getRegisteredContentScripts({ ids })).map(script => script.id);
+    if (!on) {
+      if (existing.length) await api.scripting.unregisterContentScripts({ ids:existing });
+      return;
+    }
+    const missing = DevOverlay.scripts.filter(script => !existing.includes(script.id));
+    if (missing.length) await api.scripting.registerContentScripts(missing);
+    if (!inject) return;
+    for (const tab of await api.tabs.query({ url:DevOverlay.matches })) {
+      if (tab.id === undefined) continue;
+      api.scripting.insertCSS({ target:{ tabId:tab.id }, files:['/content-scripts/dev-overlay.css'] }).catch(() => {});
+      api.scripting.executeScript({ target:{ tabId:tab.id }, files:['/content-scripts/dev-overlay.js'] }).catch(() => {});
+    }
   }
   async function observe(host: string) {
     const before = await readConfig();
@@ -143,11 +165,17 @@ export default defineBackground(() => {
   });
   // Persistent registrations survive reloads. Reconcile on grants, revocations and startup.
   const sync = () => serial(async () => syncScripts(await readConfig())).catch(() => {});
-  api.permissions.onAdded.addListener(sync);
-  api.permissions.onRemoved.addListener(sync);
-  api.runtime.onStartup.addListener(sync);
+  const syncDevOverlay = (inject?: boolean) => serial(() => syncOverlay(inject)).catch(() => {});
+  // Detach dev overlay's scripts follow its unqork.io grant too.
+  api.permissions.onAdded.addListener(() => { sync(); syncDevOverlay(); });
+  api.permissions.onRemoved.addListener(() => { sync(); syncDevOverlay(); });
+  api.runtime.onStartup.addListener(() => { sync(); syncDevOverlay(); });
+  api.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes[DevOverlay.key]) syncDevOverlay(true);
+  });
   api.runtime.onInstalled.addListener(() => {
     sync();
+    syncDevOverlay();
     // Existing Unqork tabs are discovered on installation, without reading page contents.
     api.tabs.query({ url:'https://*.unqork.io/*' }).then(tabs => {
       for (const tab of tabs) {
