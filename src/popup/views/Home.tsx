@@ -6,6 +6,7 @@ import { useDebug } from '../debug';
 import { useEnvironment } from '../environment';
 import { usePages } from '../pages';
 import { useSettings } from '../settings';
+import { useWhatsNew } from '../whats-new';
 
 const icon = (paths: ReactNode, linecap = true) => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap={linecap ? 'round' : undefined} strokeLinejoin="round">{paths}</svg>
@@ -39,12 +40,29 @@ function EnvironmentStrip() {
   );
 }
 
+// Names the update until its notes are read or the notice is dismissed.
+function UpdateNotice() {
+  const { open } = usePages();
+  const { current, notice, dismiss } = useWhatsNew();
+  if (!notice) return null;
+  // The notice goes once the notes open, so returning lands on the What's new link in the header.
+  const entry = () => document.getElementById('open-whats-new');
+  return (
+    <section id="update-notice" className="update-notice" aria-label="Update">
+      <p id="update-summary">Updated to <strong>{'v' + current}</strong></p>
+      <button id="update-open" className="link-button" type="button" aria-describedby="update-summary" onClick={() => open('whats-new-page', entry())}>See what's new<span aria-hidden="true"> ›</span></button>
+      <button id="update-dismiss" className="update-dismiss" type="button" aria-label="Dismiss update notice" onClick={() => { dismiss(); entry()?.focus(); }}>×</button>
+    </section>
+  );
+}
+
 export function Home() {
   const { current } = usePages();
   const { busy } = useSettings();
   const debug = useDebug();
   return (
     <div id="home" hidden={current !== null}>
+      <UpdateNotice />
       <EnvironmentStrip />
       <fieldset id="home-switches" className="appearance-fields quick-switches" disabled={busy}>
         <legend className="visually-hidden">Quick switches</legend>

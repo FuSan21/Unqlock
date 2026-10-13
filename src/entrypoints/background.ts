@@ -4,6 +4,7 @@ import * as Access from '@/lib/access';
 import * as DevOverlay from '@/lib/dev-overlay';
 import * as Environment from '@/lib/environment';
 import { runQuickAction, type QuickRequest } from '@/lib/quick-actions';
+import * as WhatsNew from '@/lib/whats-new';
 
 export default defineBackground(() => {
   let queue: Promise<unknown> = Promise.resolve();
@@ -249,17 +250,37 @@ export default defineBackground(() => {
     }).then(respond, error => respond({ ok:false, error:error.message }));
     return true;
   });
+  // The toolbar shows NEW after an update that brings a minor or major release the user has not read.
+  // Versions before What's new stored nothing, so their previousVersion is where the notes start.
+  const badge = (on: boolean) => Promise.all([
+    api.action.setBadgeText({ text:on ? 'NEW' : '' }),
+    api.action.setBadgeBackgroundColor({ color:'#6d28d9' })
+  ]).catch(() => {});
+  const showBadge = () => api.storage.local.get(WhatsNew.key).then(stored => badge(WhatsNew.state(stored[WhatsNew.key]).badge)).catch(() => {});
+  async function installed(reason: string, previousVersion?: string) {
+    try {
+      const current = api.runtime.getManifest().version;
+      const stored = WhatsNew.state((await api.storage.local.get(WhatsNew.key))[WhatsNew.key]);
+      if (reason === 'install') await api.storage.local.set({ [WhatsNew.key]:{ seen:current, badge:false } });
+      else if (reason === 'update') {
+        const seen = stored.seen || previousVersion || current;
+        await api.storage.local.set({ [WhatsNew.key]:{ seen, badge:stored.badge || WhatsNew.notify(seen, current) } });
+      }
+    } catch {}
+    return showBadge();
+  }
   // Persistent registrations survive reloads. Reconcile on grants, revocations and startup.
   const sync = () => serial(async () => syncScripts(await readConfig())).catch(() => {});
   const syncDevOverlay = (inject?: boolean) => serial(() => syncOverlay(inject)).catch(() => {});
   // Detach dev overlay's scripts follow its unqork.io grant too.
   api.permissions.onAdded.addListener(() => { sync(); syncDevOverlay(); });
   api.permissions.onRemoved.addListener(() => { sync(); syncDevOverlay(); });
-  api.runtime.onStartup.addListener(() => { sync(); syncDevOverlay(); });
+  api.runtime.onStartup.addListener(() => { sync(); syncDevOverlay(); showBadge(); });
   api.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes[DevOverlay.key]) syncDevOverlay(true);
   });
-  api.runtime.onInstalled.addListener(() => {
+  api.runtime.onInstalled.addListener(({ reason, previousVersion }) => {
+    installed(reason, previousVersion);
     sync();
     syncDevOverlay();
     // Existing Unqork tabs are discovered on installation, without reading page contents.

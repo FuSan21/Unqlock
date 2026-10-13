@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 
-export type PageId = 'style-page' | 'layout-page' | 'panels-page' | 'quick-page' | 'environment-page' | 'launcher-page' | 'transfer-page';
+export type PageId = 'style-page' | 'layout-page' | 'panels-page' | 'quick-page' | 'environment-page' | 'launcher-page' | 'transfer-page' | 'whats-new-page';
 interface LeaveOptions { escape?: boolean }
 // A leave hook can keep its page open by returning false, such as Escape dismissing a pending confirmation.
 type LeaveHook = (options: LeaveOptions) => boolean | void;

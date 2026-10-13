@@ -17,7 +17,8 @@ const groups = {
   ] },
   models:{ title:'Environment and background', browsers:[], tests:[
     ['Environment detection and badge', test('environment.cjs')],
-    ['Background messages and registration', test('environment-background.cjs')]
+    ['Background messages and registration', test('environment-background.cjs')],
+    ["What's new on install and update", test('whats-new-background.cjs')]
   ] },
   behavior:{ title:'Component styling', browsers:['chromium', 'firefox'], tests:[
     ['Component styling (Chrome)', test('behavior.cjs')],
