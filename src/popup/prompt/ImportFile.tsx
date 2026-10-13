@@ -22,6 +22,10 @@ export function ImportFile({ onBusy }: { onBusy: (busy: boolean) => void }) {
 
   useEffect(() => { choose.current?.focus(); }, []);
   useEffect(() => { onBusy(busy); }, [busy, onBusy]);
+  // Focus moves once the new view has rendered: the first section of a file under review, or Done.
+  const parsed = review?.parsed;
+  useEffect(() => { if (parsed) sections.current?.querySelector('input')?.focus(); }, [parsed]);
+  useEffect(() => { if (done) close.current?.focus(); }, [done]);
 
   async function open(file: File | undefined) {
     if (!file) return;
@@ -29,7 +33,6 @@ export function ImportFile({ onBusy }: { onBusy: (busy: boolean) => void }) {
     try {
       const parsed = Transfer.parse(await readFile(file));
       setReview({ parsed, name:file.name, from:origin(parsed, ''), chosen:[...parsed.sections] });
-      requestAnimationFrame(() => sections.current?.querySelector('input')?.focus());
     } catch (reason) {
       setReview(null);
       setError((reason as Error).message);
@@ -50,7 +53,6 @@ export function ImportFile({ onBusy }: { onBusy: (busy: boolean) => void }) {
         return { missingOrigins:response.missingOrigins || [] };
       });
       setDone({ names:result.names, badges:chosen.includes('environments') && Boolean(result.missingOrigins?.length) });
-      requestAnimationFrame(() => close.current?.focus());
     } catch (reason) { setError((reason as Error).message || 'Try again.'); }
     finally { setBusy(false); }
   }
