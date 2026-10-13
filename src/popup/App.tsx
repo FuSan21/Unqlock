@@ -13,6 +13,14 @@ import { Environments } from './views/Environments';
 import { FloatingLauncher } from './views/FloatingLauncher';
 import { Home } from './views/Home';
 import { ImportExport } from './views/ImportExport';
+import { WhatsNew } from './views/WhatsNew';
+import { WhatsNewProvider } from './whats-new';
+
+// Opens What's new from beside the version; it stays in the header, so focus returns to it.
+function WhatsNewLink() {
+  const { open } = usePages();
+  return <button id="open-whats-new" className="link-button whats-new-link" type="button" data-page="whats-new-page" aria-controls="whats-new-page" onClick={event => open('whats-new-page', event.currentTarget)}>What's new</button>;
+}
 
 // Opens the page a URL asks for and sets the starting focus.
 function Startup({ main }: { main: RefObject<HTMLElement | null> }) {
@@ -50,32 +58,38 @@ export function App() {
   return (
     <>
       <button id="floating-close" type="button" aria-label="Close Unqlock menu" hidden={!close} onClick={close}>×</button>
-      <header>
-        <img src="/icons/icon-48.png" width="40" height="40" alt="" />
-        <div><h1>Unqlock <span id="version" className="version">{version ? 'v' + version : ''}</span></h1><p>Your Unqork toolkit.</p></div>
-      </header>
-      <main ref={main} tabIndex={embedded() && params().get('input') !== 'keyboard' ? -1 : undefined} className={embedded() && params().get('input') !== 'keyboard' ? 'initial-focus' : undefined}>
-        {state.status === 'error' && 'Could not open Unqlock on this page. Reload the page and try again.'}
-        {state.status === 'ready' && (
-          <PagesProvider onEscapeHome={close}>
+      <PagesProvider onEscapeHome={close}>
+        <header>
+          <img src="/icons/icon-48.png" width="40" height="40" alt="" />
+          <div>
+            <div className="title-row"><h1>Unqlock <span id="version" className="version">{version ? 'v' + version : ''}</span></h1>{state.status === 'ready' && <WhatsNewLink />}</div>
+            <p>Your Unqork toolkit.</p>
+          </div>
+        </header>
+        <main ref={main} tabIndex={embedded() && params().get('input') !== 'keyboard' ? -1 : undefined} className={embedded() && params().get('input') !== 'keyboard' ? 'initial-focus' : undefined}>
+          {state.status === 'error' && 'Could not open Unqlock on this page. Reload the page and try again.'}
+          {state.status === 'ready' && (
             <SettingsProvider>
               <EnvironmentProvider>
                 <DebugProvider>
-                  <Home />
-                  <ComponentStyle />
-                  <CanvasLayout />
-                  <BuilderPanels />
-                  <DebugTools />
-                  <Environments />
-                  <FloatingLauncher />
-                  <ImportExport />
-                  <Startup main={main} />
+                  <WhatsNewProvider>
+                    <Home />
+                    <ComponentStyle />
+                    <CanvasLayout />
+                    <BuilderPanels />
+                    <DebugTools />
+                    <Environments />
+                    <FloatingLauncher />
+                    <ImportExport />
+                    <WhatsNew />
+                    <Startup main={main} />
+                  </WhatsNewProvider>
                 </DebugProvider>
               </EnvironmentProvider>
             </SettingsProvider>
-          </PagesProvider>
-        )}
-      </main>
+          )}
+        </main>
+      </PagesProvider>
     </>
   );
 }

@@ -57,6 +57,7 @@ The [screenshot guide](docs/screenshots/README.md) lists every capture and the f
 
 The popup opens to a home menu with the everyday actions on top:
 
+- **Update notice:** after an update that adds features, *Updated to vX.Y.Z* with **See what's new**, until you read the notes or dismiss it. The toolbar icon shows *NEW* until the popup next opens. Updates with only fixes show neither.
 - **Environment strip:** the current page's environment and hostname, with **Open in …** links to the same path on the other environments in its group, and **Manage** to edit groups. Pages that are not web pages show *Open an Unqork page to see its environment*.
 - **Component styling** and **Compact components** switches, the same preferences as on the feature pages.
 - **Log page data**, which logs submission and cache data to the page's DevTools Console using the Console output style from Debug tools. When the page needs site access or is not supported, it opens Debug tools, which explains why and offers the access request.
@@ -66,6 +67,8 @@ Below them, features are grouped by where they apply:
 - **Builder:** **Component style** (sidebar/canvas scope, icons, labels, frames and group colors), **Canvas layout** (Compact components, component labels, canvas row layout, containers and the canvas toolbar) and **Builder panels**.
 - **Tools:** **Debug tools**.
 - **Setup:** **Environments** (production guard, auto-discovery and domain groups), **Floating launcher** (show, fixed or draggable position, corner and environment label) and **Import & export** (settings as JSON).
+
+**What's new**, beside the version in the header, opens the release notes for every version from 1.0.0, newest first. Releases you have not read are marked *New*, and a note's **Open …** link goes to the page that holds the feature.
 
 Use **‹ Home** or Escape to return; focus goes back to the entry you came from. Component style has **Reset style** and Canvas layout has **Reset layout**; each resets only the settings on its own page. Settings save as you change them, and the page's status reads *Saving…* and then *Saved*.
 
