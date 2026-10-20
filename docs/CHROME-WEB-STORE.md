@@ -20,6 +20,7 @@ COMPONENT APPEARANCE
 • Make panels, field groups and other containers stand out with spacing, tinted headers, guide lines, depth shading, pinned headers and end markers.
 • Pick your own foreground and background color for each group, separately for light and dark themes. Customize icon colors, icon backgrounds, sidebar names and canvas type labels.
 • Enable subtle accents, full backgrounds or colored borders; dependency counts and row menus follow the row’s colors.
+• Spot disabled components: rows with Disable Execution or Disabled turned on get a dashed, hatched frame and a struck-through name.
 • Keep the canvas search field open and show sort modes (Default, By Type, Alphabetical) as switches instead of a dropdown.
 • Control sidebar and canvas styling independently, following the builder’s light or dark appearance.
 
