@@ -83,6 +83,7 @@ export function appearanceReason(key: AppearanceKey | 'colors', appearance: Appe
   if (!['enabled', 'tray', 'canvas'].includes(key) && !appearance.tray && !appearance.canvas) return 'Turn on Component style → Style sidebar components or Style canvas components to use this setting.';
   if (key === 'trayLabels' && !appearance.tray) return 'Turn on Style sidebar components to color sidebar names.';
   if (key === 'labels' && !appearance.canvas) return 'Turn on Style canvas components to color canvas labels.';
+  if (key === 'disabledComponents' && !appearance.canvas) return 'Turn on Style canvas components to mark disabled components.';
   if (key.startsWith('container') && !appearance.canvas) return 'Turn on Component style → Style canvas components to use container settings.';
   if (key === 'symbols' && !appearance.icons) return 'Turn on Colored icons to use distinct icon shapes.';
   return '';

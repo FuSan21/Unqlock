@@ -106,6 +106,8 @@ Component style groups scope, icons and labels, component frames and colors. **C
 
 Individual switches cover colored icons, tinted icon backgrounds, colored sidebar names, colored canvas type labels, distinct icon shapes, subtle left accents, full background accents and full colored borders. Colored icons, tinted icon backgrounds, colored canvas type labels and distinct shapes are on by default; the rest are off. Distinct shapes require colored icons; icon backgrounds are independent.
 
+**Mark disabled components**, first under Component frames and on by default, sets apart canvas components whose **Disable Execution** (logic such as Decisions) or **Disabled** (inputs) is turned on in Properties, which Unqork's canvas otherwise draws like any other: the frame turns dashed and faintly hatched, its contents fade and the name is struck through. A disabled container marks only its own header and frame, not its contents.
+
 **Colors** lists every component group, such as Input fields, Grids or Logic & processing, with a **Light** and a **Dark** pair of swatches, each a color picker. The first swatch of a pair is the **foreground**, used for icons, labels, shapes, borders and accents; the second is the **background**, used for icon tiles and full background accents. Pick only one and the other is worked out from it so labels stay readable; pick both to keep two similar groups apart, since pale backgrounds of close hues such as red and pink otherwise look alike. **Reset** beside a changed group restores its defaults, and Reset style restores all of them.
 
 ## Debug tools

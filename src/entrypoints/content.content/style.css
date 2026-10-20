@@ -249,3 +249,12 @@
   display:inline-block; padding:1px 5px; border:1px solid color-mix(in srgb, currentColor 22%, transparent); border-radius:4px;
   background:color-mix(in srgb, currentColor 6%, transparent); font-size:10px; line-height:14px; font-weight:600; letter-spacing:.025em;
 }
+/* Disabled components: Disable Execution on logic, Disabled on inputs. The frame's edge turns dashed, over any group
+   border; a row, or a container's header, takes a faint hatch and fades its contents. Selection and search rings are
+   box-shadows on the row itself, so they keep their strength. A container's tinted header keeps its tint under the hatch. */
+[data-uq-disabled] { --uq-hatch:repeating-linear-gradient(135deg, color-mix(in srgb, currentColor 8%, transparent) 0 5px, transparent 5px 10px); border-style:dashed !important; }
+[data-uq-disabled=""] { background-image:var(--uq-hatch) !important; }
+[data-uq-disabled=""][data-uq-container-header] { background-image:var(--uq-hatch), linear-gradient(var(--uq-tint, color-mix(in srgb, currentColor 8%, transparent)), var(--uq-tint, color-mix(in srgb, currentColor 8%, transparent))) !important; }
+[data-uq-background] > [data-uq-disabled=""][data-uq-container-header] { background-image:var(--uq-hatch), linear-gradient(color-mix(in srgb, var(--uq-ink) 12%, transparent), color-mix(in srgb, var(--uq-ink) 12%, transparent)) !important; }
+[data-uq-disabled=""] > * { opacity:.55; }
+[data-uq-disabled-name] { text-decoration:line-through !important; text-decoration-color:color-mix(in srgb, currentColor 60%, transparent) !important; }

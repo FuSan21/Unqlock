@@ -363,6 +363,25 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
   dom.window.document.body.dispatchEvent(new dom.window.Event('input', { bubbles:true }));
   await settle(); await settle();
   assert.equal(shown()[0], 'Order status');
+  // Disable Execution, or Disabled on an input, is only in React's definition; the bridge marks the row and the content
+  // script dashes, hatches and fades it and strikes through its name, while the setting is on.
+  const disabledMarks = () => [differs.getAttribute('data-uq-disabled'), differs.querySelector('strong').hasAttribute('data-uq-disabled-name')];
+  assert(!differs.hasAttribute('data-unqlock-disabled'));
+  differs['__reactFiber$test'].memoizedProps.component = { type:'basicDropdown', key:'fieldStatus', label:'Order status', disabled:true };
+  dom.window.document.body.dispatchEvent(new dom.window.Event('change', { bubbles:true }));
+  await settle(); await settle();
+  assert(differs.hasAttribute('data-unqlock-disabled'));
+  assert.deepEqual(disabledMarks(), ['', true]);
+  assert(!repeats.hasAttribute('data-unqlock-disabled') && !repeats.hasAttribute('data-uq-disabled'), 'An enabled row stays unmarked');
+  await settings({ icons:true, tiles:true, labels:true, accents:true, backgrounds:true, disabledComponents:false });
+  assert.deepEqual(disabledMarks(), [null, false], 'Turning the setting off clears the marks');
+  await settings({ icons:true, tiles:true, labels:true, accents:true, backgrounds:true });
+  assert.deepEqual(disabledMarks(), ['', true]);
+  differs['__reactFiber$test'].memoizedProps.component = { type:'basicDropdown', key:'fieldStatus', label:'Order status', disabled:false };
+  dom.window.document.body.dispatchEvent(new dom.window.Event('change', { bubbles:true }));
+  await settle(); await settle();
+  assert(!differs.hasAttribute('data-unqlock-disabled'));
+  assert.deepEqual(disabledMarks(), [null, false], 'Turning Disable Execution off clears the marks');
   await labelMode('native');
   assert.deepEqual(shown(), [null, null, null, null, null, null]);  bridgeObserver.disconnect();
   legacy.remove();

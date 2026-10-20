@@ -217,6 +217,16 @@ export default defineContentScript({
               const text = card.getAttribute("data-unqlock-label");
               if (name && name !== label && name.textContent?.trim() === id && Labels.shows(labels, text, id, card.hasAttribute("data-unqlock-legacy"))) mark(name, { "data-uq-component-label": text! });
             }
+            // A component turned off in Properties (Disable Execution, or Disabled on an input) looks like any other
+            // row; the canvas-components bridge marks it from React. A container's dashed edge is its frame, while
+            // the hatch and fading stay on its header so its contents are left alone.
+            if (!isTray && settings.disabledComponents && card.hasAttribute("data-unqlock-disabled")) {
+              const frame = frameOf(card);
+              if (frame) mark(frame, { "data-uq-disabled": "frame" });
+              mark(card, { "data-uq-disabled": "" });
+              const name = label && label.parentElement?.firstElementChild;
+              if (name && name !== label) mark(name, { "data-uq-disabled-name": "" });
+            }
             const component = isTray ? trayComponent(card) : canvasComponent(card, label, icon);
             // Every collapsible canvas component shares this structure, whatever its type.
             const container = isTray ? null : frameOf(card);
@@ -302,7 +312,7 @@ export default defineContentScript({
           schedule();
         }
       });
-      observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["data-tray-type", "data-component-key", "data-unqlock-type", "data-unqlock-label", "data-unqlock-legacy", "class"] });
+      observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["data-tray-type", "data-component-key", "data-unqlock-type", "data-unqlock-label", "data-unqlock-legacy", "data-unqlock-disabled", "class"] });
       window.addEventListener("popstate", schedule);
       function applyLayout(value?: Stored) {
         layout = RowLayout.settings(value);

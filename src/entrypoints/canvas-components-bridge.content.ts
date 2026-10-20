@@ -15,12 +15,13 @@ export default defineContentScript({
       // Unqork's legacy canvas view draws inputs, buttons and content as a preview, without the icon
       // and type a styled row needs. Each canvas row's React node holds its component definition, so
       // its type and label are copied onto the row for the isolated content script, which cannot read
-      // React's properties, along with whether the node renders the legacy view. A row whose node is not
-      // found is left unmarked.
+      // React's properties, along with whether the node renders the legacy view and whether the component
+      // is disabled (Disable Execution on logic, Disabled on inputs). A row whose node is not found is left unmarked.
       const rowSelector = '[data-component-key]';
       const typeAttribute = 'data-unqlock-type';
       const labelAttribute = 'data-unqlock-label';
       const legacyAttribute = 'data-unqlock-legacy';
+      const disabledAttribute = 'data-unqlock-disabled';
       let scheduled = false;
 
       const fiberOf = (element: Element): Fiber => {
@@ -34,7 +35,7 @@ export default defineContentScript({
         let fiber = fiberOf(row);
         for (let depth = 0; fiber && depth < 12; depth++, fiber = fiber.return) {
           const component = fiber.memoizedProps?.component;
-          if (component && component.key === key && typeof component.type === 'string') return { ...component, legacy:fiber.memoizedProps.renderPreview === true } as { type: string; label?: unknown; title?: unknown; legacy: boolean };
+          if (component && component.key === key && typeof component.type === 'string') return { ...component, legacy:fiber.memoizedProps.renderPreview === true } as { type: string; label?: unknown; title?: unknown; disabled?: unknown; legacy: boolean };
         }
         return null;
       }
@@ -53,6 +54,7 @@ export default defineContentScript({
           write(row, typeAttribute, component ? component.type : null);
           write(row, labelAttribute, component ? labelOf(component) : null);
           write(row, legacyAttribute, component?.legacy ? '' : null);
+          write(row, disabledAttribute, component?.disabled === true ? '' : null);
         }
       }
       function schedule() {
@@ -72,8 +74,8 @@ export default defineContentScript({
         observer.observe(document.body, { childList:true, subtree:true, attributes:true, attributeFilter:['data-component-key'] });
         schedule();
       };
-      // A label edited in the Properties panel changes React's definition but nothing in a row that shows
-      // the property ID, so typing there also triggers a pass. Edits from elsewhere, such as Build Agent,
+      // A label edited or a component disabled in the Properties panel changes React's definition but nothing
+      // in a row that shows the property ID, so typing there also triggers a pass. Edits from elsewhere, such as Build Agent,
       // undo or redo, are caught by a light poll; a pass only reads definitions and writes changes.
       document.addEventListener('input', schedule, true);
       document.addEventListener('change', schedule, true);

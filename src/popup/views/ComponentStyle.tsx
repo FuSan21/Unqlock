@@ -100,6 +100,8 @@ export function ComponentStyle() {
         <AppearanceToggle setting="symbols" label="Distinct icon shapes" />
         <Note>Distinct shapes apply when Colored icons is on. Icon backgrounds can be enabled independently.</Note>
         <SettingsHeading>Component frames</SettingsHeading>
+        <AppearanceToggle setting="disabledComponents" label="Mark disabled components" />
+        <Note>Canvas components with Disable Execution or Disabled turned on get a dashed, hatched frame, faded contents and a struck-through name.</Note>
         <AppearanceToggle setting="accents" label="Subtle left accents" />
         <AppearanceToggle setting="backgrounds" label="Full background accents" />
         <AppearanceToggle setting="borders" label="Full colored borders" />
