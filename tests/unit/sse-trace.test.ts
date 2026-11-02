@@ -98,6 +98,14 @@ test('input must be a JSON object, and a parse error names its line', () => {
   expect(broken.ok).toBe(false);
   if (!broken.ok) expect([broken.message, broken.line]).toEqual(['Unexpected "}"', 3]);
   expect(parseInput('{ "a": ')).toMatchObject({ ok:false, message:'The JSON ends too early', line:1 });
+  // An escape JSON does not allow is found where it is, not at the end.
+  expect(parseInput(String.raw`{
+  "path": "C:\q",
+  "b": 1
+}`)).toMatchObject({ ok:false, line:2 });
+  expect(parseInput(String.raw`{ "a": "\u12" }`)).toMatchObject({ ok:false, line:1, message:expect.stringMatching(/^Unexpected/) });
+  // Valid escapes still parse.
+  expect(parseInput(String.raw`{ "a": "\"\\\/\b\f\n\r\t\u00e9" }`)).toMatchObject({ ok:true });
 });
 
 const response = (status: number, body: object, extra: Partial<SseResponse> = {}): SseResponse => ({ ok:status < 400, status, ms:300, headers:{ 'x-assume-role':'Administrator' }, body, ...extra });

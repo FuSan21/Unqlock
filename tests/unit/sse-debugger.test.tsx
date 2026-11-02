@@ -34,7 +34,7 @@ interface State { kind?: string; blocked?: boolean; roles?: string[]; responses?
 function setup(apiName: ApiName, state: State = {}) {
   const runs: { request: SseRequest }[] = [];
   const injections: { target: { tabId: number }; world?: string; func: { name: string }; args?: unknown[] }[] = [];
-  const listeners = { updated:[] as ((id: number, change: object) => void)[], removed:[] as ((id: number) => void)[] };
+  const listeners = { updated:[] as ((id: number, change: object) => void)[], removed:[] as ((id: number) => void)[], stored:[] as ((changes: object, area: string) => void)[] };
   const page = () => state.kind === 'production' ? { ...context, url:context.url.replace('acme-staging', 'acme-prod'), host:'acme-prod.unqork.io' } : context;
   const api = {
     tabs:{
@@ -43,7 +43,10 @@ function setup(apiName: ApiName, state: State = {}) {
       onRemoved:{ addListener:(fn: typeof listeners.removed[number]) => listeners.removed.push(fn), removeListener:() => {} }
     },
     permissions:{ contains:async () => true },
-    storage:{ local:{ get:async () => ({ environment:{ blockProduction:state.blocked === true } }) } },
+    storage:{
+      local:{ get:async () => ({ environment:{ blockProduction:state.blocked === true } }) },
+      onChanged:{ addListener:(fn: typeof listeners.stored[number]) => listeners.stored.push(fn), removeListener:() => {} }
+    },
     scripting:{ executeScript:async (options: typeof injections[number]) => {
       injections.push(options);
       if (options.func.name === 'readSseContext') return [{ result:{ ...page(), ...(state.roles ? { roles:state.roles } : {}) } }];
@@ -383,6 +386,37 @@ test('the module ID is shown in full, and copying it says so beside it', async (
 });
 
 // A confirmation approves only what it showed: when the builder moves to a production module, it is withdrawn.
+test('a held Ctrl+Enter does not approve the confirmation its first press opened', async () => {
+  const { api, runs } = setup('chrome');
+  await renderDebugger('chrome', api);
+  click('sse-save');
+  document.body.dispatchEvent(new KeyboardEvent('keydown', { key:'Enter', ctrlKey:true, bubbles:true })); await settle();
+  expect(query('.confirm').textContent).toMatch(/saved to a new submission/);
+  document.body.dispatchEvent(new KeyboardEvent('keydown', { key:'Enter', ctrlKey:true, repeat:true, bubbles:true })); await settle();
+  expect(runs).toHaveLength(0);
+  expect(query('.confirm').textContent).toMatch(/saved to a new submission/);
+});
+
+test('a change in Environments applies at once, without a reload of the builder tab', async () => {
+  const state: State = { kind:'production' };
+  const { api, listeners } = setup('chrome', state);
+  await renderDebugger('chrome', api);
+  expect(runButton().disabled).toBe(false);
+  state.blocked = true;
+  listeners.stored.forEach(fn => fn({ environment:{ newValue:{} } }, 'local')); await settle();
+  expect(runButton().disabled).toBe(true);
+  expect(runButton().title).toMatch(/Production actions are turned off/);
+});
+
+test('roles are fetched once per host, and a moving tab keeps them', async () => {
+  const { api, injections, listeners } = setup('chrome', { roles:['Administrator', 'Viewer'] });
+  await renderDebugger('chrome', api);
+  listeners.updated.forEach(fn => fn(7, { url:context.url })); await settle();
+  const reads = injections.filter(injection => injection.func.name === 'readSseContext');
+  expect(reads.map(injection => injection.args)).toEqual([[''], ['acme-staging.unqork.io']]);
+  expect([...query<HTMLSelectElement>('select[aria-label="Role"]').options].map(option => option.value)).toEqual(['Administrator', 'Viewer']);
+});
+
 test('a pending confirmation is withdrawn when the builder tab moves', async () => {
   const state: State = {};
   const { api, runs, listeners } = setup('chrome', state);

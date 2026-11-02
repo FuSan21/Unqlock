@@ -70,12 +70,22 @@ export function Debugger() {
   const parsed = useMemo(() => parseInput(input), [input]);
   const run = runs.find(entry => entry.id === current);
 
+  // One navigation reports a new address and then a finished load, so loads can overlap; only the latest one
+  // counts. Roles are fetched once per host.
+  const loads = useRef(0);
+  const roles = useRef<{ host: string; list: string[] } | undefined>(undefined);
   const load = useCallback(async () => {
     if (!Number.isInteger(tab) || tab <= 0) { setUnavailable('This window was opened without a builder tab. Open it from the Unqlock debugger button in Unqork’s dev overlay.'); return; }
-    const result = await readContext(tab);
+    const id = ++loads.current;
+    const known = roles.current?.host;
+    const result = await readContext(tab, known);
+    if (id !== loads.current) return;
     if (!result.ok) { setUnavailable(result.error); return; }
+    const { host } = result.context;
+    // A list that failed to load is asked for again next time.
+    if (host !== known) roles.current = result.context.roles ? { host, list:result.context.roles } : undefined;
     setUnavailable(undefined);
-    setContext(result.context);
+    setContext({ ...result.context, roles:roles.current?.list });
     setEnvironment(result.environment);
     // Start from Unqork's own Run as choice, until one is made here.
     if (!identityChosen.current) {
@@ -89,9 +99,12 @@ export function Debugger() {
   useEffect(() => {
     const updated = (id: number, change: { url?: string; status?: string }) => { if (id === tab && (change.url || change.status === 'complete')) load(); };
     const removed = (id: number) => { if (id === tab) setUnavailable('The builder tab this window belongs to was closed. Open a module in the builder, then choose Open in Unqlock debugger in its dev overlay.'); };
+    // Environments decides what is production and whether it may run, so its changes apply at once.
+    const stored = (changes: Record<string, unknown>, area: string) => { if (area === 'local' && changes.environment) load(); };
     api.tabs?.onUpdated?.addListener(updated);
     api.tabs?.onRemoved?.addListener(removed);
-    return () => { api.tabs?.onUpdated?.removeListener(updated); api.tabs?.onRemoved?.removeListener(removed); };
+    api.storage?.onChanged?.addListener(stored);
+    return () => { api.tabs?.onUpdated?.removeListener(updated); api.tabs?.onRemoved?.removeListener(removed); api.storage?.onChanged?.removeListener(stored); };
   }, [load]);
 
   // Firefox offers no full screen of its own for popup windows, so the page asks for it.
@@ -111,7 +124,8 @@ export function Debugger() {
   useEffect(() => { localStorage.setItem(setupKey, String(hideSetup)); }, [hideSetup]);
 
   // A confirmation approves only what it described: a new module, environment or save choice withdraws it.
-  useEffect(() => { setConfirm(undefined); }, [context, environment, save, submissionId]);
+  // A reload that finds the same module and environment leaves it be.
+  useEffect(() => { setConfirm(undefined); }, [context?.moduleId, context?.host, environment?.kind, environment?.blocked, save, submissionId]);
 
   // Rerun puts a past run's input and options back in the rail, then runs once they are in place, after the
   // effect above, so a confirmation it asks for is not withdrawn at once.
@@ -194,7 +208,8 @@ export function Debugger() {
   // Ctrl/Cmd+Enter runs, / filters, Alt+1–4 switch views, Escape backs out of a confirmation.
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); if (confirm) execute(true); else execute(); return; }
+      // A held key repeats; only a fresh press may approve a confirmation.
+      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); if (event.repeat) return; if (confirm) execute(true); else execute(); return; }
       if (event.key === '/' && !typing(event.target)) { event.preventDefault(); filterField.current?.focus(); return; }
       if (event.altKey && /^[1-4]$/.test(event.key)) { event.preventDefault(); setView(views[Number(event.key) - 1][0]); return; }
       if (event.key === 'Escape' && !event.defaultPrevented) {

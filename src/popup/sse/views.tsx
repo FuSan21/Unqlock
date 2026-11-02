@@ -74,12 +74,15 @@ export function Changes({ run, filter, values, onShow }: { run: Run; filter: str
   const { trace, request } = run;
   const input = request.data;
   const sets = trace.events.filter(event => event.kind === 'set' && (matches(event.key, filter) || (values && valueMatches(event, filter))));
+  // Grouped once, so a long run is not filtered again for every step.
+  const byTick = new Map<number, TraceEvent[]>();
+  for (const event of sets) { const group = byTick.get(event.tick); if (group) group.push(event); else byTick.set(event.tick, [event]); }
   if (!trace.events.length) return <Empty>Unqork returned no event log for this run, so there are no changes to show. The Raw view has the full response.</Empty>;
   if (!sets.length) return <Empty>{filter ? `No changed values match “${filter}”.` : 'This run set no values.'}</Empty>;
   return (
     <div className="changes">
       {trace.steps.map(step => {
-        const rows = sets.filter(event => event.tick === step.tick);
+        const rows = byTick.get(step.tick) || [];
         return (
           <section key={step.tick} aria-label={'Step ' + step.number}>
             <h3>Step {step.number} <span>{rows.length ? `${rows.length} ${rows.length === 1 ? 'value' : 'values'}${step.ms !== undefined ? ' · ' + duration(step.ms) : ''}` : 'no changes'}</span></h3>

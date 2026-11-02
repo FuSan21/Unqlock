@@ -46,20 +46,26 @@ export interface SseResponse {
 
 // Injected into the builder tab's MAIN world by scripting.executeScript, which serializes the function's
 // source. It must stay self-contained: no imports, closures or helpers from this module.
-export async function readSseContext(): Promise<SseContext | { error: string }> {
+// `knownHost` is a host whose roles the window already holds, so moving between its modules fetches none.
+export async function readSseContext(knownHost?: string): Promise<SseContext | { error: string }> {
   const match = location.pathname.match(/\/modules\/([0-9a-f]{24})(?:[/?#]|$)/i);
   if (!location.pathname.startsWith('/ide/') || !match) return { error:'Open a module in the builder tab.' };
   let state: Record<string, unknown> = {};
   try { state = JSON.parse(localStorage.getItem('ide-sse-debugger-identity') || '{}')?.state || {}; } catch {}
   const text = (value: unknown, fallback: string) => typeof value === 'string' && value.trim() ? value : fallback;
   // The roles Unqork's own Run as menu offers: its fetchExpressRoles server action reads the same list.
+  // A slow list gives up after five seconds, leaving Run as a typed role rather than the window unloaded.
   let roles: string[] | undefined;
-  try {
-    const response = await fetch(location.origin + '/fbu/uapi/roles', { credentials:'include', headers:{ 'x-xsrf':'' } });
-    const list = response.ok ? await response.json() : undefined;
-    if (Array.isArray(list)) roles = [...new Set(list.map((role: { name?: unknown }) => role?.name).filter((name): name is string => typeof name === 'string' && name.trim() !== ''))]
-      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity:'base' }));
-  } catch {}
+  if (location.hostname !== knownHost) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    try {
+      const response = await fetch(location.origin + '/fbu/uapi/roles', { credentials:'include', headers:{ 'x-xsrf':'' }, signal:controller.signal });
+      const list = response.ok ? await response.json() : undefined;
+      if (Array.isArray(list)) roles = [...new Set(list.map((role: { name?: unknown }) => role?.name).filter((name): name is string => typeof name === 'string' && name.trim() !== ''))]
+        .sort((a, b) => a.localeCompare(b, undefined, { sensitivity:'base' }));
+    } catch {} finally { clearTimeout(timer); }
+  }
   return {
     roles,
     url:location.href,
@@ -91,7 +97,7 @@ export async function runSseExecute(request: SseRequest): Promise<SseResponse> {
     const url = base + '/fbu/uapi/modules/' + request.moduleId + '/execute';
     const headers: Record<string, string> = { 'Content-Type':'application/json', 'x-xsrf':'' };
     if (request.role) headers['x-assume-role'] = request.role;
-    if (request.mode === 'designer' && request.role) headers['x-quill-preview'] = 'true';
+    if (request.mode === 'designer') headers['x-quill-preview'] = 'true';
     const body: Record<string, unknown> = { moduleId:request.moduleId, data:request.data, verbose:true };
     if (request.submissionId) body.submissionId = request.submissionId;
     if (request.save) body.save = true;
@@ -141,8 +147,11 @@ function breakAt(text: string) {
   function string() {
     index++;
     while (index < text.length && text[index] !== '"') {
-      if (text[index] === '\\') index++;
-      else if (text[index] < ' ') fail();
+      if (text[index] === '\\') {
+        index++;
+        if (text[index] === 'u') { if (!/^[0-9a-fA-F]{4}$/.test(text.slice(index + 1, index + 5))) fail(); index += 4; }
+        else if (!'"\\/bfnrt'.includes(text[index] ?? 'x')) fail();
+      } else if (text[index] < ' ') fail();
       index++;
     }
     if (text[index] !== '"') fail();

@@ -36,7 +36,7 @@ test.each(apiNames)('reads the context and runs the module in the tab’s MAIN w
   expect(read).toMatchObject({ ok:true, environment:{ kind:'staging', label:'STAGING', blocked:false } });
   expect(await tab.run(7, request, false)).toMatchObject({ ok:true, response:{ status:200 } });
   expect(injected).toEqual([
-    { tabId:7, world:'MAIN', name:'readSseContext', args:undefined },
+    { tabId:7, world:'MAIN', name:'readSseContext', args:[''] },
     { tabId:7, world:'MAIN', name:'runSseExecute', args:[request] }
   ]);
 });

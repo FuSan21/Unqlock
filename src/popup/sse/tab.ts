@@ -29,11 +29,11 @@ async function builderTab(tabId: number): Promise<string | undefined> {
   if (!host.endsWith('.unqork.io')) return 'The builder tab is no longer on Unqork. Open a module in the builder there.';
 }
 
-export async function readContext(tabId: number): Promise<ContextResult> {
+export async function readContext(tabId: number, knownHost?: string): Promise<ContextResult> {
   try {
     const problem = await builderTab(tabId);
     if (problem) return { ok:false, error:problem };
-    const [result] = await api.scripting.executeScript({ target:{ tabId }, world:'MAIN', func:readSseContext });
+    const [result] = await api.scripting.executeScript({ target:{ tabId }, world:'MAIN', func:readSseContext, args:[knownHost ?? ''] });
     const context = result?.result as SseContext | { error: string } | undefined;
     if (!context || 'error' in context) return { ok:false, error:context?.error || 'Could not read the builder tab.' };
     if (!context.host.endsWith('.unqork.io')) return { ok:false, error:'The builder tab is no longer on Unqork. Open a module in the builder there.' };

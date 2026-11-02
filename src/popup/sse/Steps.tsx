@@ -81,14 +81,16 @@ function Lanes({ trace, shown, selected, onSelect }: ViewProps) {
     const map = new Map<string, Map<number, TraceEvent[]>>();
     for (const event of trace.events) {
       const row = map.get(event.key) || new Map<number, TraceEvent[]>();
-      row.set(event.step, [...(row.get(event.step) || []), event]);
+      const cell = row.get(event.step);
+      if (cell) cell.push(event); else row.set(event.step, [event]);
       map.set(event.key, row);
     }
     return new Map([...map].map(([key, row]) => [key, [...row].sort(([a], [b]) => a - b).map(([step, events]) => ({ step, events }))]));
   }, [trace]);
   const related = useMemo(() => selected ? chain(trace, selected) : undefined, [trace, selected]);
   const relatedLanes = useMemo(() => new Set(related ? [...related].map(id => trace.byId.get(id)!.key) : []), [trace, related]);
-  const focusable = selected && trace.byId.has(selected) ? selected : lanes.length ? cells.get(lanes[0].key)?.[0]?.events[0]?.id : undefined;
+  // The mark Tab reaches: the selection while its lane is shown, otherwise the first mark.
+  const focusable = selected && trace.byId.has(selected) && shown.lane(trace.byId.get(selected)!.key) ? selected : lanes.length ? cells.get(lanes[0].key)?.[0]?.events[0]?.id : undefined;
 
   // Cause threads: a line from each event in the selected chain to the event that follows from it.
   useLayoutEffect(() => {

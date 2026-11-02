@@ -102,7 +102,8 @@ export function buildTrace(log: Stored, problem?: Problem): Trace {
     if (eventType === 'setData') event = { ...base, kind:'set', cause:causeOf(key, causeKey) };
     else if (eventType === 'addTrigger') {
       event = { ...base, kind:'queued', cause:causeOf(key, causeKey) };
-      queued.set(key, [...(queued.get(key) || []), event]);
+      const waiting = queued.get(key);
+      if (waiting) waiting.push(event); else queued.set(key, [event]);
     } else if (eventType === 'executeComponent') event = { ...base, kind:'ran', cause:runCause() };
     else if (eventType === 'executeComponentAsyncStart') {
       event = { ...base, kind:'wait', open:true, cause:runCause() };
