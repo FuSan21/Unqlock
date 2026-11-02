@@ -134,7 +134,8 @@ const lib = require('./lib.cjs');
     await page.getByRole('button', {name:'Reset layout'}).click();
     await status('Saved');
     assert.equal(await rowPreset.inputValue(), 'native');
-    assert.equal(await builder.locator('[data-uq-row-layout]').count(), 0);
+    // The content script removes its marks after the save, so wait for them rather than counting at once.
+    await builder.waitForFunction(() => !document.querySelector('[data-uq-row-layout]'), null, { timeout:5000 });
     await rowPreset.selectOption('custom');
     await builder.waitForSelector('#row-header[data-uq-row-layout] [data-uq-section="type"][data-uq-slot="left"]');
     assert.equal(await page.getByRole('radio', {name:'Type badge left'}).isChecked(), true, 'Custom starts with the type badge on the left');
