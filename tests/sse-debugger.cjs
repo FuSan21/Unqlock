@@ -16,13 +16,15 @@ const log = [
   entry(0, 'start', '__setup__', '__setup__', '__setup__', 0, { flavor:'new' }),
   entry(0, 'setData', '__setup__', 'init', 'initializer', 0, { value:'ready', update:true }),
   entry(0, 'addTrigger', '__setup__', 'init', 'initializer', 0),
+  entry(0, 'setData', '__setup__', 'env', 'hidden', 1, { value:{ level:'staging' }, update:true }),
   entry(1, 'executeComponent', '__setup__', 'init', 'initializer', 2),
   entry(1, 'addTrigger', 'init', 'buildFlags', 'transformer', 3),
   entry(1, 'addTrigger', 'init', 'callService', 'integrator', 3),
   entry(2, 'executeComponent', 'init', 'buildFlags', 'transformer', 3),
   entry(2, 'setData', 'buildFlags', 'save', 'hidden', 7, { value:true, update:true }),
   entry(2, 'executeComponentAsyncStart', 'init', 'callService', 'integrator', 7),
-  entry(2, 'executeComponentAsyncFinish', 'callService', 'callService', 'integrator', 11)
+  // A slow integrator.
+  entry(2, 'executeComponentAsyncFinish', 'callService', 'callService', 'integrator', 3511)
 ];
 
 (async () => {
@@ -93,8 +95,9 @@ const log = [
     assert.equal(executed[0].headers['x-assume-role'], role);
     assert.equal(executed[0].headers['x-quill-preview'], 'true');
     assert.deepEqual(executed[0].body, { moduleId, data:{ applicationId:'APP-1' }, verbose:true });
-    assert.match(await debuggerWindow.locator('.outcome').textContent(), /^200Ran as Viewer · \d+ ms · 3 steps · 2 values set$/);
-    assert.equal(await debuggerWindow.locator('.lane').count(), 4);
+    assert.match(await debuggerWindow.locator('.outcome').textContent(), /^200Ran as Viewer · \d+ ms · 3 steps · 3 values set · 1 slow$/);
+    assert.equal(await debuggerWindow.locator('.lane').count(), 5);
+    assert.equal(await debuggerWindow.locator('.lane[data-key="callService"] .slow').textContent(), 'Slow');
     await debuggerWindow.locator('.lane[data-key="save"] [data-kind="set"]').click();
     assert.equal(await debuggerWindow.locator('.inspector h2').textContent(), 'save');
     assert.equal(await debuggerWindow.locator('.threads path').count(), 4, 'A thread for each link in the chain');
@@ -109,6 +112,22 @@ const log = [
     assert.equal(await debuggerWindow.locator('.inspector h2').textContent(), 'callService');
     assert.equal(await debuggerWindow.locator('.runs li').count(), 2);
     if (process.env.SSE_SCREENSHOTS) await debuggerWindow.screenshot({ path:path.join(process.env.SSE_SCREENSHOTS, 'chrome-failure.png') });
+
+    // Rerun sends the first run's input again; In values finds a component by its value; env only received a
+    // setup value, so it can be hidden.
+    await debuggerWindow.locator('#sse-input').fill('{}');
+    await debuggerWindow.locator('.runs li').nth(1).hover();
+    await debuggerWindow.locator('.runs li').nth(1).getByRole('button', { name:/^Run again/ }).click();
+    await debuggerWindow.locator('.outcome .status', { hasText:'200' }).waitFor({ timeout:10000 });
+    assert.equal(executed.length, 3);
+    assert.deepEqual(executed[2].body.data, { applicationId:'APP-1' });
+    await debuggerWindow.getByRole('button', { name:'In values' }).click();
+    await debuggerWindow.locator('input[type="search"]').fill('staging');
+    assert.deepEqual(await debuggerWindow.locator('.lane').evaluateAll(lanes => lanes.map(lane => lane.dataset.key)), ['env']);
+    await debuggerWindow.locator('input[type="search"]').fill('');
+    await debuggerWindow.getByRole('button', { name:/^Hide setup values/ }).click();
+    assert.equal(await debuggerWindow.locator('.lane[data-key="env"]').count(), 0);
+    if (process.env.SSE_SCREENSHOTS) await debuggerWindow.screenshot({ path:path.join(process.env.SSE_SCREENSHOTS, 'chrome-rerun.png') });
 
     // Clicking the button again focuses the same window rather than opening another.
     const pages = context.pages().length;
@@ -142,7 +161,7 @@ const log = [
     await extension.waitForFunction(() => chrome.storage.local.get('sseDebugger').then(result => result.sseDebugger === false), null, { timeout:5000 });
     await button.waitFor({ state:'detached', timeout:5000 });
     assert.deepEqual(errors, []);
-    console.log('PASS: Unqlock SSE debugger switch, its button on the dev overlay, one window per tab, runs with Unqork’s headers and body, steps and inspector, a failed run, Use instead of Unqork’s debugger, and removal (Chrome extension).');
+    console.log('PASS: Unqlock SSE debugger switch, its button on the dev overlay, one window per tab, runs with Unqork’s headers and body, steps and inspector, Slow, a failed run, Rerun, In values, Hide setup values, Use instead of Unqork’s debugger, and removal (Chrome extension).');
   } finally {
     await context.close();
   }

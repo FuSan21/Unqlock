@@ -6,6 +6,16 @@ import type { Run } from './Debugger';
 
 export const matches = (key: string, filter: string) => !filter || key.toLowerCase().includes(filter.trim().toLowerCase());
 
+// The lowercase JSON a value search looks in, worked out once per event.
+const texts = new WeakMap<TraceEvent, string>();
+const text = (value: unknown) => { try { return (JSON.stringify(value) ?? String(value)).toLowerCase(); } catch { return String(value).toLowerCase(); } };
+export function valueMatches(event: TraceEvent, filter: string) {
+  if (!event.hasValue || !filter.trim()) return false;
+  if (!texts.has(event)) texts.set(event, text(event.value));
+  return texts.get(event)!.includes(filter.trim().toLowerCase());
+}
+const entryMatches = (key: string, value: unknown, filter: string, values: boolean) => matches(key, filter) || (values && Boolean(filter.trim()) && text(value).includes(filter.trim().toLowerCase()));
+
 // One line of a value: "{ "status": 200, … }" or "\"ready\"".
 export function preview(value: unknown, length = 160) {
   let text: string;
@@ -59,11 +69,11 @@ export function Glyph({ event, small }: { event: Pick<TraceEvent, 'kind'>; small
 }
 
 // Changes: the values each step set, in order.
-export function Changes({ run, filter, onShow }: { run: Run; filter: string; onShow: (id: string) => void }) {
+export function Changes({ run, filter, values, onShow }: { run: Run; filter: string; values: boolean; onShow: (id: string) => void }) {
   const [open, setOpen] = useState<string>();
   const { trace, request } = run;
   const input = request.data;
-  const sets = trace.events.filter(event => event.kind === 'set' && matches(event.key, filter));
+  const sets = trace.events.filter(event => event.kind === 'set' && (matches(event.key, filter) || (values && valueMatches(event, filter))));
   if (!trace.events.length) return <Empty>Unqork returned no event log for this run, so there are no changes to show. The Raw view has the full response.</Empty>;
   if (!sets.length) return <Empty>{filter ? `No changed values match “${filter}”.` : 'This run set no values.'}</Empty>;
   return (
@@ -105,12 +115,12 @@ export function Changes({ run, filter, onShow }: { run: Run; filter: string; onS
 }
 
 // Output: the module's resolved data, which an API module returns to its caller.
-export function Output({ run, filter, onShow }: { run: Run; filter: string; onShow: (key: string) => void }) {
+export function Output({ run, filter, values, onShow }: { run: Run; filter: string; values: boolean; onShow: (key: string) => void }) {
   const body: Stored = run.response.body;
   const data = body?.data?.resolved ?? body?.data;
   const { validation } = run.outcome;
   const shown = data && typeof data === 'object' && !Array.isArray(data) && filter
-    ? Object.fromEntries(Object.entries(data).filter(([key]) => matches(key, filter))) : data;
+    ? Object.fromEntries(Object.entries(data).filter(([key, value]) => entryMatches(key, value, filter, values))) : data;
   return (
     <div className="pad">
       {validation.length > 0 && (

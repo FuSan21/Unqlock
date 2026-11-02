@@ -1,12 +1,15 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import { chain, describe, duration, path, type Trace, type TraceEvent } from '@/lib/sse-trace';
-import { CopyButton, Empty, Glyph, JsonTree, matches } from './views';
+import { chain, describe, duration, path, slowAfter, type Trace, type TraceEvent } from '@/lib/sse-trace';
+import { CopyButton, Empty, Glyph, JsonTree, matches, valueMatches } from './views';
 
 export type StepsMode = 'lanes' | 'list';
 
 interface StepsProps {
   trace: Trace;
   filter: string;
+  // Whether the filter also looks in the values events set, and whether setup lanes are left out.
+  values: boolean;
+  hideSetup: boolean;
   mode: StepsMode;
   selected?: string;
   onSelect: (id?: string) => void;
@@ -14,37 +17,65 @@ interface StepsProps {
 
 // Steps: the event log as lanes (one per component, one column per step) or as a list, with the
 // inspector for the selected event.
-export function Steps({ trace, filter, mode, selected, onSelect }: StepsProps) {
+export function Steps({ trace, filter, values, hideSetup, mode, selected, onSelect }: StepsProps) {
   const event = selected ? trace.byId.get(selected) : undefined;
+  const shown = useShown(trace, filter, values, hideSetup);
   if (!trace.events.length) return <Empty>Unqork returned no event log for this run. The Raw view has the full response.</Empty>;
   return (
     <div className="work" data-inspector={event ? 'open' : 'closed'}>
       <div className="view" id="steps-view">
-        {mode === 'lanes' ? <Lanes trace={trace} filter={filter} selected={selected} onSelect={onSelect} /> : <List trace={trace} filter={filter} selected={selected} onSelect={onSelect} />}
+        {mode === 'lanes' ? <Lanes trace={trace} shown={shown} selected={selected} onSelect={onSelect} /> : <List trace={trace} shown={shown} selected={selected} onSelect={onSelect} />}
       </div>
       {event && <Inspector trace={trace} event={event} onSelect={onSelect} />}
     </div>
   );
 }
 
-const label = (event: TraceEvent) => `${event.key} ${describe(event)} in step ${event.step}`;
+interface Shown {
+  filter: string;
+  // Whether a lane is left after the filter and the setup switch, and the events whose value the filter found.
+  lane: (key: string) => boolean;
+  found?: Set<string>;
+  // What the empty state says.
+  none: string;
+}
 
-function Mark({ event, lane, selected, related, focusable, onSelect }: { event: TraceEvent; lane: number; selected: boolean; related: boolean; focusable: boolean; onSelect: (id: string) => void }) {
+function useShown(trace: Trace, filter: string, values: boolean, hideSetup: boolean): Shown {
+  return useMemo(() => {
+    const found = values && filter.trim() ? new Set(trace.events.filter(event => valueMatches(event, filter)).map(event => event.id)) : undefined;
+    const foundLanes = new Set(found ? [...found].map(id => trace.byId.get(id)!.key) : []);
+    const setup = new Set(hideSetup ? trace.lanes.filter(lane => lane.setup).map(lane => lane.key) : []);
+    const none = filter.trim() ? `No components${values ? ' or values' : ''} match “${filter}”${setup.size ? ' outside setup' : ''}.` : 'Every component here only received a setup value.';
+    return { filter, found, none, lane:(key: string) => !setup.has(key) && (matches(key, filter) || foundLanes.has(key)) };
+  }, [trace, filter, values, hideSetup]);
+}
+
+const label = (event: TraceEvent) => `${event.key} ${describe(event)} in step ${event.step}${event.slow ? `, slow: ${duration(event.ms)}` : ''}`;
+const usual = (event: TraceEvent) => duration(slowAfter[event.kind === 'wait' ? 'wait' : 'ran']);
+
+// A run or wait that took longer than its kind usually needs.
+const Slow = ({ event }: { event: TraceEvent }) => event.slow
+  ? <span className="slow" title={`Took ${duration(event.ms)}, over the ${usual(event)} a ${event.kind === 'wait' ? 'wait' : 'run'} usually needs`}>Slow</span> : null;
+
+function Mark({ event, lane, selected, related, found, focusable, onSelect }: { event: TraceEvent; lane: number; selected: boolean; related: boolean; found: boolean; focusable: boolean; onSelect: (id: string) => void }) {
   const wait = event.kind === 'wait';
-  return (
+  const mark = (
     <button type="button" className={wait ? 'wait' : 'mark'} data-kind={event.kind} data-event={event.id} data-lane={lane} data-step={event.step}
-      data-failed={wait && event.open ? '' : undefined} data-related={related ? '' : undefined} aria-pressed={selected} aria-label={label(event)} title={label(event)}
+      data-failed={wait && event.open ? '' : undefined} data-related={related ? '' : undefined} data-found={found ? '' : undefined} aria-pressed={selected} aria-label={label(event)} title={label(event)}
       tabIndex={focusable ? 0 : -1} onClick={() => onSelect(event.id)}>
       {wait && <span>{event.open ? 'no finish' : duration(event.ms)}</span>}
     </button>
   );
+  return event.slow ? <span className={wait ? 'slow-wrap wide' : 'slow-wrap'}>{mark}<Slow event={event} /></span> : mark;
 }
 
-function Lanes({ trace, filter, selected, onSelect }: Omit<StepsProps, 'mode'>) {
+interface ViewProps { trace: Trace; shown: Shown; selected?: string; onSelect: (id?: string) => void }
+
+function Lanes({ trace, shown, selected, onSelect }: ViewProps) {
   const grid = useRef<HTMLDivElement>(null);
   const [threads, setThreads] = useState<string[]>([]);
   const [size, setSize] = useState({ width:0, height:0 });
-  const lanes = trace.lanes.filter(lane => matches(lane.key, filter));
+  const lanes = trace.lanes.filter(lane => shown.lane(lane.key));
   // Each lane's occupied steps only: a big module renders one node per event, not one per lane and step.
   const cells = useMemo(() => {
     const map = new Map<string, Map<number, TraceEvent[]>>();
@@ -96,7 +127,7 @@ function Lanes({ trace, filter, selected, onSelect }: Omit<StepsProps, 'mode'>) 
     const observer = new ResizeObserver(draw);
     observer.observe(element);
     return () => observer.disconnect();
-  }, [trace, related, filter]);
+  }, [trace, related, shown]);
 
   // Keeps the selected mark in view, vertically only: sideways would slide it under the component column.
   useEffect(() => {
@@ -129,7 +160,7 @@ function Lanes({ trace, filter, selected, onSelect }: Omit<StepsProps, 'mode'>) 
     next.focus();
   }
 
-  if (!lanes.length) return <Empty>No components match “{filter}”.</Empty>;
+  if (!lanes.length) return <Empty>{shown.none}</Empty>;
   return (
     <div ref={grid} className="lanes" data-focused={related ? '' : undefined} role="grid" aria-label="Steps by component" aria-rowcount={lanes.length + 1}
       style={{ ['--steps' as string]:trace.steps.length }} onKeyDown={key}>
@@ -149,7 +180,7 @@ function Lanes({ trace, filter, selected, onSelect }: Omit<StepsProps, 'mode'>) 
           {(cells.get(lane.key) || []).map(cell => (
             <div key={cell.step} className="cell" role="gridcell" aria-colindex={cell.step + 1} style={{ gridColumn:cell.step + 1, gridRow:1 }}>
               {cell.events.map(event => (
-                <Mark key={event.id} event={event} lane={index} selected={event.id === selected} related={related?.has(event.id) === true} focusable={event.id === focusable}
+                <Mark key={event.id} event={event} lane={index} selected={event.id === selected} related={related?.has(event.id) === true} found={shown.found?.has(event.id) === true} focusable={event.id === focusable}
                   onSelect={id => onSelect(id === selected ? undefined : id)} />
               ))}
             </div>
@@ -162,20 +193,21 @@ function Lanes({ trace, filter, selected, onSelect }: Omit<StepsProps, 'mode'>) 
 }
 
 // The log in the order Unqork wrote it, for reading it as Unqork's Event Log shows it.
-function List({ trace, filter, selected, onSelect }: Omit<StepsProps, 'mode'>) {
+function List({ trace, shown, selected, onSelect }: ViewProps) {
   const first = trace.events.find(event => event.at !== undefined)?.at;
-  const rows = trace.events.filter(event => matches(event.key, filter));
-  if (!rows.length) return <Empty>No events match “{filter}”.</Empty>;
+  // A value search lists the events it found, plus every event of a component whose key matches.
+  const rows = trace.events.filter(event => shown.lane(event.key) && (!shown.found || matches(event.key, shown.filter) || shown.found.has(event.id)));
+  if (!rows.length) return <Empty>{shown.none}</Empty>;
   return (
     <table className="event-list">
       <thead><tr><th scope="col">Step</th><th scope="col"><span className="visually-hidden">Kind</span></th><th scope="col">Component</th><th scope="col">Event</th><th scope="col">Caused by</th><th scope="col">Time</th></tr></thead>
       <tbody>
         {rows.map(event => (
-          <tr key={event.id} aria-selected={event.id === selected} onClick={() => onSelect(event.id === selected ? undefined : event.id)}>
+          <tr key={event.id} aria-selected={event.id === selected} data-found={shown.found?.has(event.id) ? '' : undefined} onClick={() => onSelect(event.id === selected ? undefined : event.id)}>
             <td className="mono">{event.step}</td>
             <td><Glyph event={event} small /></td>
             <td><button type="button" className="row-button mono" onClick={click => { click.stopPropagation(); onSelect(event.id === selected ? undefined : event.id); }}>{event.key}</button> <span className="chip">{event.type}</span></td>
-            <td>{describe(event)}</td>
+            <td>{describe(event)} <Slow event={event} /></td>
             <td className="mono muted">{event.causeKey === '__setup__' ? 'setup' : event.causeKey}</td>
             <td className="mono muted">{first !== undefined && event.at !== undefined ? '+' + duration(event.at - first) : ''}</td>
           </tr>
@@ -219,6 +251,9 @@ function Inspector({ trace, event, onSelect }: { trace: Trace; event: TraceEvent
           : event.causeKey === '__setup__' || event.causeKey === event.key ? `${when}${event.causeKey === '__setup__' ? ', during setup' : ''}.`
           : <>{when}, caused by <b className="mono">{cause?.key ?? event.causeKey}</b>.</>}
       </p>
+      {event.slow && (
+        <p className="lead"><Slow event={event} /> Took {duration(event.ms)}{event.kind === 'ran' ? ', up to the last event it caused in this step' : ''}. A {event.kind === 'wait' ? 'wait' : 'run'} usually needs under {usual(event)}.</p>
+      )}
       {event.kind === 'fail' && <section><h3>Error</h3><pre className="error-text">{event.message || 'Unqork logged a failure without a message.'}</pre></section>}
       {event.hasValue && (
         <section>

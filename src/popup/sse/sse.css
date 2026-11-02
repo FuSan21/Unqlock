@@ -80,9 +80,14 @@ kbd { font:11px var(--mono); padding:0 4px; border:1px solid currentColor; borde
 .options label { display:flex; align-items:center; gap:8px; padding:4px 0; font-size:12.5px; cursor:pointer; }
 .options input { width:15px; height:15px; margin:0; accent-color:var(--accent); }
 .runs ol { margin:0; padding:0; list-style:none; }
-.runs li button { display:grid; grid-template-columns:10px auto 1fr auto; align-items:center; gap:8px; width:calc(100% + 16px); margin:0 -8px; padding:6px 8px; border:0; border-radius:6px; background:none; text-align:left; font-size:12px; }
-.runs li button:hover { background:var(--lane); }
-.runs li button[aria-current="true"] { background:var(--tint); }
+.runs li { display:flex; align-items:center; gap:4px; margin-right:-8px; }
+.runs .run-entry { flex:1; min-width:0; display:grid; grid-template-columns:10px auto 1fr auto; align-items:center; gap:8px; margin-left:-8px; padding:6px 8px; border:0; border-radius:6px; background:none; text-align:left; font-size:12px; }
+.runs .run-entry:hover { background:var(--lane); }
+.runs .run-entry[aria-current="true"] { background:var(--tint); }
+/* Rerun keeps its place beside the entry, shown while the entry is hovered, focused or current. */
+.runs .rerun { flex-shrink:0; opacity:0; }
+.runs li:is(:hover, :focus-within) .rerun, .runs .run-entry[aria-current="true"] + .rerun { opacity:1; }
+.runs .rerun:disabled { opacity:0 !important; }
 .runs .dot { width:7px; height:7px; border:1.5px solid var(--muted); border-radius:50%; }
 .runs [aria-current="true"] .dot { border-color:var(--accent); background:var(--accent); }
 .runs [data-state="fail"] { color:var(--fail); font-weight:600; }
@@ -116,8 +121,13 @@ kbd { font:11px var(--mono); padding:0 4px; border:1px solid currentColor; borde
 .mode button { padding:3px 10px; border:0; background:none; font-size:12px; color:var(--muted); }
 .mode button[aria-pressed="true"] { background:var(--lane); color:var(--ink); font-weight:600; }
 .filter { position:relative; margin-left:auto; }
-.mode + .filter { margin-left:0; }
-.filter input { width:200px; padding:5px 30px 5px 9px; border:1px solid var(--line); border-radius:6px; background:var(--paper); font:12px var(--mono); }
+.mode ~ .filter { margin-left:0; }
+/* An on/off choice in the view bar: Hide setup values, In values. */
+.switch { flex-shrink:0; padding:3px 9px; border:1px solid var(--line); border-radius:6px; background:none; font-size:12px; color:var(--muted); white-space:nowrap; }
+.switch:hover { color:var(--ink); }
+.switch[aria-pressed="true"] { border-color:var(--accent); background:var(--tint); color:var(--accent); font-weight:600; }
+.switch .count { margin-left:4px; font:11px var(--mono); }
+.filter input { width:216px; padding:5px 30px 5px 9px; border:1px solid var(--line); border-radius:6px; background:var(--paper); font:12px var(--mono); }
 .filter kbd { position:absolute; top:50%; right:8px; transform:translateY(-50%); color:var(--muted); }
 .panel { position:relative; flex:1; display:flex; flex-direction:column; min-height:0; container-type:inline-size; }
 .panel > .view { flex:1; }
@@ -165,6 +175,16 @@ kbd { font:11px var(--mono); padding:0 4px; border:1px solid currentColor; borde
 .glyph-wait.small { width:14px; }
 :is(.mark, .wait)[aria-pressed="true"] { border-color:var(--accent); background:var(--tint); box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
 .lanes[data-focused] :is(.mark, .wait):not([data-related]) { opacity:.3; }
+/* A value search ringing the marks whose value it found. */
+:is(.mark, .wait)[data-found] { outline:2px solid var(--wait); outline-offset:1px; }
+/* Slow: a small badge under the run or wait. */
+.slow-wrap { display:inline-flex; flex-direction:column; align-items:center; gap:2px; flex-shrink:0; }
+.slow-wrap.wide { flex:1 1 auto; min-width:0; max-width:150px; align-items:stretch; }
+.slow-wrap.wide .wait { max-width:none; }
+.slow-wrap .slow { align-self:center; }
+.slow { display:inline-block; padding:0 4px; border-radius:3px; background:var(--wait-tint); color:var(--wait); font:700 9.5px/14px var(--ui); letter-spacing:.06em; text-transform:uppercase; white-space:nowrap; }
+.legend .slow, .inspector .lead .slow { margin-right:2px; }
+.slow-link { padding:0 2px; font-size:inherit; color:var(--wait); }
 .lanes[data-focused] .lane:not([data-related]) .lane-label > * { opacity:.45; }
 .threads { position:absolute; top:0; left:0; z-index:1; overflow:visible; pointer-events:none; }
 .threads path { fill:none; stroke:var(--accent); stroke-width:1.5; opacity:.8; }
@@ -178,6 +198,7 @@ kbd { font:11px var(--mono); padding:0 4px; border:1px solid currentColor; borde
 .event-list tr { cursor:pointer; }
 .event-list tbody tr:hover { background:var(--lane); }
 .event-list tr[aria-selected="true"] { background:var(--tint); }
+.event-list tr[data-found] td:first-child { box-shadow:inset 3px 0 0 var(--wait); }
 .row-button { padding:0; border:0; background:none; font-size:12.5px; }
 
 /* Inspector */

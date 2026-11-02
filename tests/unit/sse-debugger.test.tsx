@@ -2,10 +2,12 @@ import { cleanup, render, within } from '@testing-library/react';
 import { beforeEach, expect, test, vi } from 'vitest';
 import type { SseRequest } from '@/lib/sse-run';
 import { apiNames, byId, click, press, query, settle, type ApiName, type as typeInto } from './harness';
-import { log } from './sse-fixture';
+import { entry, log } from './sse-fixture';
 
 // The debugger window draws lanes with ResizeObserver and copies with the clipboard, neither in jsdom.
 beforeEach(() => {
+  // The window keeps its switches in its own storage; each test starts without them.
+  localStorage.clear();
   (globalThis as Record<string, unknown>).ResizeObserver = class { observe() {} disconnect() {} };
   Object.defineProperty(navigator, 'clipboard', { configurable:true, value:{ writeText:vi.fn(async () => {}) } });
 });
@@ -156,7 +158,7 @@ test.each(apiNames)('a failed run names the component that stopped it and select
   // A second run joins the history; the first can be shown again.
   click(runButton()); await settle();
   expect(runs).toHaveLength(2);
-  const history = [...document.querySelectorAll<HTMLButtonElement>('.runs li button')];
+  const history = [...document.querySelectorAll<HTMLButtonElement>('.runs .run-entry')];
   expect(history.map(button => button.querySelector('[data-state]')?.textContent)).toEqual(['200', '412']);
   click(history[1]);
   expect(query('.outcome .status').textContent).toBe('412');
@@ -209,6 +211,93 @@ test('saving asks first and names the submission', async () => {
   expect(query('.confirm').textContent).toMatch(/saved to submission abc123, replacing its data/);
   document.body.dispatchEvent(new KeyboardEvent('keydown', { key:'Enter', ctrlKey:true, bubbles:true })); await settle();
   expect(runs[0].request).toMatchObject({ save:true, submissionId:'abc123' });
+});
+
+test.each(apiNames)('Rerun puts a past run’s input and options back and runs it again (%s)', async apiName => {
+  const { api, runs } = setup(apiName);
+  await renderDebugger(apiName, api);
+  typeInto('sse-input', '{"a":1}');
+  click(query('.options input[type="checkbox"]'));
+  typeInto('sse-submission', 'sub-1');
+  click(runButton()); await settle();
+  typeInto('sse-input', '{"b":2}');
+  click(query('.options input[type="checkbox"]'));
+  typeInto('sse-submission', '');
+  click(runButton()); await settle();
+  expect(runs.map(each => each.request.data)).toEqual([{ a:1 }, { b:2 }]);
+  // The older run is second in the history.
+  click(document.querySelectorAll<HTMLButtonElement>('.runs .rerun')[1]); await settle();
+  expect(runs).toHaveLength(3);
+  expect(runs[2].request).toMatchObject({ data:{ a:1 }, submissionId:'sub-1', validate:true });
+  expect(byId<HTMLTextAreaElement>('sse-input').value).toBe(JSON.stringify({ a:1 }, null, 2));
+  expect(byId<HTMLInputElement>('sse-submission').value).toBe('sub-1');
+});
+
+test('Rerun of a run that saved asks first, and the confirmation stays up', async () => {
+  const { api, runs } = setup('chrome');
+  await renderDebugger('chrome', api);
+  click('sse-save');
+  click(runButton()); await settle();
+  click(within(query('.confirm')).getByRole('button', { name:'Run and save' })); await settle();
+  click('sse-save');
+  click(query('.runs .rerun')); await settle();
+  expect(runs).toHaveLength(1);
+  expect(byId<HTMLInputElement>('sse-save').checked).toBe(true);
+  expect(query('.confirm').textContent).toBe('The result is saved to a new submission.Run and saveCancel');
+  click(within(query('.confirm')).getByRole('button', { name:'Run and save' })); await settle();
+  expect(runs).toHaveLength(2);
+});
+
+test.each(apiNames)('In values finds components by the values they set, and setup lanes can be hidden (%s)', async apiName => {
+  const { api } = setup(apiName);
+  await renderDebugger(apiName, api);
+  click(runButton()); await settle();
+  const lanes = () => [...document.querySelectorAll('.lane')].map(lane => lane.getAttribute('data-key'));
+  const button = (name: RegExp) => [...document.querySelectorAll<HTMLButtonElement>('.viewbar .switch')].find(each => name.test(each.textContent || ''))!;
+  // Keys alone: nothing is called "staging".
+  typeInto(query('input[type="search"]'), 'staging');
+  expect(document.querySelector('.lane')).toBeNull();
+  click(button(/^In values/));
+  expect(button(/^In values/).getAttribute('aria-pressed')).toBe('true');
+  expect(query('input[type="search"]').getAttribute('placeholder')).toBe('Filter keys and values');
+  expect(lanes()).toEqual(['env']);
+  expect(mark('env', 'set').hasAttribute('data-found')).toBe(true);
+  // It follows to Changes, and is remembered by the window.
+  click(tab('changes'));
+  expect([...document.querySelectorAll('.change-key')].map(key => key.textContent)).toEqual(['env']);
+  expect(localStorage.getItem('unqlock.sse.values')).toBe('true');
+  click(tab('steps'));
+  typeInto(query('input[type="search"]'), '');
+
+  // env and vars only received setup values.
+  expect(button(/^Hide setup values/).textContent).toBe('Hide setup values 2');
+  click(button(/^Hide setup values/));
+  expect(lanes()).toEqual(['init', 'buildFlags', 'callService', 'validate', 'save']);
+  click(query('.mode button:last-child'));
+  expect([...document.querySelectorAll('.event-list .row-button')].map(each => each.textContent)).not.toContain('env');
+  click(button(/^Hide setup values/));
+  expect([...document.querySelectorAll('.event-list .row-button')].map(each => each.textContent)).toContain('env');
+});
+
+test('slow runs and waits carry a Slow badge, and the outcome links to the slowest', async () => {
+  const slowLog = [
+    entry(0, 'addTrigger', '__setup__', 'calc', 'calculator', 0),
+    entry(1, 'executeComponent', '__setup__', 'calc', 'calculator', 0),
+    entry(1, 'setData', 'calc', 'total', 'hidden', 250, { value:3 }),
+    entry(1, 'executeComponentAsyncStart', 'calc', 'plug', 'plugin', 300),
+    entry(2, 'executeComponentAsyncFinish', 'plug', 'plug', 'plugin', 3800)
+  ];
+  const { api } = setup('chrome', { responses:[request => ({ ...success(request), body:{ data:{}, eventLog:slowLog } })] });
+  await renderDebugger('chrome', api);
+  click(runButton()); await settle();
+  expect([...document.querySelectorAll('.lanes .slow')].map(badge => badge.closest('.lane')!.getAttribute('data-key'))).toEqual(['calc', 'plug']);
+  expect(mark('calc', 'ran').getAttribute('aria-label')).toBe('calc ran in step 2, slow: 300 ms');
+  const link = within(query('.outcome')).getByRole('button', { name:'2 slow' });
+  click(link);
+  expect(query('.inspector h2').textContent).toBe('plug');
+  expect(query('.inspector .lead + .lead').textContent).toBe('Slow Took 3.50 s. A wait usually needs under 3.00 s.');
+  click(query('.mode button:last-child'));
+  expect([...document.querySelectorAll('.event-list .slow')]).toHaveLength(2);
 });
 
 test('follows the builder tab and says when it closes', async () => {

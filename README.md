@@ -158,12 +158,12 @@ The window follows the module the builder tab is on. **Run module** (Ctrl+Enter,
 
 Each run shows a one-line result, such as *200 · Ran as Administrator · 317 ms · 3 steps · 10 values set*, and, when something failed, which component stopped the run and its message. Four views show the same run:
 
-- **Steps** lays Unqork's event log out as lanes: one row per component, one column per step. Marks show what each component did in each step: set a value, ran, ran and waited (with the time), was queued, or failed. Select a mark to see its value, how it got there and what it led to; lines trace its causes across the lanes and everything else fades. **List** shows the log in order instead.
+- **Steps** lays Unqork's event log out as lanes: one row per component, one column per step. Marks show what each component did in each step: set a value, ran, ran and waited (with the time), was queued, or failed. A **Slow** badge marks a run that took 300 ms or more, timed to the last event it caused in its step, and a wait, such as a plug-in or integrator call, of 3 seconds or more; the result line counts them and links to the slowest. Select a mark to see its value, how it got there and what it led to; lines trace its causes across the lanes and everything else fades. **Hide setup values** leaves out components that only received a value during setup, such as hidden fields filled from the input. **List** shows the log in order instead.
 - **Changes** lists every value set, step by step, with the component that set it and whether it differs from your input.
 - **Output** shows the resolved data the module returned, with validation errors above it.
 - **Raw** shows the exact request and response, with **Copy request as fetch** to repeat it in the builder tab's console.
 
-**Filter keys** (or /) narrows every view to matching components, and Alt+1 to Alt+4 switch views. **Runs** lists this window's runs to compare; they are kept only while the window is open and never saved. Unqlock's window uses an event log Unqork adds for its own debugger and runs from the builder tab; on a draft or version branch it runs the module without that branch context.
+**Filter keys** (or /) narrows every view to matching components; with **In values** it also finds components by the values they set, marking each match. Alt+1 to Alt+4 switch views. **Runs** lists this window's runs to compare, and **Rerun** runs one again with its input and options; the last 10 are kept, only while the window is open, and never saved. The window remembers In values and Hide setup values. Unqlock's window uses an event log Unqork adds for its own debugger and runs from the builder tab; on a draft or version branch it runs the module without that branch context.
 
 ## Environments and the floating launcher
 

@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { outcome, parseInput, type SseResponse } from '@/lib/sse-run';
-import { buildTrace, chain, describe, duration, path } from '@/lib/sse-trace';
+import { buildTrace, chain, describe, duration, path, slowAfter } from '@/lib/sse-trace';
 import { entry, log } from './sse-fixture';
 
 
@@ -41,7 +41,7 @@ test('an execution error marks its component, and a wait without a finish stays 
   expect([failure.key, failure.tick, failure.cause, failure.message]).toEqual(['callService', 2, wait.id, 'Request failed with status code 500']);
   // A component the log never mentions still gets its lane.
   const elsewhere = buildTrace(log, { component:'outside', message:'Boom' });
-  expect(elsewhere.lanes.at(-1)).toEqual({ key:'outside', type:'' });
+  expect(elsewhere.lanes.at(-1)).toEqual({ key:'outside', type:'', setup:false });
   // An empty or missing log is an empty trace.
   expect(buildTrace(undefined)).toMatchObject({ steps:[], lanes:[], events:[] });
 });
@@ -51,6 +51,39 @@ test('unknown event types are kept as other, and an error-like type as a failure
   expect(trace.events.at(-2)).toMatchObject({ kind:'fail', message:'Timed out' });
   expect(trace.events.at(-1)).toMatchObject({ kind:'other', eventType:'somethingNew' });
   expect(describe(trace.events.at(-1)!)).toBe('logged somethingNew');
+});
+
+test('a run lasts until the last event it caused in its step, and runs and waits past their limits are slow', () => {
+  const trace = buildTrace([
+    entry(0, 'addTrigger', '__setup__', 'calc', 'calculator', 0),
+    entry(1, 'executeComponent', '__setup__', 'calc', 'calculator', 0),
+    entry(1, 'setData', 'calc', 'total', 'hidden', 250, { value:3 }),
+    entry(1, 'addTrigger', 'calc', 'quick', 'decision', 360),
+    entry(2, 'executeComponent', 'calc', 'quick', 'decision', 400),
+    entry(2, 'setData', 'quick', 'flag', 'hidden', 440, { value:true }),
+    // Caused by calc, but a step later: it belongs to what calc queued, not to calc's own run.
+    entry(2, 'setData', 'calc', 'late', 'hidden', 900, { value:1 }),
+    entry(2, 'executeComponentAsyncStart', 'quick', 'plug', 'plugin', 400),
+    entry(2, 'executeComponentAsyncFinish', 'plug', 'plug', 'plugin', 3600),
+    entry(3, 'executeComponentAsyncStart', 'quick', 'fast', 'plugin', 3600),
+    entry(3, 'executeComponentAsyncFinish', 'fast', 'fast', 'plugin', 6100)
+  ]);
+  const event = (key: string, kind: string) => trace.events.find(each => each.key === key && each.kind === kind)!;
+  expect([event('calc', 'ran').ms, event('calc', 'ran').slow]).toEqual([360, true]);
+  expect([event('quick', 'ran').ms, event('quick', 'ran').slow]).toEqual([40, undefined]);
+  expect([event('plug', 'wait').ms, event('plug', 'wait').slow]).toEqual([3200, true]);
+  // A wait has more room than a run: 2.5 s is fine for a plug-in.
+  expect([event('fast', 'wait').ms, event('fast', 'wait').slow]).toEqual([2500, undefined]);
+  expect(slowAfter).toEqual({ ran:300, wait:3000 });
+});
+
+test('a setup lane holds only values set during setup', () => {
+  const trace = buildTrace(log);
+  expect(trace.lanes.filter(lane => lane.setup).map(lane => lane.key)).toEqual(['env', 'vars']);
+  // init was set during setup but also queued and ran, so it is not a setup lane.
+  expect(trace.lanes.find(lane => lane.key === 'init')!.setup).toBe(false);
+  // A failure on a setup lane makes it part of the run.
+  expect(buildTrace(log, { component:'env', message:'Bad' }).lanes.find(lane => lane.key === 'env')!.setup).toBe(false);
 });
 
 test('durations read as ms under a second and s above', () => {

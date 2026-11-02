@@ -26,8 +26,11 @@ export interface TraceEvent {
   // Unqork's eventType, or for a wait the start's.
   eventType: string;
   at?: number;
-  // A wait's duration, and the tick it finished in when that is later.
+  // A wait's duration, and the tick it finished in when that is later. For a run, the time from it to the
+  // last event it caused in the same step, which is as close to its own work as the log tells.
   ms?: number;
+  // Took longer than `slowAfter` allows for its kind.
+  slow?: boolean;
   endTick?: number;
   // A wait whose finish is missing from the log.
   open?: boolean;
@@ -38,10 +41,15 @@ export interface TraceEvent {
 }
 
 export interface Step { tick: number; number: number; ms?: number; events: number; changes: number }
-export interface Lane { key: string; type: string }
+// A setup lane holds only values set during setup, such as the module's hidden fields filled from the input.
+export interface Lane { key: string; type: string; setup: boolean }
 export interface Trace { steps: Step[]; lanes: Lane[]; events: TraceEvent[]; byId: Map<string, TraceEvent> }
 
 const setup = '__setup__';
+
+// When a run or a wait counts as slow. A native component's run usually takes a few milliseconds; a wait is
+// a plug-in, integrator or other remote call, which is expected to take longer.
+export const slowAfter = { ran:300, wait:3000 };
 const string = (value: unknown, fallback = '') => typeof value === 'string' && value ? value : fallback;
 
 export function buildTrace(log: Stored, problem?: Problem): Trace {
@@ -73,7 +81,7 @@ export function buildTrace(log: Stored, problem?: Problem): Trace {
     const eventType = string(entry.eventType, 'event');
     if (key === setup) return;
     const type = string(entry.componentType);
-    if (!lanes.has(key)) lanes.set(key, { key, type });
+    if (!lanes.has(key)) lanes.set(key, { key, type, setup:true });
     else if (type && !lanes.get(key)!.type) lanes.get(key)!.type = type;
     const causeKey = string(entry.causeKey, setup);
     const attributes = entry.eventAttributes && typeof entry.eventAttributes === 'object' ? entry.eventAttributes : {};
@@ -102,13 +110,15 @@ export function buildTrace(log: Stored, problem?: Problem): Trace {
     } else if (/error|fail/i.test(eventType)) event = { ...base, kind:'fail', cause:latestEvent.get(key)?.id ?? causeOf(key, causeKey), message:string(attributes.message) || undefined };
     else event = { ...base, kind:'other', cause:causeOf(key, causeKey) };
     if (event.kind === 'set') step.changes++;
+    if (event.kind !== 'set' || causeKey !== setup) lanes.get(key)!.setup = false;
     add(event);
   });
   // An execution error names the component that stopped the run; show it on that lane unless the log did.
   if (problem?.component && !events.some(event => event.kind === 'fail' && event.key === problem.component)) {
     const last = latestEvent.get(problem.component);
     const tick = last?.tick ?? [...ticks.keys()].reduce((highest, each) => Math.max(highest, each), 0);
-    if (!lanes.has(problem.component)) lanes.set(problem.component, { key:problem.component, type:last?.type || '' });
+    if (!lanes.has(problem.component)) lanes.set(problem.component, { key:problem.component, type:last?.type || '', setup:false });
+    else lanes.get(problem.component)!.setup = false;
     if (!ticks.has(tick)) ticks.set(tick, { events:0, changes:0 });
     events.push({ id:'error', tick, step:0, kind:'fail', key:problem.component, type:last?.type || '', causeKey:problem.component, cause:last?.id, eventType:'executionError', hasValue:false, message:[problem.message, problem.detail].filter(Boolean).join('\n'), attributes:{} });
   }
@@ -119,7 +129,15 @@ export function buildTrace(log: Stored, problem?: Problem): Trace {
   });
   const numbers = new Map(steps.map(step => [step.tick, step.number]));
   for (const event of events) event.step = numbers.get(event.tick)!;
-  return { steps, lanes:[...lanes.values()], events, byId:new Map(events.map(event => [event.id, event])) };
+  // A run lasts until the last event it caused in its own step; later steps belong to what it queued.
+  const byId = new Map(events.map(event => [event.id, event]));
+  for (const event of events) {
+    const cause = event.cause ? byId.get(event.cause) : undefined;
+    if (cause?.kind !== 'ran' || cause.tick !== event.tick || cause.at === undefined || event.at === undefined) continue;
+    cause.ms = Math.max(cause.ms ?? 0, event.at - cause.at);
+  }
+  for (const event of events) if ((event.kind === 'ran' || event.kind === 'wait') && event.ms !== undefined && event.ms >= slowAfter[event.kind]) event.slow = true;
+  return { steps, lanes:[...lanes.values()], events, byId };
 }
 
 // The event and every event it follows from, then the events that follow directly from it.
