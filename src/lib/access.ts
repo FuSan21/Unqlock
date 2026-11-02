@@ -2,7 +2,7 @@
 // where a popup cannot. Firefox closes its toolbar popup when a permission prompt or file picker opens,
 // and the floating menu's frame cannot always request permissions. The background opens the window
 // and works out what to request, so the window's address only names the kind of request.
-export const accessKinds = ['debug', 'devOverlay', 'badges'] as const;
+export const accessKinds = ['debug', 'devOverlay', 'sseDebugger', 'badges'] as const;
 export type AccessKind = typeof accessKinds[number];
 export const isAccessKind = (value: unknown): value is AccessKind => accessKinds.includes(value as AccessKind);
 

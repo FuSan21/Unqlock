@@ -43,7 +43,8 @@ DEBUG TOOLS
 • Data: add, update or remove in-memory submission properties using Text, Number or JSON values.
 • Execute: run a component by its exact key.
 • Review an inline confirmation before changing data or executing a component. Production actions are called out explicitly.
-• Detach dev overlay (optional): open Unqork's SSE Debugger drawer in its own window, with every control working and the builder still in view.
+• Detach dev overlay (optional): open Unqork's SSE Debugger drawer in a full-size window of its own, with every control working, and keep it on another screen while you build.
+• Unqlock SSE debugger (optional): run a module server-side and see each step at a glance: which component set each value and why, async waits, failures, changed values, output and the raw request.
 
 YOUR WORKSPACE
 • Open the menu from the browser toolbar or floating Unqlock launcher.
@@ -58,7 +59,7 @@ Appearance and panel controls support the modern Unqork Config builder on HTTPS 
 PRIVACY AND SAFETY
 Preferences, panel widths and saved hostname groups remain in browser-local storage. Automatic discovery records hostnames only, not paths, queries or module content. Settings exports go only to your clipboard or a file you save. Unqlock does not collect analytics or transmit page data to developer-operated servers.
 
-Debug tools use active-tab access from the toolbar. From the floating launcher, they request optional access to that hostname when enabled. Automatic badges on saved custom domains also require optional site access, and so does the Detach dev overlay option in Debug tools, which requests access to unqork.io sites when turned on and gives it back when turned off. Declining leaves other settings usable.
+Debug tools use active-tab access from the toolbar. From the floating launcher, they request optional access to that hostname when enabled. Automatic badges on saved custom domains also require optional site access, and so do the Detach dev overlay and Unqlock SSE debugger options in Debug tools, which request access to unqork.io sites when turned on and give it back when both are off. Declining leaves other settings usable.
 
 Logged data may contain sensitive information. Property edits affect in-memory data; executed components may save data or call external integrations. Environment-switch links preserve the URL path, query and fragment. Production safeguards apply to Unqlock actions, not the application’s own controls.
 

@@ -4,6 +4,7 @@ import * as Access from '@/lib/access';
 import * as DevOverlay from '@/lib/dev-overlay';
 import * as Environment from '@/lib/environment';
 import { runQuickAction, type QuickRequest } from '@/lib/quick-actions';
+import * as SseDebugger from '@/lib/sse-debugger';
 import * as WhatsNew from '@/lib/whats-new';
 
 export default defineBackground(() => {
@@ -31,21 +32,25 @@ export default defineBackground(() => {
     }
     return origins.filter(origin => !permitted.includes(origin));
   }
-  // Detach dev overlay's scripts exist only while the option is on and its site access is granted:
-  // Chrome does not extend the manifest content scripts' access to registered ones. Turning it on also
-  // adds the button to builder tabs already open; the guard can only take effect from their next load.
+  // The dev overlay's scripts exist only while Detach dev overlay or the Unqlock SSE debugger is on and
+  // their site access is granted: Chrome does not extend the manifest content scripts' access to
+  // registered ones. Turning one on also adds its button to builder tabs already open; the guard, which
+  // only Detach needs, can only take effect from their next load.
+  const overlayOptions = async () => {
+    const stored = await api.storage.local.get([DevOverlay.key, SseDebugger.key]);
+    return { detach:DevOverlay.enabled(stored[DevOverlay.key]), debugger:SseDebugger.enabled(stored[SseDebugger.key]) };
+  };
   async function syncOverlay(inject = false) {
-    const on = DevOverlay.enabled((await api.storage.local.get(DevOverlay.key))[DevOverlay.key])
-      && await api.permissions.contains({ origins:DevOverlay.matches });
+    const granted = await api.permissions.contains({ origins:DevOverlay.matches });
+    const options = await overlayOptions();
+    const wanted = granted ? DevOverlay.needed(options.detach, options.debugger) : [];
     const ids = DevOverlay.scripts.map(script => script.id);
     const existing = (await api.scripting.getRegisteredContentScripts({ ids })).map(script => script.id);
-    if (!on) {
-      if (existing.length) await api.scripting.unregisterContentScripts({ ids:existing });
-      return;
-    }
-    const missing = DevOverlay.scripts.filter(script => !existing.includes(script.id));
+    const extra = existing.filter(id => !wanted.some(script => script.id === id));
+    if (extra.length) await api.scripting.unregisterContentScripts({ ids:extra });
+    const missing = wanted.filter(script => !existing.includes(script.id));
     if (missing.length) await api.scripting.registerContentScripts(missing);
-    if (!inject) return;
+    if (!inject || !wanted.length) return;
     for (const tab of await api.tabs.query({ url:DevOverlay.matches })) {
       if (tab.id === undefined) continue;
       api.scripting.insertCSS({ target:{ tabId:tab.id }, files:['/content-scripts/dev-overlay.css'] }).catch(() => {});
@@ -97,7 +102,7 @@ export default defineBackground(() => {
   }
   // What each kind of request asks for. Badges ask for the saved custom domains not yet granted.
   async function accessOrigins(kind: Access.AccessKind, tabId?: number) {
-    if (kind === 'devOverlay') return DevOverlay.matches;
+    if (kind === 'devOverlay' || kind === 'sseDebugger') return DevOverlay.matches;
     if (kind === 'debug') {
       if (tabId === undefined) throw new Error('Debug tools need a page.');
       return [(await configuredPage(tabId)).url.origin + '/*'];
@@ -109,6 +114,7 @@ export default defineBackground(() => {
   // Finishes a granted request in the background, since a Firefox toolbar popup has closed by now.
   async function afterGrant(kind: Access.AccessKind, tabId?: number) {
     if (kind === 'devOverlay') await api.storage.local.set({ [DevOverlay.key]:true });
+    if (kind === 'sseDebugger') await api.storage.local.set({ [SseDebugger.key]:true });
     if (kind === 'badges') {
       const config = await readConfig();
       await serial(() => syncScripts(config));
@@ -122,10 +128,37 @@ export default defineBackground(() => {
     if (tabId !== undefined) await api.tabs.sendMessage(tabId, { type:'access.changed', kind }, { frameId:0 }).catch(() => {});
   }
   api.tabs.onRemoved.addListener(tabId => api.storage.session.remove(sourceKey(tabId)).catch(() => {}));
+  // One debugger window per builder tab: a second click focuses it. Window IDs by tab live in session storage.
+  const debuggerWindows = 'sse.windows';
+  // It opens maximized. A browser that refuses a maximized popup gets the screen's work area the page reported.
+  // The map of windows is read and written through the background's queue, so two at once lose nothing.
+  const readWindows = async () => ((await api.storage.session.get(debuggerWindows))[debuggerWindows] || {}) as Record<string, number>;
+  async function openDebugger(tabId: number, screen: Record<string, unknown>) {
+    const windows = await readWindows();
+    const existing = windows[tabId];
+    if (existing !== undefined) {
+      try { await api.windows.update(existing, { focused:true }); return; } catch {}
+    }
+    const url = api.runtime.getURL(SseDebugger.page) + '?tab=' + tabId;
+    const number = (value: unknown, minimum: number) => typeof value === 'number' && Number.isFinite(value) && value >= minimum ? Math.round(value) : undefined;
+    const width = number(screen.width, 480), height = number(screen.height, 480), left = number(screen.left, -100000), top = number(screen.top, -100000);
+    const created = await api.windows.create({ url, type:'popup', state:'maximized' }).catch(() => api.windows.create({
+      url, type:'popup', width:width ?? SseDebugger.size.width, height:height ?? SseDebugger.size.height,
+      ...(width !== undefined && left !== undefined ? { left } : {}), ...(height !== undefined && top !== undefined ? { top } : {})
+    }));
+    if (created?.id !== undefined) await api.storage.session.set({ [debuggerWindows]:{ ...await readWindows(), [tabId]:created.id } });
+  }
+  api.windows?.onRemoved?.addListener(windowId => {
+    serial(async () => {
+      const windows = await readWindows();
+      const kept = Object.fromEntries(Object.entries(windows).filter(([, id]) => id !== windowId));
+      if (Object.keys(kept).length !== Object.keys(windows).length) await api.storage.session.set({ [debuggerWindows]:kept });
+    }).catch(() => {});
+  });
   api.runtime.onMessage.addListener((message, sender, respond) => {
     if (message?.type === 'prompt.open') {
       // Debug tools open theirs through debug.permission, which resolves and checks the page first.
-      if (!fromPage(sender, '/popup.html') || !['devOverlay', 'badges', 'import'].includes(message.kind)) return;
+      if (!fromPage(sender, '/popup.html') || !['devOverlay', 'sseDebugger', 'badges', 'import'].includes(message.kind)) return;
       // A floating menu names its own tab, to be told when access is granted.
       const tabId = sender.frameId ? sender.tab?.id : undefined;
       (async () => {
@@ -138,24 +171,40 @@ export default defineBackground(() => {
       })().then(respond, error => respond({ ok:false, error:error.message }));
       return true;
     }
-    // Detach dev overlay is read and changed here, since a floating menu frame may have no permissions API.
+    // Detach dev overlay and the Unqlock SSE debugger are read and changed here, since a floating menu
+    // frame may have no permissions API. They share one unqork.io grant.
     if (message?.type === 'devOverlay.state' || message?.type === 'devOverlay.set') {
       if (!fromPage(sender, '/popup.html')) return;
+      const key = message.option === 'debugger' ? SseDebugger.key : DevOverlay.key;
+      const other = key === DevOverlay.key ? SseDebugger.key : DevOverlay.key;
       (async () => {
         const granted = await api.permissions.contains({ origins:DevOverlay.matches });
         if (message.type === 'devOverlay.set') {
           if (message.on === true) {
             // Turning on needs the access first; the popup asks for it, directly or in the prompt window.
             if (!granted) return { ok:true, on:false, needsAccess:true };
-            await api.storage.local.set({ [DevOverlay.key]:true });
+            await api.storage.local.set({ [key]:true });
           } else {
-            await api.storage.local.set({ [DevOverlay.key]:false });
-            // Gives the access back, so nothing more runs on Unqork pages for this option.
-            await api.permissions.remove({ origins:DevOverlay.matches }).catch(() => false);
+            await api.storage.local.set({ [key]:false });
+            // Gives the access back once neither option needs it, so nothing more runs on Unqork pages.
+            if ((await api.storage.local.get(other))[other] !== true) await api.permissions.remove({ origins:DevOverlay.matches }).catch(() => false);
           }
         }
-        const on = DevOverlay.enabled((await api.storage.local.get(DevOverlay.key))[DevOverlay.key]);
+        const on = (await api.storage.local.get(key))[key] === true;
         return { ok:true, on:on && await api.permissions.contains({ origins:DevOverlay.matches }) };
+      })().then(respond, error => respond({ ok:false, error:error.message }));
+      return true;
+    }
+    // Open in Unqlock debugger, from the button on Unqork's dev overlay in a builder tab.
+    if (message?.type === 'sse.open') {
+      if (!sender.tab?.id || sender.frameId !== 0 || !sender.url) return;
+      let url;
+      try { url = new URL(sender.url); } catch { return; }
+      if (url.protocol !== 'https:' || !url.hostname.endsWith('.unqork.io')) return;
+      (async () => {
+        if (!(await overlayOptions()).debugger) throw new Error('The Unqlock SSE debugger is off.');
+        await serial(() => openDebugger(sender.tab!.id!, { width:message.width, height:message.height, left:message.left, top:message.top }));
+        return { ok:true };
       })().then(respond, error => respond({ ok:false, error:error.message }));
       return true;
     }
@@ -272,12 +321,12 @@ export default defineBackground(() => {
   // Persistent registrations survive reloads. Reconcile on grants, revocations and startup.
   const sync = () => serial(async () => syncScripts(await readConfig())).catch(() => {});
   const syncDevOverlay = (inject?: boolean) => serial(() => syncOverlay(inject)).catch(() => {});
-  // Detach dev overlay's scripts follow its unqork.io grant too.
+  // The dev overlay's scripts follow their unqork.io grant too.
   api.permissions.onAdded.addListener(() => { sync(); syncDevOverlay(); });
   api.permissions.onRemoved.addListener(() => { sync(); syncDevOverlay(); });
   api.runtime.onStartup.addListener(() => { sync(); syncDevOverlay(); showBadge(); });
   api.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes[DevOverlay.key]) syncDevOverlay(true);
+    if (area === 'local' && (changes[DevOverlay.key] || changes[SseDebugger.key])) syncDevOverlay(true);
   });
   api.runtime.onInstalled.addListener(({ reason, previousVersion }) => {
     installed(reason, previousVersion);

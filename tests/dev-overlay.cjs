@@ -19,7 +19,12 @@ async function run(firefoxMode) {
     await context.addInitScript({ content:source('dev-overlay-guard.js') });
     await context.addInitScript(() => {
       const listeners = [];
-      window.browser = { runtime:{ id:'fixture', onMessage:{ addListener() {} } }, storage:{ onChanged:{ addListener:fn => listeners.push(fn) } } };
+      // Both options are on here: Detach, and the Unqlock SSE debugger, whose button sends sse.open.
+      window.sent = [];
+      window.browser = {
+        runtime:{ id:'fixture', onMessage:{ addListener() {} }, sendMessage:async message => { window.sent.push(message); } },
+        storage:{ local:{ get:async () => ({ devOverlayDetach:true, sseDebugger:true }) }, onChanged:{ addListener:fn => listeners.push(fn) } }
+      };
       window.turnOff = () => listeners.forEach(fn => fn({ devOverlayDetach:{ oldValue:true, newValue:false } }, 'local'));
     });
     await context.addInitScript({ content:`document.addEventListener('DOMContentLoaded', () => window.injectOverlay())` });
@@ -89,6 +94,22 @@ async function run(firefoxMode) {
     assert.equal(await detach.getAttribute('class'), 'minimize', 'Detach takes the classes of Minimize');
     await page.evaluate(() => window.rerenderHeader());
     await detach.waitFor();
+    if (firefoxMode) {
+      // With the SSE debugger on too, its button comes first, right beside Detach, and asks the background
+      // to open its window sized to the screen.
+      const openDebugger = page.locator('[data-unqlock-debugger]');
+      await openDebugger.waitFor({ timeout:5000 });
+      assert.equal(await openDebugger.evaluate(button => button.nextElementSibling?.hasAttribute('data-unqlock-detach')), true);
+      assert.equal(await openDebugger.getAttribute('aria-label'), 'Open in Unqlock debugger');
+      assert.equal(await openDebugger.getAttribute('class'), 'minimize');
+      const gap = await openDebugger.evaluate(button => button.nextElementSibling.getBoundingClientRect().left - button.getBoundingClientRect().right);
+      assert(gap < 8, 'The two buttons sit together, not spread apart: ' + gap);
+      await openDebugger.click();
+      const sent = await page.evaluate(() => window.sent);
+      assert.equal(sent.length, 1);
+      assert.equal(sent[0].type, 'sse.open');
+      assert(sent[0].width > 0 && sent[0].height > 0);
+    }
 
     // Detaching opens the same module in a named popup and minimizes the drawer here.
     let [popup] = await Promise.all([context.waitForEvent('page'), detach.click()]);
@@ -96,6 +117,12 @@ async function run(firefoxMode) {
     await opened(popup);
     assert.equal(new URL(popup.url()).pathname, route);
     assert.equal(await popup.evaluate(() => window.name), 'unqlock-dev-overlay');
+    // It covers the screen's work area rather than taking the drawer's size; a window that runs past it, as
+    // Firefox's does, fits itself once loaded.
+    const covers = () => Math.abs(outerWidth - screen.availWidth) <= 16 && Math.abs(outerHeight - screen.availHeight) <= 16;
+    await popup.waitForFunction(covers, null, { timeout:5000 }).catch(() => {});
+    const size = await popup.evaluate(() => [outerWidth, outerHeight, screen.availWidth, screen.availHeight]);
+    assert(await popup.evaluate(covers), 'The detached window covers the screen: ' + size);
     await hidden(page, 'true');
     assert.equal((await stored(page, 'ide-dev-overlay')).open, false);
 

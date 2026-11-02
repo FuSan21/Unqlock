@@ -225,9 +225,49 @@ test('in Firefox, the floating menu turns Detach dev overlay on in the prompt wi
   await changed();
   expect(option.checked).toBe(false);
 
-  // On again with access already held needs no window.
+  // On again with access already held, here because the other option keeps it, opens no window at all.
   state.granted = true;
   click(option); await settle();
-  expect(messages.filter(message => message.type === 'prompt.open')).toHaveLength(2);
+  expect(messages.filter(message => message.type === 'prompt.open')).toHaveLength(1);
   expect(option.checked).toBe(true);
+});
+
+// The Unqlock SSE debugger switch shares the background's messages with Detach, naming its option, and
+// keeps the shared unqork.io access while Detach still needs it.
+test.each(apiNames)('Unqlock SSE debugger turns on and off on its own, beside Detach dev overlay (%s)', async apiName => {
+  const stored: Record<string, unknown> = { devOverlayDetach:true };
+  let granted = true;
+  const messages: { type: string; on?: boolean; option?: string }[] = [];
+  const api = {
+    storage:{ local:{ get:async () => ({}), set:async () => {} } },
+    tabs:{ query:async () => [{ id:7, url:'https://example.test/app' }] },
+    permissions:{ request:async () => granted },
+    runtime:{ getManifest:() => ({ version:'1.0.0' }), sendMessage:async (message: { type: string; on?: boolean; option?: string }) => {
+      messages.push(message);
+      if (!message.type.startsWith('devOverlay.')) return { ok:true, config:{}, missingOrigins:[] };
+      const key = message.option === 'debugger' ? 'sseDebugger' : 'devOverlayDetach';
+      if (message.type === 'devOverlay.set') stored[key] = message.on;
+      return { ok:true, on:stored[key] === true && granted };
+    } },
+    scripting:{ executeScript:async () => [{ result:true }] }
+  };
+  await renderPopup(apiName, api);
+  click(query('[aria-controls="quick-page"]')); await settle();
+  const detach = query<HTMLInputElement>('input[name="dev-overlay-detach"]');
+  const option = query<HTMLInputElement>('input[name="sse-debugger"]');
+  expect([detach.checked, option.checked]).toEqual([true, false]);
+  expect(option.getAttribute('aria-describedby')).toBe('sse-debugger-help');
+  expect(byId('sse-debugger-help').textContent).toMatch(/opens Unqlock’s debugger in its own window/);
+
+  click(option); await settle();
+  expect(stored).toEqual({ devOverlayDetach:true, sseDebugger:true });
+  expect(option.checked).toBe(true);
+  expect(byId('sse-debugger-status').textContent).toMatch(/Open in Unqlock debugger/);
+  expect(messages.filter(message => message.type === 'devOverlay.set')).toEqual([{ type:'devOverlay.set', on:true, option:'debugger' }]);
+
+  click(option); await settle();
+  expect([detach.checked, option.checked]).toEqual([true, false]);
+  expect(stored.sseDebugger).toBe(false);
+  // Detach's own messages name no option, as before.
+  expect(messages.filter(message => message.type === 'devOverlay.state' && !message.option)).not.toHaveLength(0);
 });

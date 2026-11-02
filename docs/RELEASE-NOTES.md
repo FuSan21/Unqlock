@@ -1,6 +1,6 @@
-## New in 1.6.2
+## New in 1.7.0
 
-- **Mark disabled components:** components whose **Disable Execution** (logic such as Decisions) or **Disabled** (inputs) is turned on in Properties now stand out on the canvas, with a dashed, hatched frame, faded contents and a struck-through name. It is the first option under Component frames and is on by default; a disabled container marks only its own header and frame.
+- **Unqlock SSE debugger:** a new opt-in Debug tools option adds **Open in Unqlock debugger** to Unqork's SSE Debugger drawer. It opens Unqlock's own window for that builder tab, where **Run module** runs the module on the server and shows the run at a glance: a one-line result, the component that stopped a failed run, and **Steps** with one lane per component and one column per step, so you can select any value and trace which component set it and why. **Changes**, **Output** and **Raw** show the changed values, the returned data and the exact request and response. It works beside Detach dev overlay, and asks for the same access to unqork.io sites.
 
 ## Package notes
 

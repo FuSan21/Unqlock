@@ -40,9 +40,10 @@ const groups = {
     ['Builder panels (Firefox)', test('builder-panels.cjs'), ['--firefox']],
     ['Firefox MAIN-world panel bridge', test('firefox-panel-bridge.cjs')]
   ] },
-  overlay:{ title:'Dev overlay', browsers:['chromium', 'firefox'], tests:[
+  overlay:{ title:'Dev overlay and SSE debugger', browsers:['chromium', 'firefox'], tests:[
     ['Detached dev overlay (Chrome)', test('dev-overlay.cjs')],
-    ['Detached dev overlay (Firefox)', test('dev-overlay.cjs'), ['--firefox']]
+    ['Detached dev overlay (Firefox)', test('dev-overlay.cjs'), ['--firefox']],
+    ['Unqlock SSE debugger (Chrome)', test('sse-debugger.cjs')]
   ] },
   prompt:{ title:'Prompt window', browsers:['chromium'], tests:[
     ['Site access and file import window (Chrome)', test('prompt-window.cjs')]

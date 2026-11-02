@@ -17,6 +17,12 @@ const copy: Record<AccessKind, Copy> = {
     uses:['Add the Detach button to the dev overlay in builder tabs', 'Keep the detached window from saving over your open tabs'],
     done:'Detach dev overlay is on. Open builder tabs show the button now.'
   },
+  sseDebugger: {
+    title:() => 'Allow the Unqlock SSE debugger on Unqork?',
+    lead:'The Unqlock SSE debugger adds a button to Unqork’s SSE Debugger drawer and runs modules from the builder tab, so Unqlock needs access to Unqork’s builder sites.',
+    uses:['Add the Open in Unqlock debugger button to the dev overlay in builder tabs', 'Run a module on the server from that tab when you choose Run module, and show its steps'],
+    done:'The Unqlock SSE debugger is on. Open builder tabs show its button now.'
+  },
   badges: {
     title:() => 'Allow automatic badges on your domains?',
     lead:'Your saved custom domains need site access before Unqlock can show its environment badge on them.',

@@ -2,6 +2,7 @@ import { defineContentScript } from 'wxt/utils/define-content-script';
 import { api } from '@/lib/api';
 import { detachedName, inIde, isDetached, whenIde } from '@/lib/builder-route';
 import * as DevOverlay from '@/lib/dev-overlay';
+import * as SseDebugger from '@/lib/sse-debugger';
 import './style.css';
 
 const overlaySelector = '[data-testid="dev-overlay"]';
@@ -22,11 +23,11 @@ function icon(like: Element | null, shapes: [string, Record<string, string>][]) 
   return svg;
 }
 
-// A button beside Unqork's Minimize button, styled like it. The row spreads its children apart, so
-// style.css pushes this one right, next to Minimize.
-function button(minimize: HTMLButtonElement, attribute: string, label: string, shapes: [string, Record<string, string>][], action: () => void) {
+// A button before Unqork's Minimize button, or before another added one, styled like Minimize. The row
+// spreads its children apart, so style.css pushes the first added button right, next to Minimize.
+function button(minimize: HTMLButtonElement, attribute: string, label: string, shapes: [string, Record<string, string>][], action: () => void, before: Element = minimize) {
   const current = minimize.parentElement?.querySelector<HTMLButtonElement>(`:scope > [${attribute}]`);
-  if (current?.nextElementSibling === minimize) return;
+  if (current?.nextElementSibling === before) return;
   const created = document.createElement('button');
   created.type = 'button';
   created.setAttribute(attribute, '');
@@ -36,12 +37,28 @@ function button(minimize: HTMLButtonElement, attribute: string, label: string, s
   created.append(icon(minimize.querySelector('svg'), shapes));
   created.addEventListener('click', action);
   current?.remove();
-  minimize.before(created);
+  before.before(created);
 }
+
+// The screen this page is on, without the taskbar or dock. availLeft and availTop place it among several
+// screens; Firefox and Chrome have them, other engines may not.
+function workArea() {
+  const area = screen as Screen & { availLeft?: number; availTop?: number };
+  return { left:area.availLeft ?? 0, top:area.availTop ?? 0, width:screen.availWidth, height:screen.availHeight };
+}
+
+// Lucide's bug icon, for Open in Unqlock debugger.
+const bug: [string, Record<string, string>][] = [
+  ['path', { d:'m8 2 1.88 1.88' }], ['path', { d:'M14.12 3.88 16 2' }], ['path', { d:'M9 7.13v-1a3.003 3.003 0 1 1 6 0v1' }],
+  ['path', { d:'M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6' }], ['path', { d:'M12 20v-9' }],
+  ['path', { d:'M6.53 9C4.6 8.8 3 7.1 3 5' }], ['path', { d:'M6 13H2' }], ['path', { d:'M3 21c0-2.1 1.7-3.9 3.8-4' }],
+  ['path', { d:'M20.97 5c0 2.1-1.6 3.8-3.5 4' }], ['path', { d:'M22 13h-4' }], ['path', { d:'M17.2 17c2.1.1 3.8 1.9 3.8 4' }]
+];
 
 export default defineContentScript({
   // Registered by the background on every unqork.io page, since Unqork's module search reaches the
-  // builder without a page load, and only while Debug tools → Detach dev overlay is on.
+  // builder without a page load, and only while Debug tools → Detach dev overlay or Unqlock SSE debugger
+  // is on. It adds the button of each option that is on.
   registration: 'runtime',
   // Don't broadcast WXT's start-up message to the page's own message listeners.
   noScriptStartedPostMessage: true,
@@ -65,19 +82,43 @@ export default defineContentScript({
       observer.observe(document.documentElement, { childList:true, subtree:true, ...options });
       schedule();
     };
-    // Turning the option off removes what was added; reloaded pages no longer get the script at all.
-    api.storage.onChanged.addListener((changes, area) => {
-      if (area !== 'local' || !changes[DevOverlay.key] || DevOverlay.enabled(changes[DevOverlay.key].newValue)) return;
+    // Which buttons to add. Turning an option off removes its button; with both off the script stands down,
+    // and reloaded pages no longer get it at all.
+    const options = { detach:false, debugger:false };
+    const remove = (selector: string) => document.querySelectorAll(selector).forEach(button => button.remove());
+    function apply() {
+      if (!options.detach) remove('[data-unqlock-detach], [data-unqlock-reattach]');
+      if (!options.debugger) remove('[data-unqlock-debugger]');
+      if (options.detach || options.debugger) { schedule(); return; }
+      // Standing down: turning an option on again injects a fresh copy, which owns the root attribute.
       observer.disconnect();
       render = () => {};
-      document.querySelectorAll('[data-unqlock-detach], [data-unqlock-reattach]').forEach(button => button.remove());
+      api.storage.onChanged.removeListener?.(changed);
       root.removeAttribute(stateAttribute);
-    });
+    }
+    function changed(changes: Record<string, { newValue?: unknown }>, area: string) {
+      if (area !== 'local' || (!changes[DevOverlay.key] && !changes[SseDebugger.key])) return;
+      if (changes[DevOverlay.key]) options.detach = DevOverlay.enabled(changes[DevOverlay.key].newValue);
+      if (changes[SseDebugger.key]) options.debugger = SseDebugger.enabled(changes[SseDebugger.key].newValue);
+      apply();
+    }
+    api.storage.onChanged.addListener(changed);
+    api.storage.local.get([DevOverlay.key, SseDebugger.key]).then(stored => {
+      options.detach = DevOverlay.enabled(stored[DevOverlay.key]);
+      options.debugger = SseDebugger.enabled(stored[SseDebugger.key]);
+      apply();
+    }).catch(() => {});
 
     // The popup is a full copy of the builder showing only the overlay, so dropdowns, editors and
     // Execute keep working as Unqork wrote them. Its debugger state is its own.
     if (isDetached()) {
       if (!inIde()) return;
+      // Firefox reads the opener's width and height as the content area and adds its frame, which runs the
+      // window past the work area; once loaded, a window that overflows fits itself to it.
+      const area = workArea();
+      if (outerWidth > area.width + 8 || outerHeight > area.height + 8) {
+        try { moveTo(area.left, area.top); resizeTo(area.width, area.height); } catch {}
+      }
       // Unqork saves the overlay as minimized when it is detached; open it here, a few times at most.
       let expands = 0;
       watch(() => {
@@ -88,7 +129,7 @@ export default defineContentScript({
         }
         const minimize = document.querySelector<HTMLButtonElement>(minimizeSelector);
         // Closing the popup is what reattaches; the opener notices and expands its overlay.
-        if (minimize) button(minimize, 'data-unqlock-reattach', 'Reattach dev overlay', [
+        if (minimize && options.detach) button(minimize, 'data-unqlock-reattach', 'Reattach dev overlay', [
           ['rect', { width:'18', height:'18', x:'3', y:'3', rx:'2' }], ['path', { d:'M3 15h18' }], ['path', { d:'m9 10 3 3 3-3' }]
         ], () => window.close());
         if (!document.title.startsWith('Dev overlay · ')) document.title = 'Dev overlay · ' + document.title;
@@ -101,11 +142,10 @@ export default defineContentScript({
       let timer = 0;
       function detach() {
         const minimize = document.querySelector<HTMLButtonElement>(minimizeSelector);
-        const rect = document.querySelector(overlaySelector)?.getBoundingClientRect();
-        const width = Math.min(screen.availWidth, Math.max(900, Math.round(rect?.width || 0)));
-        const height = Math.min(screen.availHeight, Math.max(600, Math.round(rect?.height || 0)));
+        // A page cannot open a window maximized, so the popup covers the screen's work area instead.
+        const { left, top, width, height } = workArea();
         // The same name reuses an open popup, which moves to this module.
-        const opened = window.open(location.href, detachedName, `popup,width=${width},height=${height}`);
+        const opened = window.open(location.href, detachedName, `popup,left=${left},top=${top},width=${width},height=${height}`);
         if (!opened) return;
         opened.focus();
         popup = opened;
@@ -118,11 +158,17 @@ export default defineContentScript({
           if (document.querySelector(overlaySelector)?.getAttribute('aria-hidden') === 'true') document.querySelector<HTMLButtonElement>(expandSelector)?.click();
         }, 1000);
       }
+      // The background opens Unqlock's own window for this tab, maximized, or over this work area where it can't.
+      const openDebugger = () => { api.runtime.sendMessage({ type:'sse.open', ...workArea() }).catch(() => {}); };
       watch(() => {
         const minimize = document.querySelector<HTMLButtonElement>(minimizeSelector);
-        if (minimize) button(minimize, 'data-unqlock-detach', 'Detach dev overlay', [
+        if (!minimize) return;
+        if (options.detach) button(minimize, 'data-unqlock-detach', 'Detach dev overlay', [
           ['path', { d:'M15 3h6v6' }], ['path', { d:'M10 14 21 3' }], ['path', { d:'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' }]
         ], detach);
+        // Order in the row: Open in Unqlock debugger, Detach, Minimize.
+        if (options.debugger) button(minimize, 'data-unqlock-debugger', 'Open in Unqlock debugger', bug, openDebugger,
+          minimize.parentElement?.querySelector(':scope > [data-unqlock-detach]') || minimize);
       }, {});
     });
   }

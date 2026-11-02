@@ -1,5 +1,7 @@
 /* Unqork's overlay header spreads its children apart; an added button joins Minimize on the right. */
-[data-unqlock-detach], [data-unqlock-reattach] { margin-left:auto; }
+[data-unqlock-debugger], [data-unqlock-detach], [data-unqlock-reattach] { margin-left:auto; }
+/* Open in Unqlock debugger comes first when both are shown; Detach then sits right beside it. */
+[data-unqlock-debugger] + [data-unqlock-detach] { margin-left:0; }
 
 /* Detached: the popup shows only the overlay, filling the window over the builder underneath. Menus and
    tooltips portal to <body> above it, as they do over the drawer in the main tab. */

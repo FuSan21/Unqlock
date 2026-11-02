@@ -8,7 +8,7 @@ export const promptWindow = () => firefox() || !api.permissions?.request;
 
 // Asks for site access. Where this popup can show the browser's prompt it does, called before any await so
 // Firefox still sees the click; otherwise the background opens the prompt window, which finishes the job.
-export async function requestAccess(kind: 'devOverlay' | 'badges', origins: string[]): Promise<'granted' | 'denied' | 'window'> {
+export async function requestAccess(kind: 'devOverlay' | 'sseDebugger' | 'badges', origins: string[]): Promise<'granted' | 'denied' | 'window'> {
   if (!promptWindow()) return await api.permissions.request({ origins }) ? 'granted' : 'denied';
   const result = await api.runtime.sendMessage({ type:'prompt.open', kind });
   if (!result?.ok) throw new Error(result?.error || 'Could not open the Unqlock window.');
