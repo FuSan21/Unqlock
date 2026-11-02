@@ -23,8 +23,9 @@ async function run(firefoxMode) {
       window.sent = [];
       window.browser = {
         runtime:{ id:'fixture', onMessage:{ addListener() {} }, sendMessage:async message => { window.sent.push(message); } },
-        storage:{ local:{ get:async () => ({ devOverlayDetach:true, sseDebugger:true }) }, onChanged:{ addListener:fn => listeners.push(fn) } }
+        storage:{ local:{ get:async () => ({ devOverlayDetach:true, sseDebugger:true }) }, onChanged:{ addListener:fn => listeners.push(fn), removeListener:fn => listeners.splice(listeners.indexOf(fn), 1) } }
       };
+      window.setOption = (key, value) => listeners.forEach(fn => fn({ [key]:{ newValue:value } }, 'local'));
       window.turnOff = () => listeners.forEach(fn => fn({ devOverlayDetach:{ oldValue:true, newValue:false } }, 'local'));
     });
     await context.addInitScript({ content:`document.addEventListener('DOMContentLoaded', () => window.injectOverlay())` });
@@ -109,6 +110,19 @@ async function run(firefoxMode) {
       assert.equal(sent.length, 1);
       assert.equal(sent[0].type, 'sse.open');
       assert(sent[0].width > 0 && sent[0].height > 0);
+      // Use instead of Unqork's debugger hides the overlay, and Server-Side Execute asks for Unqlock's window
+      // without reaching Unqork's own handler; turning it off hands the button back.
+      await page.evaluate(() => window.setOption('sseDebuggerReplace', true));
+      await page.waitForFunction(() => document.documentElement.hasAttribute('data-unqlock-sse-replace'), null, { timeout:5000 });
+      assert(await page.locator('[data-testid="dev-overlay"]').isHidden());
+      assert(await page.locator('[data-testid="dev-overlay-toolbar"]').isHidden());
+      await page.locator('#server-side-execute').click();
+      assert.deepEqual(await page.evaluate(() => [window.sent.length, window.sent[1].type, window.nativeExecutes]), [2, 'sse.open', 0]);
+      await page.evaluate(() => window.setOption('sseDebuggerReplace', false));
+      await page.waitForFunction(() => !document.documentElement.hasAttribute('data-unqlock-sse-replace'), null, { timeout:5000 });
+      assert(await page.locator('[data-testid="dev-overlay"]').isVisible());
+      await page.locator('#server-side-execute').click();
+      assert.deepEqual(await page.evaluate(() => [window.sent.length, window.nativeExecutes]), [2, 1]);
     }
 
     // Detaching opens the same module in a named popup and minimizes the drawer here.

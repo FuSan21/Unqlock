@@ -63,6 +63,7 @@ header { display:flex; gap:12px; padding:22px 20px 18px; border-bottom:1px solid
 
 #floating-corner { width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; background:var(--paper); color:var(--ink); font:inherit; }
 #launcher-status { font-size:12px; margin-top:10px; }
+#dev-overlay-status, #sse-debugger-status { font-size:12px; }
 #transfer-title { margin-bottom:12px; }
 #transfer-page .action-row { margin-top:8px; }
 #transfer-page .action-row button { flex:1; }

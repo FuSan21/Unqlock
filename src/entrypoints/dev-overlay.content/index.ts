@@ -84,28 +84,47 @@ export default defineContentScript({
     };
     // Which buttons to add. Turning an option off removes its button; with both off the script stands down,
     // and reloaded pages no longer get it at all.
-    const options = { detach:false, debugger:false };
+    const options = { detach:false, debugger:false, replace:false };
     const remove = (selector: string) => document.querySelectorAll(selector).forEach(button => button.remove());
+    // Use instead of Unqork's debugger: style.css hides the dev overlay while the root carries this, and
+    // Server-Side Execute opens Unqlock's window. Not in a detached copy, which shows only the overlay.
+    const replaceAttribute = 'data-unqlock-sse-replace';
+    const replacing = () => options.debugger && options.replace && !isDetached();
+    const openDebugger = () => { api.runtime.sendMessage({ type:'sse.open', ...workArea() }).catch(() => {}); };
+    // Caught on the window in the capture phase, before React's root listener sees the click.
+    function serverSideExecute(event: MouseEvent) {
+      if (!replacing() || !inIde()) return;
+      const trigger = (event.target as Element | null)?.closest?.('button');
+      if (!trigger || trigger.closest(overlaySelector) || trigger.textContent?.trim() !== 'Server-Side Execute') return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      openDebugger();
+    }
+    window.addEventListener('click', serverSideExecute, true);
     function apply() {
       if (!options.detach) remove('[data-unqlock-detach], [data-unqlock-reattach]');
       if (!options.debugger) remove('[data-unqlock-debugger]');
+      root.toggleAttribute(replaceAttribute, replacing());
       if (options.detach || options.debugger) { schedule(); return; }
       // Standing down: turning an option on again injects a fresh copy, which owns the root attribute.
       observer.disconnect();
       render = () => {};
       api.storage.onChanged.removeListener?.(changed);
+      window.removeEventListener('click', serverSideExecute, true);
       root.removeAttribute(stateAttribute);
     }
     function changed(changes: Record<string, { newValue?: unknown }>, area: string) {
-      if (area !== 'local' || (!changes[DevOverlay.key] && !changes[SseDebugger.key])) return;
+      if (area !== 'local' || (!changes[DevOverlay.key] && !changes[SseDebugger.key] && !changes[SseDebugger.replaceKey])) return;
       if (changes[DevOverlay.key]) options.detach = DevOverlay.enabled(changes[DevOverlay.key].newValue);
       if (changes[SseDebugger.key]) options.debugger = SseDebugger.enabled(changes[SseDebugger.key].newValue);
+      if (changes[SseDebugger.replaceKey]) options.replace = SseDebugger.enabled(changes[SseDebugger.replaceKey].newValue);
       apply();
     }
     api.storage.onChanged.addListener(changed);
-    api.storage.local.get([DevOverlay.key, SseDebugger.key]).then(stored => {
+    api.storage.local.get([DevOverlay.key, SseDebugger.key, SseDebugger.replaceKey]).then(stored => {
       options.detach = DevOverlay.enabled(stored[DevOverlay.key]);
       options.debugger = SseDebugger.enabled(stored[SseDebugger.key]);
+      options.replace = SseDebugger.enabled(stored[SseDebugger.replaceKey]);
       apply();
     }).catch(() => {});
 
@@ -158,8 +177,6 @@ export default defineContentScript({
           if (document.querySelector(overlaySelector)?.getAttribute('aria-hidden') === 'true') document.querySelector<HTMLButtonElement>(expandSelector)?.click();
         }, 1000);
       }
-      // The background opens Unqlock's own window for this tab, maximized, or over this work area where it can't.
-      const openDebugger = () => { api.runtime.sendMessage({ type:'sse.open', ...workArea() }).catch(() => {}); };
       watch(() => {
         const minimize = document.querySelector<HTMLButtonElement>(minimizeSelector);
         if (!minimize) return;

@@ -5,7 +5,7 @@ import * as SseDebugger from '@/lib/sse-debugger';
 import { Segmented, Select, TextField, Toggle } from '../components/controls';
 import { Tabs } from '../components/Tabs';
 import { Unavailable } from '../components/Unavailable';
-import { ActionRow, Button, Card, Note, Page, Status } from '../components/layout';
+import { ActionRow, Button, Note, Page, SettingsHeading, Status } from '../components/layout';
 import { promptWindow, requestAccess } from '../access';
 import { useDebug, type FeedbackId, type ValueType } from '../debug';
 import { usePageLeave, usePageOpen } from '../pages';
@@ -34,15 +34,29 @@ function ActionButton({ action, feedback, primary, children }: { action: 'log' |
 const overlayOptions = {
   detach:{
     key:DevOverlay.key, kind:'devOverlay', name:'dev-overlay-detach', id:'dev-overlay', label:'Detach dev overlay',
-    on:'On. Open builder tabs show Detach on the SSE Debugger drawer.',
-    help:'Adds a button to the SSE Debugger drawer that opens it in a full-size window of its own, which you can keep on another screen, and minimizes the drawer in the builder.'
+    on:'On. The Detach button is in the dev overlay.'
   },
   debugger:{
     key:SseDebugger.key, kind:'sseDebugger', name:'sse-debugger', id:'sse-debugger', label:'Unqlock SSE debugger',
-    on:'On. Open builder tabs show Open in Unqlock debugger on the SSE Debugger drawer.',
-    help:'Adds a button to the SSE Debugger drawer that opens Unqlock’s debugger in its own window: each run’s steps, changed values and output, easy to scan.'
+    on:'On. The debugger button is in the dev overlay.'
   }
 } as const;
+
+// Under the Unqlock SSE debugger: hide Unqork's dev overlay and open Unqlock's debugger from Server-Side
+// Execute instead. A plain preference, since the debugger already holds the access it needs.
+function ReplaceOption() {
+  const [on, setOn] = useState(false);
+  const load = () => { api.storage.local.get(SseDebugger.replaceKey).then(stored => setOn(SseDebugger.enabled(stored[SseDebugger.replaceKey])), () => {}); };
+  usePageOpen('quick-page', load);
+  useEffect(load, []);
+  const change = (value: boolean) => {
+    setOn(value);
+    api.storage.local.set({ [SseDebugger.replaceKey]:value }).catch(() => setOn(!value));
+  };
+  return (
+    <Toggle name="sse-debugger-replace" label="Use instead of Unqork’s debugger" checked={on} aria-describedby="dev-overlay-help" onChange={change} />
+  );
+}
 
 function OverlayOption({ option }: { option: keyof typeof overlayOptions }) {
   const settings = overlayOptions[option];
@@ -79,34 +93,35 @@ function OverlayOption({ option }: { option: keyof typeof overlayOptions }) {
         let result: { on: boolean; needsAccess?: boolean } = promptWindow() ? await send({ type:'devOverlay.set', on:true }) : { on:false, needsAccess:true };
         if (result.needsAccess) {
           const access = await requestAccess(settings.kind, DevOverlay.matches);
-          if (access === 'window') { setStatus('Allow access in the Unqlock window to turn this on.'); return; }
-          if (access === 'denied') { setStatus('Site access was not granted, so the option stays off.'); return; }
+          if (access === 'window') { setStatus('Allow access in the Unqlock window.'); return; }
+          if (access === 'denied') { setStatus('Access not granted, so it stays off.'); return; }
           result = await send({ type:'devOverlay.set', on:true });
         }
-        setStatus(result.on ? settings.on : 'Site access was not granted, so the option stays off.');
+        setStatus(result.on ? settings.on : 'Access not granted, so it stays off.');
       } else {
         await send({ type:'devOverlay.set', on:false });
-        setStatus('Off. Its button is removed from Unqork pages.');
+        setStatus('Off.');
       }
-    } catch (error) { setStatus('Could not save: ' + (error as Error).message); }
+    } catch (error) { setStatus('Couldn’t save: ' + (error as Error).message); }
     finally { setPending(false); }
   }
   return (
     <>
-      <Toggle name={settings.name} label={settings.label} checked={on} disabled={pending} aria-describedby={settings.id + '-help'} onChange={change} />
-      <Note id={settings.id + '-help'}>{settings.help}</Note>
+      <Toggle name={settings.name} label={settings.label} checked={on} disabled={pending} aria-describedby="dev-overlay-help" onChange={change} />
       <Status id={settings.id + '-status'}>{status}</Status>
+      {option === 'debugger' && on && <ReplaceOption />}
     </>
   );
 }
 
 function DevOverlayOptions() {
   return (
-    <Card title="Unqork dev overlay">
+    <>
+      <SettingsHeading>Unqork dev overlay</SettingsHeading>
       <OverlayOption option="detach" />
       <OverlayOption option="debugger" />
-      <Note>Either option asks for access to unqork.io sites when turned on. While both are off, nothing is added to Unqork pages.</Note>
-    </Card>
+      <Note id="dev-overlay-help">Detach opens Unqork’s debugger in its own window. Unqlock SSE debugger runs a module and shows each step. Using it instead hides Unqork’s dev overlay, Shortcuts manager included, and Server-Side Execute opens Unqlock’s. Both need access to unqork.io sites.</Note>
+    </>
   );
 }
 

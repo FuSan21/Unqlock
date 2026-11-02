@@ -1,4 +1,4 @@
-import { fireEvent } from '@testing-library/react';
+import { act, fireEvent } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 import * as Environment from '@/lib/environment';
 import { apiNames, byId, click, press, query, renderPrompt, settle } from './harness';
@@ -121,4 +121,24 @@ test.each(apiNames)('import: pick or drop a file, review the sections and import
   expect(document.activeElement?.id).toBe('prompt-close');
   click('prompt-close');
   expect(close).toHaveBeenCalled();
+});
+
+// Once access is allowed the window counts down and closes itself; Done still closes it at once.
+test('site access: the allowed window closes itself after counting down from 5', async () => {
+  const close = vi.spyOn(window, 'close').mockImplementation(() => {});
+  // Fake timers that also follow real time, so rendering settles; the count is then stepped by hand.
+  vi.useFakeTimers({ shouldAdvanceTime:true });
+  try {
+    await renderPrompt('browser', { runtime:{ sendMessage:async (message: Message) =>
+      message.type === 'prompt.describe' ? { ok:true, origins:[] } : { ok:true } } }, 'kind=sseDebugger');
+    expect(byId('prompt-title').textContent).toBe('Access allowed');
+    expect(byId('prompt-closing').textContent).toBe('Closing in 5…');
+    for (const left of [4, 3, 2, 1]) {
+      await act(() => vi.advanceTimersByTimeAsync(1000));
+      expect(byId('prompt-closing').textContent).toBe(`Closing in ${left}…`);
+    }
+    expect(close).not.toHaveBeenCalled();
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(close).toHaveBeenCalledTimes(1);
+  } finally { vi.useRealTimers(); }
 });

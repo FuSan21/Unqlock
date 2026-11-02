@@ -3,6 +3,10 @@
 /* Open in Unqlock debugger comes first when both are shown; Detach then sits right beside it. */
 [data-unqlock-debugger] + [data-unqlock-detach] { margin-left:0; }
 
+/* Use instead of Unqork's debugger: the dev overlay, its bottom bar and drawer, is hidden; Server-Side Execute
+   opens Unqlock's window instead. */
+:root[data-unqlock-sse-replace] :is([data-testid="dev-overlay"], [data-testid="dev-overlay-toolbar"]) { display:none !important; }
+
 /* Detached: the popup shows only the overlay, filling the window over the builder underneath. Menus and
    tooltips portal to <body> above it, as they do over the drawer in the main tab. */
 :root[data-unqlock-dev-overlay="detached"] [data-testid="dev-overlay"] {

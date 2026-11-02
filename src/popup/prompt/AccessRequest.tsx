@@ -13,15 +13,15 @@ const copy: Record<AccessKind, Copy> = {
   },
   devOverlay: {
     title:() => 'Allow Detach dev overlay on Unqork?',
-    lead:'Detach dev overlay adds a button to Unqork’s SSE Debugger drawer, so Unqlock needs access to Unqork’s builder sites.',
-    uses:['Add the Detach button to the dev overlay in builder tabs', 'Keep the detached window from saving over your open tabs'],
-    done:'Detach dev overlay is on. Open builder tabs show the button now.'
+    lead:'It adds a button to Unqork’s dev overlay, so it needs access to Unqork sites.',
+    uses:['Add the Detach button to the dev overlay', 'Keep the detached window from overwriting your tabs'],
+    done:'Detach dev overlay is on.'
   },
   sseDebugger: {
     title:() => 'Allow the Unqlock SSE debugger on Unqork?',
-    lead:'The Unqlock SSE debugger adds a button to Unqork’s SSE Debugger drawer and runs modules from the builder tab, so Unqlock needs access to Unqork’s builder sites.',
-    uses:['Add the Open in Unqlock debugger button to the dev overlay in builder tabs', 'Run a module on the server from that tab when you choose Run module, and show its steps'],
-    done:'The Unqlock SSE debugger is on. Open builder tabs show its button now.'
+    lead:'It adds a button to Unqork’s dev overlay and runs modules for you, so it needs access to Unqork sites.',
+    uses:['Add the debugger button to the dev overlay', 'Run a module when you choose Run module'],
+    done:'The Unqlock SSE debugger is on.'
   },
   badges: {
     title:() => 'Allow automatic badges on your domains?',
@@ -32,6 +32,18 @@ const copy: Record<AccessKind, Copy> = {
 };
 
 type Phase = 'loading' | 'ask' | 'pending' | 'granted' | 'denied' | 'error';
+
+// Once access is allowed there is nothing left to do here, so the window closes itself after a short count;
+// Done and Escape still close it at once.
+function ClosingIn({ seconds }: { seconds: number }) {
+  const [left, setLeft] = useState(seconds);
+  useEffect(() => {
+    if (left <= 0) { window.close(); return; }
+    const timer = setTimeout(() => setLeft(left - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [left]);
+  return <p id="prompt-closing" className="prompt-fine" aria-hidden="true">Closing in {left}…</p>;
+}
 
 export function AccessRequest({ kind, tab, onBusy }: { kind: AccessKind; tab?: string; onBusy: (busy: boolean) => void }) {
   const [phase, setPhase] = useState<Phase>('loading');
@@ -89,6 +101,7 @@ export function AccessRequest({ kind, tab, onBusy }: { kind: AccessKind; tab?: s
       <span className="prompt-mark" aria-hidden="true">✓</span>
       <h1 id="prompt-title">Access allowed</h1>
       <p role="status">{text.done}</p>
+      <ClosingIn seconds={5} />
       <div className="prompt-actions"><button ref={focus} id="prompt-close" className="primary" type="button" onClick={() => window.close()}>Done</button></div>
     </section>
   );

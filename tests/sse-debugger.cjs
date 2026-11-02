@@ -116,12 +116,33 @@ const log = [
     await page.waitForTimeout(500);
     assert.equal(context.pages().length, pages);
 
+    // Use instead of Unqork's debugger, shown under the option while it is on: the dev overlay is hidden, and
+    // Server-Side Execute opens Unqlock's window instead of Unqork's drawer.
+    const replace = extension.getByLabel('Use instead of Unqork’s debugger', { exact:true });
+    await replace.click();
+    await extension.waitForFunction(() => chrome.storage.local.get('sseDebuggerReplace').then(result => result.sseDebuggerReplace === true), null, { timeout:5000 });
+    await page.waitForFunction(() => document.documentElement.hasAttribute('data-unqlock-sse-replace'), null, { timeout:5000 });
+    assert(await page.locator('[data-testid="dev-overlay"]').isHidden());
+    assert(await page.locator('[data-testid="dev-overlay-toolbar"]').isHidden());
+    await debuggerWindow.close();
+    const [replaced] = await Promise.all([context.waitForEvent('page'), page.locator('#server-side-execute').click()]);
+    await replaced.waitForLoadState('domcontentloaded');
+    assert.match(replaced.url(), /\/sse\.html\?tab=\d+$/);
+    assert.equal(await page.evaluate(() => window.nativeExecutes), 0, 'Unqork’s own handler did not run');
+    // Off again: the overlay returns and Server-Side Execute is Unqork's.
+    await replace.click();
+    await page.waitForFunction(() => !document.documentElement.hasAttribute('data-unqlock-sse-replace'), null, { timeout:5000 });
+    assert(await page.locator('[data-testid="dev-overlay-toolbar"]').isVisible());
+    await page.locator('#server-side-execute').click();
+    assert.equal(await page.evaluate(() => window.nativeExecutes), 1);
+    await replaced.close();
+
     // Turning the option off removes the button from the open builder tab.
     await option.click();
     await extension.waitForFunction(() => chrome.storage.local.get('sseDebugger').then(result => result.sseDebugger === false), null, { timeout:5000 });
     await button.waitFor({ state:'detached', timeout:5000 });
     assert.deepEqual(errors, []);
-    console.log('PASS: Unqlock SSE debugger switch, its button on the dev overlay, one window per tab, runs with Unqork’s headers and body, steps and inspector, a failed run, and removal (Chrome extension).');
+    console.log('PASS: Unqlock SSE debugger switch, its button on the dev overlay, one window per tab, runs with Unqork’s headers and body, steps and inspector, a failed run, Use instead of Unqork’s debugger, and removal (Chrome extension).');
   } finally {
     await context.close();
   }

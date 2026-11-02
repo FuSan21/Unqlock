@@ -5,7 +5,8 @@
      fixed bottom drawer with its drag handle, a header row spreading the tool selector and Minimize dev
      overlay apart, and the SSE Debugger with its Run as select, whose list is portaled to <body> like Base
      UI's. Minimizing slides the drawer away and marks it aria-hidden. The drawer's state, the workspace tabs
-     and the debugger identity persist under Unqork's keys, the tabs again on pagehide. -->
+     and the debugger identity persist under Unqork's keys, the tabs again on pagehide. The canvas toolbar's
+     Server-Side Execute opens the drawer, as Unqork's does, and counts its clicks in window.nativeExecutes. -->
 <style>
   body { margin:0; height:100vh; background:#fff; }
   header { height:48px; }
@@ -19,7 +20,7 @@
   [role="listbox"] { position:fixed; z-index:60; background:#fff; border:1px solid #ccc; }
 </style>
 <header><span>unqork</span></header>
-<main><h1 id="heading">Canvas</h1></main>
+<main data-testid="panel-center"><div class="flex items-center gap-1"><button type="button" data-slot="tooltip-trigger" id="server-side-execute">Server-Side Execute</button></div><h1 id="heading">Canvas</h1></main>
 <div data-testid="dev-overlay-toolbar"><button type="button" aria-label="Expand dev overlay" id="expand">Debugger</button></div>
 <div data-testid="dev-overlay" aria-hidden="false">
   <div data-testid="dev-overlay-drag-handle"></div>
@@ -42,6 +43,8 @@
     document.querySelector('[aria-label="Minimize dev overlay"]').addEventListener('click', () => { state.open = false; persist(); render(); });
   };
   document.getElementById('expand').addEventListener('click', () => { state.open = true; persist(); render(); });
+  window.nativeExecutes = 0;
+  document.getElementById('server-side-execute').addEventListener('click', () => { window.nativeExecutes++; state.open = true; persist(); render(); });
   document.getElementById('run-as').addEventListener('click', event => {
     const rect = event.currentTarget.getBoundingClientRect();
     const list = document.createElement('div');
