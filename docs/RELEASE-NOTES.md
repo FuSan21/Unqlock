@@ -1,7 +1,7 @@
-## New in 1.7.0
+## New in 1.7.2
 
-- **Unqlock SSE debugger:** a new opt-in Debug tools option adds **Open in Unqlock debugger** to Unqork's SSE Debugger drawer. It opens Unqlock's own window for that builder tab, where **Run module** runs the module on the server and shows the run at a glance: a one-line result, the component that stopped a failed run, and **Steps** with one lane per component and one column per step, so you can select any value and trace which component set it and why. **Changes**, **Output** and **Raw** show the changed values, the returned data and the exact request and response. It works beside Detach dev overlay, and asks for the same access to unqork.io sites. With **Use instead of Unqork's debugger**, shown under the option while it is on, Unqork's dev overlay is hidden and **Server-Side Execute** opens Unqlock's debugger.
-- **Rerun, Slow, value search and setup lanes in the SSE debugger:** **Rerun** beside a past run runs it again with its input and options. A **Slow** badge marks a run over 300 ms or a wait, such as a plug-in, over 3 seconds, and the result line links to the slowest. **In values** lets the filter find components by the values they set, and **Hide setup values** leaves out components that only received a setup value.
+- **Input shapes in the SSE debugger:** the input now reaches the module: it is sent as the submission's values, which Unqork reads from *data.data*, where before the module ran without it. A switch above **Input** places it as **data**, or for an API module under **_request**, its **query** or its **body**, and shows that wrapper as fixed lines around what you type, which changing the switch keeps. The window remembers the choice, and **Rerun** restores it.
+- **Keep past runs:** a new option under Unqlock SSE debugger in Debug tools, off by default, saves the debugger's last 10 runs in this browser for 30 days, so they are still there when you open the window again. **Clear** removes them, and turning the option off deletes them.
 
 ## Package notes
 
