@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Stored } from '@/lib/api';
 import { fetchSnippet } from '@/lib/sse-run';
 import { duration, type TraceEvent } from '@/lib/sse-trace';
-import type { Run } from './Debugger';
+import type { Run } from './runs';
 
 export const matches = (key: string, filter: string) => !filter || key.toLowerCase().includes(filter.trim().toLowerCase());
 

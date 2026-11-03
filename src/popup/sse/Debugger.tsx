@@ -1,32 +1,15 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { api } from '@/lib/api';
-import * as SseDebugger from '@/lib/sse-debugger';
-import { clearRuns, historyKey, keptDays, keptRuns, readRuns, writeRuns, type StoredRun } from '@/lib/sse-history';
-import { inputShapes, outcome as outcomeOf, parseInput, type IdentityMode, type InputShape, type Outcome, type SseContext, type SseRequest, type SseResponse } from '@/lib/sse-run';
-import { buildTrace, duration, slowAfter, type Trace, type TraceEvent } from '@/lib/sse-trace';
+import { keptDays, keptRuns } from '@/lib/sse-history';
+import { inputShapes, outcome as outcomeOf, parseInput, type IdentityMode, type InputShape, type SseContext, type SseRequest, type SseResponse } from '@/lib/sse-run';
+import { buildTrace, duration } from '@/lib/sse-trace';
 import { params } from '../runtime';
-import { Steps, type StepsMode } from './Steps';
+import { CopyId, RunResult, views, type ViewId } from './Result';
+import { stamp, type Run } from './runs';
+import type { StepsMode } from './Steps';
 import { readContext, run as runModule, stop as stopRun, type TabEnvironment } from './tab';
-import { Changes, Empty, Output, Raw, useCopy } from './views';
-
-export interface Run {
-  id: string;
-  at: Date;
-  title: string;
-  moduleId: string;
-  request: SseRequest;
-  response: SseResponse;
-  outcome: Outcome;
-  trace: Trace;
-  // Restored without its event log and response body, with the counts the result line shows.
-  trimmed?: boolean;
-  summary?: StoredRun['summary'];
-  // A run this window holds in full that storage keeps only trimmed, or not at all.
-  saved?: 'trimmed' | 'none';
-}
-
-type ViewId = 'steps' | 'changes' | 'output' | 'raw';
-const views: [ViewId, string][] = [['steps', 'Steps'], ['changes', 'Changes'], ['output', 'Output'], ['raw', 'Raw']];
+import { useLocalState } from './useLocalState';
+import { useRunHistory } from './useRunHistory';
 
 const tab = Number(params().get('tab'));
 const railKey = 'unqlock.sse.rail';
@@ -35,35 +18,8 @@ const valuesKey = 'unqlock.sse.values';
 const setupKey = 'unqlock.sse.hideSetup';
 // Where the input goes, kept the same way.
 const shapeKey = 'unqlock.sse.inputShape';
-const savedShape = (): InputShape => inputShapes.find(shape => shape.id === localStorage.getItem(shapeKey))?.id ?? 'data';
 const railDefault = 340;
 
-// With Keep past runs on, past runs are kept in this page's localStorage (src/lib/sse-history.ts), never in
-// extension storage: they hold submission data. The outcome and trace are worked out again from the stored response.
-function restore(stored: StoredRun): Run {
-  const outcome = outcomeOf(stored.response);
-  return { id:stored.id, at:new Date(stored.at), title:stored.title, moduleId:stored.moduleId, request:stored.request, response:stored.response, outcome,
-    trace:buildTrace(stored.response.body?.eventLog, outcome.problem), ...(stored.trimmed ? { trimmed:true, summary:stored.summary } : {}) };
-}
-const store = (run: Run): StoredRun => ({ id:run.id, at:run.at.getTime(), title:run.title, moduleId:run.moduleId, request:run.request, response:run.response,
-  summary:run.summary ?? { steps:run.trace.steps.length, sets:run.trace.events.filter(event => event.kind === 'set').length, failedStep:firstFailure(run.trace)?.step }, ...(run.trimmed ? { trimmed:true as const } : {}) });
-const firstFailure = (trace: Trace) => trace.events.find(event => event.kind === 'fail');
-// The step that stopped the run. A restored trimmed run has no event log, so it comes from the stored summary;
-// the failure its trace still adds from the execution error is not placed in a real step.
-const failedStep = (run: Run) => run.summary ? run.summary.failedStep : firstFailure(run.trace)?.step;
-// The stored list as runs, reusing those already worked out; a run held in full notes when storage trimmed it.
-// A run too large to store stays in the window that ran it, among the stored ones by time.
-const synced = (list: Run[], stored: StoredRun[]) => [...stored.map((each): Run => {
-  const held = list.find(run => run.id === each.id);
-  if (!held) return restore(each);
-  const saved = each.trimmed && !held.trimmed ? 'trimmed' as const : undefined;
-  return held.saved === saved ? held : { ...held, saved };
-}), ...list.filter(run => run.saved === 'none' && !stored.some(each => each.id === run.id))]
-  .sort((a, b) => b.at.getTime() - a.at.getTime()).slice(0, keptRuns);
-
-const time = (date: Date) => date.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false });
-// A run from an earlier day also names its date.
-const stamp = (date: Date) => date.toDateString() === new Date().toDateString() ? time(date) : date.toLocaleDateString([], { month:'short', day:'numeric' }) + ' ' + time(date);
 const typing = (target: EventTarget | null) => target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 // The environment's roles, keeping a chosen role the list lacks at the top, as Unqork's menu does.
 const roleOptions = (roles: string[], current: string) => current && !roles.includes(current) ? [current, ...roles] : roles;
@@ -74,7 +30,7 @@ export function Debugger() {
   const [environment, setEnvironment] = useState<TabEnvironment>();
   const [unavailable, setUnavailable] = useState<string>();
   const [input, setInput] = useState('');
-  const [shape, setShape] = useState(savedShape);
+  const [shape, setShape] = useLocalState<InputShape>(shapeKey, stored => inputShapes.find(each => each.id === stored)?.id ?? 'data', value => value);
   const [submissionId, setSubmissionId] = useState('');
   const [validate, setValidate] = useState(false);
   const [hydrate, setHydrate] = useState(false);
@@ -82,13 +38,8 @@ export function Debugger() {
   const [mode, setMode] = useState<IdentityMode>('designer');
   const [role, setRole] = useState('');
   const identityChosen = useRef(false);
-  const [runs, setRuns] = useState<Run[]>([]);
-  // Changes to the list read and write localStorage, which a state updater must not do, so they work from a ref
-  // that always holds the latest list.
-  const runsRef = useRef(runs);
-  const updateRuns = (change: (list: Run[]) => Run[]) => { runsRef.current = change(runsRef.current); setRuns(runsRef.current); };
-  const keep = useRef(false);
-  const [keeping, setKeeping] = useState(false);
+  const history = useRunHistory();
+  const { runs, keeping } = history;
   const [current, setCurrent] = useState<string>();
   const [running, setRunning] = useState(false);
   // The run in flight, which Stop ends the wait for.
@@ -99,11 +50,11 @@ export function Debugger() {
   const [view, setView] = useState<ViewId>('steps');
   const [stepsMode, setStepsMode] = useState<StepsMode>('lanes');
   const [filter, setFilter] = useState('');
-  const [values, setValues] = useState(() => localStorage.getItem(valuesKey) === 'true');
-  const [hideSetup, setHideSetup] = useState(() => localStorage.getItem(setupKey) === 'true');
+  const [values, setValues] = useLocalState(valuesKey, stored => stored === 'true');
+  const [hideSetup, setHideSetup] = useLocalState(setupKey, stored => stored === 'true');
   const [rerun, setRerun] = useState(0);
   const [selected, setSelected] = useState<string>();
-  const [rail, setRail] = useState(() => clampRail(Number(localStorage.getItem(railKey)) || railDefault));
+  const [rail, setRail] = useLocalState(railKey, stored => clampRail(Number(stored) || railDefault));
   const [railOpen, setRailOpen] = useState(false);
   const inputField = useRef<HTMLTextAreaElement>(null);
   const filterField = useRef<HTMLInputElement>(null);
@@ -174,32 +125,12 @@ export function Debugger() {
     field.style.height = '0';
     field.style.height = field.scrollHeight + (field.offsetHeight - field.clientHeight) + 'px';
   }, [input, wrapper, rail, railOpen]);
-  useEffect(() => { localStorage.setItem(railKey, String(rail)); }, [rail]);
-  useEffect(() => { localStorage.setItem(valuesKey, String(values)); }, [values]);
-  useEffect(() => { localStorage.setItem(setupKey, String(hideSetup)); }, [hideSetup]);
-  useEffect(() => { localStorage.setItem(shapeKey, shape); }, [shape]);
-  // Keep past runs, under the debugger in Debug tools, decides whether runs outlast the window. While it is on,
-  // opening a window or turning it on drops runs past 30 days and saves the ones this window holds, and the
-  // list follows runs and Clear in other debugger windows. Turning it off deletes them, as the popup also does.
+  // A narrower window keeps the rail within its share, and Expand and Collapse follow the new width.
   useEffect(() => {
-    const apply = (on: boolean) => {
-      keep.current = on;
-      setKeeping(on);
-      if (!on) { clearRuns(localStorage); return; }
-      updateRuns(list => {
-        const stored = writeRuns(localStorage, [...list.map(store), ...readRuns(localStorage)]);
-        // A run too large to store stays in this window.
-        return synced(list.map(run => stored.some(each => each.id === run.id) ? run : { ...run, saved:'none' as const }), stored);
-      });
-    };
-    api.storage?.local?.get(SseDebugger.keepRunsKey).then(stored => apply(SseDebugger.enabled(stored?.[SseDebugger.keepRunsKey])), () => apply(false));
-    const option = (changes: Record<string, { newValue?: unknown }>, area: string) => { if (area === 'local' && changes[SseDebugger.keepRunsKey]) apply(SseDebugger.enabled(changes[SseDebugger.keepRunsKey].newValue)); };
-    const changed = (event: StorageEvent) => { if (keep.current && (event.key === historyKey || event.key === null)) updateRuns(list => synced(list, readRuns(localStorage))); };
-    api.storage?.onChanged?.addListener(option);
-    window.addEventListener('storage', changed);
-    return () => { api.storage?.onChanged?.removeListener(option); window.removeEventListener('storage', changed); };
+    const resized = () => setRail(width => clampRail(width));
+    window.addEventListener('resize', resized);
+    return () => window.removeEventListener('resize', resized);
   }, []);
-
   // A confirmation approves only what it described: a new module, environment or save choice withdraws it.
   // A reload that finds the same module and environment leaves it be.
   useEffect(() => { setConfirm(undefined); }, [context?.moduleId, context?.host, environment?.kind, environment?.blocked, save, submissionId]);
@@ -264,13 +195,7 @@ export function Debugger() {
     const outcome = outcomeOf(response);
     const trace = buildTrace(response.body?.eventLog, outcome.problem);
     const entry: Run = { id, at:new Date(), title:context.title, moduleId:context.moduleId, request, response, outcome, trace };
-    if (keep.current) {
-      // Read again before writing, so a run another window saved meanwhile is kept.
-      const stored = writeRuns(localStorage, [store(entry), ...readRuns(localStorage)]);
-      const own = stored.find(each => each.id === entry.id);
-      const held: Run = { ...entry, saved:!own ? 'none' : own.trimmed ? 'trimmed' : undefined };
-      updateRuns(list => synced([held, ...list.filter(run => run.id !== entry.id)], stored));
-    } else updateRuns(list => [entry, ...list].slice(0, keptRuns));
+    history.add(entry);
     setCurrent(entry.id);
     setSelected(trace.events.find(event => event.kind === 'fail')?.id);
     setRunning(false);
@@ -447,7 +372,7 @@ export function Debugger() {
           </fieldset>
         </section>
         <section className="runs" aria-labelledby="runs-title">
-          <div className="rail-head"><h2 id="runs-title">Runs</h2>{runs.length > 0 && <button type="button" className="link" title={keeping ? 'Remove every saved run' : undefined} onClick={() => { clearRuns(localStorage); updateRuns(() => []); setCurrent(undefined); setSelected(undefined); }}>Clear</button>}</div>
+          <div className="rail-head"><h2 id="runs-title">Runs</h2>{runs.length > 0 && <button type="button" className="link" title={keeping ? 'Remove every saved run' : undefined} onClick={() => { history.clear(); setCurrent(undefined); setSelected(undefined); }}>Clear</button>}</div>
           {runs.length ? (
             <ol>
               {runs.map(entry => (
@@ -495,163 +420,6 @@ export function Debugger() {
           </div>
         ))}
       </main>
-    </div>
-  );
-}
-
-// The full module ID, which copies on click; the confirmation appears beside it, so the ID stays in view.
-function CopyId({ id }: { id: string }) {
-  const [copied, copy] = useCopy();
-  return (
-    <>
-      <button type="button" className="module-id mono" title="Copy module ID" onClick={() => copy(id)}>{id}</button>
-      <span className="copied" role="status">{copied ? 'Copied' : ''}</span>
-    </>
-  );
-}
-
-interface ResultProps {
-  run: Run;
-  view: ViewId;
-  setView: (view: ViewId) => void;
-  tabKeys: (event: ReactKeyboardEvent<HTMLDivElement>) => void;
-  stepsMode: StepsMode;
-  setStepsMode: (mode: StepsMode) => void;
-  filter: string;
-  setFilter: (filter: string) => void;
-  values: boolean;
-  setValues: (values: boolean) => void;
-  hideSetup: boolean;
-  setHideSetup: (hide: boolean) => void;
-  filterField: React.RefObject<HTMLInputElement | null>;
-  selected?: string;
-  setSelected: (id?: string) => void;
-  changes: number;
-  showKey: (key: string) => void;
-  showEvent: (id: string) => void;
-  current?: string;
-  // Absent while a run cannot start.
-  onRerun?: () => void;
-}
-
-function RunResult({ run, view, setView, tabKeys, stepsMode, setStepsMode, filter, setFilter, values, setValues, hideSetup, setHideSetup, filterField, selected, setSelected, changes, showKey, showEvent, current, onRerun }: ResultProps) {
-  const { outcome, response, trace } = run;
-  // A trimmed run's views give way to a note, so it has no step to show.
-  const failure = run.summary ? undefined : firstFailure(trace);
-  const step = failedStep(run);
-  const setupLanes = trace.lanes.filter(lane => lane.setup).length;
-  return (
-    <>
-      <OutcomeLine run={run} onShow={showEvent} />
-      {run.moduleId !== current && <p className="notice">This run was for <b>{run.title}</b>, not the module the builder tab is on now.</p>}
-      {(outcome.problem || outcome.validation.length > 0) && (
-        <div className="callout" role="alert">
-          <div>
-            {outcome.problem ? (
-              <p>
-                {outcome.problem.component ? <><strong className="mono">{outcome.problem.component}</strong> stopped the run{step ? ` in step ${step}` : ''}.</> : <strong>The run failed.</strong>}
-                {run.request.save && ' Nothing was saved.'}
-                <span className="message mono">{outcome.problem.message}{outcome.problem.detail ? ' · ' + outcome.problem.detail : ''}</span>
-              </p>
-            ) : (
-              <p><strong>{outcome.validation.length} validation {outcome.validation.length === 1 ? 'error' : 'errors'}</strong>
-                <span className="message mono">{outcome.validation.slice(0, 3).map(item => `${item.key}: ${item.message}`).join(' · ')}{outcome.validation.length > 3 ? ' · …' : ''}</span>
-              </p>
-            )}
-          </div>
-          {outcome.problem?.component && failure ? <button type="button" className="link" onClick={() => showEvent(failure.id)}>Show in steps</button>
-            : outcome.validation.length > 0 && <button type="button" className="link" onClick={() => setView('output')}>Show in output</button>}
-        </div>
-      )}
-      {run.saved === 'trimmed' && <p className="notice">This run is too large to save in full. Once this window closes, only its input, options and result are kept.</p>}
-      {run.saved === 'none' && <p className="notice">This run is too large to save, so it is gone once this window closes.</p>}
-      {run.trimmed ? (
-        <div className="state trimmed">
-          <p><b>Steps, changes, output and the raw response weren’t saved for this run.</b> They were too large for the browser’s storage, so only its input, options and result were kept. Rerun it to see them again.</p>
-          <button type="button" className="run" disabled={!onRerun} onClick={onRerun}>Rerun</button>
-        </div>
-      ) : <>
-      <div className="viewbar">
-        <div className="tabs" role="tablist" aria-label="Run views" onKeyDown={tabKeys}>
-          {views.map(([id, name], index) => (
-            <button key={id} id={'view-tab-' + id} type="button" role="tab" aria-selected={view === id} aria-controls="view-panel" tabIndex={view === id ? 0 : -1}
-              title={`${name} (Alt+${index + 1})`} onClick={() => setView(id)}>
-              {name}{id === 'changes' && <span className="count">{changes}</span>}
-            </button>
-          ))}
-        </div>
-        {view === 'steps' && (
-          <div className="mode" role="group" aria-label="Steps layout">
-            <button type="button" aria-pressed={stepsMode === 'lanes'} onClick={() => setStepsMode('lanes')}>Lanes</button>
-            <button type="button" aria-pressed={stepsMode === 'list'} onClick={() => setStepsMode('list')}>List</button>
-          </div>
-        )}
-        {view === 'steps' && setupLanes > 0 && (
-          <button type="button" className="switch" aria-pressed={hideSetup} title="Hide components whose only events are values set during setup" onClick={() => setHideSetup(!hideSetup)}>
-            Hide setup values <span className="count">{setupLanes}</span>
-          </button>
-        )}
-        {view !== 'raw' && (
-          <div className="filter">
-            <input ref={filterField} type="search" placeholder={values ? 'Filter keys and values' : 'Filter keys'}
-              aria-label={values ? 'Filter component keys and values' : 'Filter component keys'} value={filter} spellCheck={false} onChange={event => setFilter(event.target.value)} />
-            <kbd aria-hidden="true">/</kbd>
-          </div>
-        )}
-        {view !== 'raw' && (
-          <button type="button" className="switch" aria-pressed={values} title="Also match the values components set" onClick={() => setValues(!values)}>In values</button>
-        )}
-      </div>
-      <div id="view-panel" className="panel" role="tabpanel" aria-labelledby={'view-tab-' + view}>
-        {view === 'steps' && <Steps trace={trace} filter={filter} values={values} hideSetup={hideSetup} mode={stepsMode} selected={selected} onSelect={setSelected} />}
-        {view === 'changes' && <div className="view"><Changes run={run} filter={filter} values={values} onShow={showEvent} /></div>}
-        {view === 'output' && <div className="view"><Output run={run} filter={filter} values={values} onShow={showKey} /></div>}
-        {view === 'raw' && <div className="view"><Raw run={run} /></div>}
-      </div>
-      {view === 'steps' && stepsMode === 'lanes' && trace.events.length > 0 && <Legend />}
-      {response.status === undefined && !trace.events.length && <Empty>No response came back, so there is nothing to show.</Empty>}
-      </>}
-    </>
-  );
-}
-
-// The slowest of the run's slow events, which the outcome line links to.
-const slowest = (events: TraceEvent[]) => events.filter(event => event.slow).sort((a, b) => (b.ms ?? 0) - (a.ms ?? 0));
-
-function OutcomeLine({ run, onShow }: { run: Run; onShow: (id: string) => void }) {
-  const { outcome, response, trace } = run;
-  const failed = failedStep(run);
-  const steps = run.summary?.steps ?? trace.steps.length;
-  const sets = run.summary?.sets ?? trace.events.filter(event => event.kind === 'set').length;
-  const parts: ReactNode[] = [];
-  if (outcome.problem?.component) parts.push(<>Stopped at <b className="mono">{outcome.problem.component}</b></>);
-  else if (outcome.validation.length) parts.push(`${outcome.validation.length} validation ${outcome.validation.length === 1 ? 'error' : 'errors'}`);
-  else if (!outcome.ok) parts.push(outcome.problem?.message.split('. ')[0] || 'Failed');
-  if (outcome.ranAs) parts.push(<>{parts.length ? 'ran' : 'Ran'} as <b>{outcome.ranAs}</b></>);
-  if (response.status !== undefined) parts.push(duration(response.ms));
-  if (steps) parts.push(failed ? `step ${failed} of ${steps}` : `${steps} ${steps === 1 ? 'step' : 'steps'}`);
-  if (outcome.ok) parts.push(`${sets} ${sets === 1 ? 'value' : 'values'} set`);
-  if (outcome.ok && !outcome.ranAs) parts.unshift('Ran');
-  const slow = slowest(trace.events);
-  if (slow.length) parts.push(<button type="button" className="link slow-link" title={`Show the slowest: ${slow[0].key}, ${duration(slow[0].ms)}`} onClick={() => onShow(slow[0].id)}>{slow.length} slow</button>);
-  return (
-    <p className="outcome" data-state={outcome.ok ? 'ok' : 'fail'} role="status" aria-live="polite">
-      <span className="status">{response.status ?? 'No response'}</span>
-      <span>{parts.map((part, index) => <span key={index}>{index > 0 && <span className="sep"> · </span>}{part}</span>)}</span>
-    </p>
-  );
-}
-
-function Legend() {
-  return (
-    <div className="legend" aria-label="Legend">
-      <span><i className="glyph" data-kind="set" />Set a value</span>
-      <span><i className="glyph" data-kind="ran" />Ran</span>
-      <span><i className="glyph-wait" data-kind="wait" />Ran and waited</span>
-      <span><i className="glyph" data-kind="queued" />Queued</span>
-      <span><i className="glyph" data-kind="fail" />Failed</span>
-      <span><i className="glyph" data-kind="other" />Other</span>
-      <span><span className="slow">Slow</span>{`Run over ${duration(slowAfter.ran)}, wait over ${duration(slowAfter.wait)}`}</span>
     </div>
   );
 }
