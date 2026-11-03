@@ -2,6 +2,11 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { flushSync } from 'react-dom';
 
 export type PageId = 'style-page' | 'layout-page' | 'panels-page' | 'quick-page' | 'environment-page' | 'launcher-page' | 'transfer-page' | 'whats-new-page';
+// Each page's title, shown on the page, its home entry and in What's new links.
+export const pageTitles: Record<PageId, string> = {
+  'style-page':'Component style', 'layout-page':'Canvas layout', 'panels-page':'Builder panels', 'quick-page':'Debug tools',
+  'environment-page':'Environments', 'launcher-page':'Floating launcher', 'transfer-page':'Import & export', 'whats-new-page':"What's new"
+};
 interface LeaveOptions { escape?: boolean }
 // A leave hook can keep its page open by returning false, such as Escape dismissing a pending confirmation.
 type LeaveHook = (options: LeaveOptions) => boolean | void;

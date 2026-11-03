@@ -52,7 +52,7 @@ export function FloatingLauncher() {
   const cornerReason = reason || (floating.mode === 'draggable' ? 'Choose Fixed to pick a corner.' : '');
 
   return (
-    <Page id="launcher-page" title="Floating launcher" titleId="launcher-title">
+    <Page id="launcher-page">
       <form id="launcher-form" onSubmit={event => event.preventDefault()}>
         <fieldset id="launcher-fields" disabled={disabled}>
           <Toggle name="enabled" label="Show floating launcher" checked={floating.enabled} onChange={enabled => saveFloating({ ...floating, enabled })} />

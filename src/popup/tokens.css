@@ -1,0 +1,11 @@
+/* Colors and helpers shared by the popup, the prompt window and the SSE debugger window. */
+:root {
+  color-scheme:light dark;
+  --paper:#f8fafc; --ink:#172033; --muted:#526178; --line:#d9e1ec; --accent:#6d28d9; --tint:#f5f3ff;
+  --danger:#b91c1c; --danger-tint:#fff1f2;
+}
+@media (prefers-color-scheme:dark) {
+  :root { --paper:#0b0e13; --ink:#cbd2da; --muted:#a2abb6; --line:#262d38; --accent:#c4b5fd; --tint:#2e1065; --danger:#fca5a5; --danger-tint:#450a0a; }
+}
+[hidden] { display:none !important; }
+.visually-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }

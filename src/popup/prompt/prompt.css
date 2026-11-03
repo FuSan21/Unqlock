@@ -43,5 +43,5 @@ body.prompt-window { width:auto; min-height:100vh; }
 .prompt-result { align-items:center; text-align:center; padding-top:24px; }
 .prompt-result p { max-width:340px; font-size:13px; }
 .prompt-mark { display:grid; place-items:center; width:52px; height:52px; margin-bottom:14px; border-radius:50%; background:var(--tint); color:var(--accent); font-size:24px; font-weight:700; }
-.prompt-result[data-state="error"] .prompt-mark { color:light-dark(#b91c1c,#fca5a5); background:light-dark(#fff1f2,#450a0a); }
+.prompt-result[data-state="error"] .prompt-mark { color:var(--danger); background:var(--danger-tint); }
 .prompt-result .prompt-actions { justify-content:center; width:100%; }

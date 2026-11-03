@@ -1,4 +1,4 @@
-import { appearanceDefaults, layoutKeys } from '@/lib/appearance';
+import { defaultsOf, layoutKeys } from '@/lib/appearance';
 import * as Labels from '@/lib/label-settings';
 import * as RowLayout from '@/lib/row-layout';
 import * as Toolbar from '@/lib/toolbar-settings';
@@ -7,7 +7,6 @@ import { Segmented, Select, type Option } from '../components/controls';
 import { Note, Page, PageFooter, SettingsHeading } from '../components/layout';
 import { useSettings } from '../settings';
 
-const pick = <T extends object>(source: T, keys: (keyof T)[]) => Object.fromEntries(keys.map(key => [key, source[key]]));
 const presetOptions: Option<string>[] = [['native', 'Native'], ...Object.entries(RowLayout.presets).map(([id, preset]) => [id, preset.label] as const), ['custom', 'Custom']];
 const slotOptions = RowLayout.slots.map(slot => [slot, slot[0].toUpperCase() + slot.slice(1)] as const);
 
@@ -57,7 +56,7 @@ function ToolbarSettings() {
 export function CanvasLayout() {
   const { appearance, busy, status, save } = useSettings();
   return (
-    <Page id="layout-page" title="Canvas layout" titleId="layout-title">
+    <Page id="layout-page">
       <Note>Fit more components in view and arrange canvas rows and containers.</Note>
       <fieldset id="layout-fields" className="appearance-fields" disabled={busy}>
         <AppearanceToggle setting="compact" label="Compact components" describedBy="compact-help" />
@@ -80,7 +79,7 @@ export function CanvasLayout() {
         <Note id="toolbar-help">Keep the canvas search field open, and show the sort modes as switches instead of a dropdown. These work even when Component styling is off.</Note>
       </fieldset>
       <PageFooter resetId="reset-layout" resetText="Reset layout" statusId="layout-status" status={status} busy={busy}
-        onReset={() => save({ appearance:{ ...appearance, ...pick(appearanceDefaults, layoutKeys) }, rowLayout:RowLayout.settings(), canvasToolbar:Toolbar.settings(), canvasLabels:Labels.mode(undefined) })} />
+        onReset={() => save({ appearance:{ ...appearance, ...defaultsOf(layoutKeys) }, rowLayout:RowLayout.settings(), canvasToolbar:Toolbar.settings(), canvasLabels:Labels.mode(undefined) })} />
     </Page>
   );
 }

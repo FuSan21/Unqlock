@@ -17,6 +17,13 @@ export function origin(parsed: Transfer.Parsed, source: string) {
   return [parsed.extensionVersion && 'Unqlock ' + parsed.extensionVersion, parsed.exportedAt && 'exported ' + parsed.exportedAt.toLocaleString(), source].filter(Boolean).join(' · ');
 }
 
+// The sections chosen in a review, in the file's order, or an error when none are.
+export function chosenSections(parsed: Transfer.Parsed, chosen: Transfer.SectionId[]) {
+  const sections = parsed.sections.filter(id => chosen.includes(id));
+  if (!sections.length) throw new Error('Choose at least one setting to import.');
+  return sections;
+}
+
 // Writes the chosen sections. The background owns environment storage and registers badges for custom
 // domains, so environments go to it; the rest is written here.
 export async function importSections(parsed: Transfer.Parsed, chosen: Transfer.SectionId[], saveEnvironment: (replace: Environment.EnvironmentSettings) => Promise<{ missingOrigins: string[] }>) {

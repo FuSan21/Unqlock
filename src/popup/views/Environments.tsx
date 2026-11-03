@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import * as Environment from '@/lib/environment';
 import { Toggle } from '../components/controls';
-import { ActionRow, Button, Note, Page, Status } from '../components/layout';
+import { AccessButton, ActionRow, Button, Note, Page, Status } from '../components/layout';
 import { requestAccess, useAccessChanged } from '../access';
 import { useEnvironment, type EnvironmentResult } from '../environment';
 import { usePageOpen } from '../pages';
@@ -118,7 +118,7 @@ export function Environments() {
 
   const saved = Boolean(editor && config?.groups.some(group => group.id === editor.id));
   return (
-    <Page id="environment-page" title="Environments" titleId="environment-title">
+    <Page id="environment-page">
       <p id="environment-current">{current ? 'Current: ' + current.label + ' · ' + current.host + ' — ' + current.source : 'Open a web page to identify its environment.'}</p>
       <form id="environment-form" onSubmit={event => event.preventDefault()}>
         <fieldset id="environment-fields" disabled={loading}>
@@ -176,7 +176,7 @@ export function Environments() {
         </fieldset>
       </form>
       <Status id="environment-status">{status}</Status>
-      <button id="environment-access" type="button" hidden={missingOrigins.length === 0} title={missingOrigins.join('\n')} disabled={accessPending} onClick={async () => {
+      <AccessButton id="environment-access" missing={missingOrigins.length > 0} pending={accessPending} title={missingOrigins.join('\n')} onClick={async () => {
         // Call directly from the gesture, before awaits (required by Firefox).
         const requested = [...missingOrigins];
         setAccessPending(true);
@@ -188,7 +188,7 @@ export function Environments() {
           if (access === 'granted') await injectCurrentBadge(result.config);
         } catch (error) { setStatus('Could not enable automatic badges: ' + (error as Error).message); }
         finally { setAccessPending(false); }
-      }}>Enable automatic badges on saved custom domains</button>
+      }}>Enable automatic badges on saved custom domains</AccessButton>
       <Note>Custom domains need a one-time browser site-access grant. Group mappings are stored locally. The switch links on the home menu open a new tab with the same path, query and fragment; review URL parameters before switching. The environment label in the badge is set under Floating launcher.</Note>
     </Page>
   );

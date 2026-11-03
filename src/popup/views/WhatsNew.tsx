@@ -1,13 +1,8 @@
 import { Fragment, type ReactNode } from 'react';
 import * as Notes from '@/lib/whats-new';
 import { Page } from '../components/layout';
-import { usePageOpen, usePages, type PageId } from '../pages';
+import { pageTitles, usePageOpen, usePages, type PageId } from '../pages';
 import { useWhatsNew } from '../whats-new';
-
-const pageTitles: Record<PageId, string> = {
-  'style-page':'Component style', 'layout-page':'Canvas layout', 'panels-page':'Builder panels', 'quick-page':'Debug tools',
-  'environment-page':'Environments', 'launcher-page':'Floating launcher', 'transfer-page':'Import & export', 'whats-new-page':"What's new"
-};
 
 // Renders **bold** and *italic* as elements, never as HTML.
 function inline(text: string) {
@@ -50,7 +45,7 @@ export function WhatsNew() {
     {release.date && <span className="release-date">{formatDate(release.date)}</span>}
   </>;
   return (
-    <Page id="whats-new-page" title="What's new" titleId="whats-new-title">
+    <Page id="whats-new-page">
       {expanded.map(release => (
         <section key={release.version} id={anchor(release.version)} className="release" aria-labelledby={anchor(release.version) + '-title'}>
           <h3 id={anchor(release.version) + '-title'}>{heading(release)}</h3>

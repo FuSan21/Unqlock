@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { styleKeys, appearanceDefaults } from '@/lib/appearance';
+import { defaultsOf, styleKeys } from '@/lib/appearance';
 import * as Colors from '@/lib/component-colors';
 import { AppearanceToggle } from '../components/AppearanceToggle';
 import { Unavailable } from '../components/Unavailable';
@@ -7,7 +7,6 @@ import { Note, Page, PageFooter, SettingsHeading } from '../components/layout';
 import { appearanceReason, useSettings } from '../settings';
 
 const partNames = { ink:'foreground', tint:'background' } as const;
-const pick = <T extends object>(source: T, keys: (keyof T)[]) => Object.fromEntries(keys.map(key => [key, source[key]]));
 
 interface SwatchProps { family: Colors.Family; mode: Colors.Mode; part: Colors.Part; value: string; reason: string; onPick: (value: string) => void }
 
@@ -86,7 +85,7 @@ function ColorSettings() {
 export function ComponentStyle() {
   const { appearance, busy, status, save } = useSettings();
   return (
-    <Page id="style-page" title="Component style" titleId="style-title">
+    <Page id="style-page">
       <Note>Colors, icons and accents for components in the sidebar and canvas. Turn styling on or off with Component styling on the home menu.</Note>
       <fieldset id="style-fields" className="appearance-fields" disabled={busy}>
         <SettingsHeading>Apply styling to</SettingsHeading>
@@ -111,7 +110,7 @@ export function ComponentStyle() {
       </fieldset>
       <Note>Follows Unqork’s light or dark appearance.<br />Available in builders across Unqork subdomains.</Note>
       <PageFooter resetId="reset-style" resetText="Reset style" statusId="style-status" status={status} busy={busy}
-        onReset={() => save({ appearance:{ ...appearance, ...pick(appearanceDefaults, styleKeys) }, componentColors:{} })} />
+        onReset={() => save({ appearance:{ ...appearance, ...defaultsOf(styleKeys) }, componentColors:{} })} />
     </Page>
   );
 }

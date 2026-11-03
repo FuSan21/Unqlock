@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type DragEvent } from 'react';
 import { send } from '@/lib/messages';
 import * as Transfer from '@/lib/settings-transfer';
-import { Toggle } from '../components/controls';
-import { importSections, origin, readFile } from '../transfer';
+import { SectionToggles } from '../components/SectionToggles';
+import { chosenSections, importSections, origin, readFile } from '../transfer';
 
 interface Review { parsed: Transfer.Parsed; name: string; from: string; chosen: Transfer.SectionId[] }
 interface Done { names: string; badges: boolean }
@@ -42,8 +42,8 @@ export function ImportFile({ onBusy }: { onBusy: (busy: boolean) => void }) {
 
   async function apply() {
     if (!review) return;
-    const chosen = review.parsed.sections.filter(id => review.chosen.includes(id));
-    if (!chosen.length) { setError('Choose at least one setting to import.'); return; }
+    let chosen: Transfer.SectionId[];
+    try { chosen = chosenSections(review.parsed, review.chosen); } catch (reason) { setError((reason as Error).message); return; }
     setBusy(true);
     setError('');
     try {
@@ -92,10 +92,7 @@ export function ImportFile({ onBusy }: { onBusy: (busy: boolean) => void }) {
         </div>
         <fieldset ref={sections} id="prompt-sections" className="prompt-card" disabled={busy}>
           <legend>Settings to replace</legend>
-          {review.parsed.sections.map(id => (
-            <Toggle key={id} name={id} label={Transfer.sections[id]} checked={review.chosen.includes(id)}
-              onChange={checked => setReview({ ...review, chosen:checked ? [...review.chosen, id] : review.chosen.filter(item => item !== id) })} />
-          ))}
+          <SectionToggles sections={review.parsed.sections} chosen={review.chosen} onChange={chosen => setReview({ ...review, chosen })} />
         </fieldset>
         <p className="prompt-fine">Chosen settings replace the current ones. Anything not chosen stays as it is.</p>
       </>}

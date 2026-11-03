@@ -12,3 +12,6 @@ export const containerKeys = layoutKeys.filter(key => key.startsWith('container'
 export function appearanceSettings(value?: Stored): Appearance {
   return Object.fromEntries((Object.entries(appearanceDefaults) as [AppearanceKey, boolean][]).map(([key, fallback]) => [key, typeof value?.[key] === 'boolean' ? value[key] : fallback])) as Appearance;
 }
+
+// The default value of each of `keys`, as a reset writes them.
+export const defaultsOf = (keys: AppearanceKey[]) => Object.fromEntries(keys.map(key => [key, appearanceDefaults[key]])) as Partial<Appearance>;

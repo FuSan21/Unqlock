@@ -3,18 +3,18 @@ import { flushSync } from 'react-dom';
 import { api } from '@/lib/api';
 import { send } from '@/lib/messages';
 import * as Transfer from '@/lib/settings-transfer';
-import { Toggle } from '../components/controls';
-import { ActionRow, Note, Page, SettingsHeading } from '../components/layout';
+import { SectionToggles } from '../components/SectionToggles';
+import { ActionRow, Confirmation, Note, Page, SettingsHeading, Status } from '../components/layout';
 import { useEnvironment } from '../environment';
 import { usePageLeave } from '../pages';
 import { embedded, firefox } from '../runtime';
 import { useSettings } from '../settings';
-import { importSections, origin, readFile, storedKeys } from '../transfer';
+import { chosenSections, importSections, origin, readFile, storedKeys } from '../transfer';
 interface Message { text: string; error?: boolean }
 interface Review { parsed: Transfer.Parsed; summary: string; chosen: Transfer.SectionId[] }
 
 function TransferStatus({ id, message }: { id: string; message: Message }) {
-  return <p id={id} className="transfer-status" role="status" aria-live="polite" data-state={message.error ? 'error' : undefined}>{message.text}</p>;
+  return <Status id={id} className="transfer-status" state={message.error ? 'error' : undefined}>{message.text}</Status>;
 }
 
 // Firefox closes its toolbar popup when the file picker opens, so files are chosen in the prompt window there.
@@ -74,8 +74,8 @@ export function ImportExport() {
 
   async function apply() {
     if (!review) return;
-    const chosen = review.parsed.sections.filter(id => review.chosen.includes(id));
-    if (!chosen.length) { setImportMessage({ text:'Choose at least one setting to import.', error:true }); return; }
+    let chosen: Transfer.SectionId[];
+    try { chosen = chosenSections(review.parsed, review.chosen); } catch (error) { setImportMessage({ text:(error as Error).message, error:true }); return; }
     setBusy(true);
     setImportMessage({ text:'Importing…' });
     try {
@@ -105,7 +105,7 @@ export function ImportExport() {
   });
 
   return (
-    <Page id="transfer-page" title="Import & export" titleId="transfer-title">
+    <Page id="transfer-page">
       <Note>Move settings to another browser or share them with your team. Debug tool inputs are not included.</Note>
       <SettingsHeading>Export</SettingsHeading>
       <Note id="export-help">Exports Component style, Canvas layout, Builder panels, Environments and Floating launcher. Domain groups list your organization’s hostnames; review the file before sharing it.</Note>
@@ -159,21 +159,14 @@ export function ImportExport() {
         catch (error) { cancel(); setImportMessage({ text:'Not imported. ' + (error as Error).message, error:true }); return; }
         start(value, file.name);
       }} />
-      <div id="import-preview" className="debug-confirmation" hidden={!review}>
-        <p id="import-summary">{review?.summary}</p>
+      <Confirmation id="import-preview" open={Boolean(review)} text={review?.summary} textId="import-summary"
+        confirm={{ id:'import-apply', label:'Import selected', primary:true, disabled:busy, onClick:apply }} cancel={{ id:'import-cancel', disabled:busy, onClick:canceled }}>
         <fieldset ref={sections} id="import-sections">
           <legend className="visually-hidden">Settings to replace</legend>
-          {review?.parsed.sections.map(id => (
-            <Toggle key={id} name={id} label={Transfer.sections[id]} checked={review.chosen.includes(id)}
-              onChange={checked => setReview({ ...review, chosen:checked ? [...review.chosen, id] : review.chosen.filter(item => item !== id) })} />
-          ))}
+          {review && <SectionToggles sections={review.parsed.sections} chosen={review.chosen} onChange={chosen => setReview({ ...review, chosen })} />}
         </fieldset>
         <Note>Chosen settings replace the current ones. Anything not chosen stays as it is.</Note>
-        <ActionRow>
-          <button id="import-apply" className="primary" type="button" disabled={busy} onClick={apply}>Import selected</button>
-          <button id="import-cancel" type="button" disabled={busy} onClick={canceled}>Cancel</button>
-        </ActionRow>
-      </div>
+      </Confirmation>
       <TransferStatus id="import-status" message={importMessage} />
     </Page>
   );

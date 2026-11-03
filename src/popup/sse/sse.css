@@ -1,19 +1,16 @@
 /* The Unqlock SSE debugger window. The popup's tokens, plus one color per kind of event; every kind
    also has its own shape, so nothing depends on color alone. */
+@import '../tokens.css';
 :root {
-  color-scheme:light dark;
-  --paper:#f8fafc; --surface:#ffffff; --lane:#f1f4f9; --ink:#172033; --muted:#526178; --line:#d9e1ec; --line-soft:#e8edf4;
-  --accent:#6d28d9; --tint:#f5f3ff; --set:#0f766e; --wait:#b45309; --wait-tint:#fdf1e3; --fail:#b91c1c; --fail-tint:#fff1f2;
+  --surface:#ffffff; --lane:#f1f4f9; --line-soft:#e8edf4;
+  --set:#0f766e; --wait:#b45309; --wait-tint:#fdf1e3; --fail:var(--danger); --fail-tint:var(--danger-tint);
   --ui:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif; --mono:"Cascadia Mono",Consolas,ui-monospace,monospace;
 }
 @media (prefers-color-scheme:dark) {
-  :root {
-    --paper:#0b0e13; --surface:#10151c; --lane:#141a23; --ink:#cbd2da; --muted:#a2abb6; --line:#262d38; --line-soft:#1b222c;
-    --accent:#c4b5fd; --tint:#211a3a; --set:#5eead4; --wait:#fbbf24; --wait-tint:#2d230d; --fail:#fca5a5; --fail-tint:#3a1416;
-  }
+  /* The window's selection tint is a little darker than the popup's, against its larger surfaces. */
+  :root { --surface:#10151c; --lane:#141a23; --line-soft:#1b222c; --tint:#211a3a; --set:#5eead4; --wait:#fbbf24; --wait-tint:#2d230d; --fail-tint:#3a1416; }
 }
 * { box-sizing:border-box; }
-[hidden] { display:none !important; }
 html, body { height:100%; margin:0; }
 body { background:var(--paper); color:var(--ink); font:13px/1.45 var(--ui); }
 button, input, textarea, select { font:inherit; color:inherit; }
@@ -23,7 +20,6 @@ button:disabled { cursor:not-allowed; opacity:.55; }
 h1, h2, h3, p { margin:0; }
 .mono { font-family:var(--mono); font-variant-numeric:tabular-nums; }
 .muted { color:var(--muted); }
-.visually-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
 kbd { font:11px var(--mono); padding:0 4px; border:1px solid currentColor; border-radius:4px; opacity:.7; }
 .link { padding:2px 4px; border:0; border-radius:4px; background:none; color:var(--accent); font-size:12px; }
 .link:hover:not(:disabled) { background:var(--tint); }

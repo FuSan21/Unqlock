@@ -7,7 +7,7 @@ import { clearRuns } from '@/lib/sse-history';
 import { Segmented, Select, TextField, Toggle } from '../components/controls';
 import { Tabs } from '../components/Tabs';
 import { Unavailable } from '../components/Unavailable';
-import { ActionRow, Button, Note, Page, SettingsHeading, Status } from '../components/layout';
+import { AccessButton, ActionRow, Button, Confirmation, Note, Page, SettingsHeading, Status } from '../components/layout';
 import { promptWindow, requestAccess } from '../access';
 import { useDebug, type FeedbackId, type ValueType } from '../debug';
 import { usePageLeave, usePageOpen } from '../pages';
@@ -17,7 +17,7 @@ type TabId = 'inspect' | 'data' | 'execute';
 
 function Feedback({ id }: { id: FeedbackId }) {
   const { feedback } = useDebug();
-  return <p className="debug-feedback" role="status" aria-live="polite" data-state={feedback[id].state}>{feedback[id].text}</p>;
+  return <Status className="debug-feedback" state={feedback[id].state}>{feedback[id].text}</Status>;
 }
 
 // A button that runs one quick action on the page.
@@ -176,18 +176,13 @@ export function DebugTools() {
     ) }
   ];
   return (
-    <Page id="quick-page" title="Debug tools" titleId="quick-title">
+    <Page id="quick-page">
       <p className="debug-subtitle">Inspect data and test component behavior.</p>
-      <button id="quick-access" type="button" hidden={!debug.accessOrigin} title={debug.accessOrigin || undefined} disabled={debug.accessPending} onClick={debug.requestAccess}>Enable debug tools on this site</button>
+      <AccessButton id="quick-access" missing={Boolean(debug.accessOrigin)} pending={debug.accessPending} title={debug.accessOrigin || undefined} onClick={debug.requestAccess}>Enable debug tools on this site</AccessButton>
       <fieldset id="quick-controls" disabled={debug.controlsDisabled}>
         <Tabs label="Debug tools" tabs={tabs} selected={tab} onSelect={id => { debug.cancel(); setTab(id); }} />
-        <div id="debug-confirmation" className="debug-confirmation" hidden={!debug.pending} data-production={debug.pending ? String(debug.pending.production) : undefined}>
-          <p id="confirmation-text">{debug.pending?.text}</p>
-          <ActionRow>
-            <button id="confirm-action" type="button" onClick={debug.confirm}>{debug.pending?.confirm || 'Confirm'}</button>
-            <button id="cancel-action" type="button" onClick={() => debug.cancel(true)}>Cancel</button>
-          </ActionRow>
-        </div>
+        <Confirmation id="debug-confirmation" open={Boolean(debug.pending)} production={debug.pending?.production} text={debug.pending?.text} textId="confirmation-text"
+          confirm={{ id:'confirm-action', label:debug.pending?.confirm || 'Confirm', onClick:debug.confirm }} cancel={{ id:'cancel-action', onClick:() => debug.cancel(true) }} />
       </fieldset>
       <Status id="quick-status">{debug.status}</Status>
       <DevOverlayOptions />

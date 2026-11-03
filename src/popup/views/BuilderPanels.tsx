@@ -181,7 +181,7 @@ export function BuilderPanels() {
   }, []);
 
   return (
-    <Page id="panels-page" title="Builder panels" titleId="panels-title">
+    <Page id="panels-page">
       <Note>Start collapsed applies once each time you enter a module or reload. Always collapsed also prevents reopening. Widths adapt to the available space.</Note>
       <form id="panels-form" aria-busy={busy} onSubmit={event => event.preventDefault()}>
         <fieldset id="panels-fields" disabled={loading}>
