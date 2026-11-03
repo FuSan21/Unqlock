@@ -1,8 +1,6 @@
-## New in 1.8.0
+## New in 1.8.1
 
-- **Imports keep the styling switch:** importing **Component style** from a file no longer changes the **Component styling** switch on the home menu, just as **Reset style** leaves it alone. A file shared by a teammate who had styling turned off no longer turns it off for you.
-- **Settings stay in step:** with the toolbar popup and the floating menu open together, or after importing a file in the Unqlock window, a change made in one no longer puts back the settings the other loaded earlier.
-- **SSE debugger fixes:** a run too large to save stays in **Runs** while its window is open, **Stop** works right after **Run module**, and a saved run that failed names the step it stopped in.
+- **Metadata in the SSE debugger:** **Include metadata**, under the switch above **Input**, adds a second JSON field that is sent as the request's *metadata*, beside *data*, for every input shape. The window remembers the choice, and opening a past run or **Rerun** restores it with that run's metadata.
 
 ## Package notes
 

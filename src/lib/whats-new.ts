@@ -18,6 +18,9 @@ export interface Release {
 }
 
 export const releases: Release[] = [
+  { version:'1.8.1', date:'2026-11-03', items:[
+    { title:'Metadata in the SSE debugger', text:"**Include metadata**, under the switch above **Input**, adds a second JSON field that is sent as the request's *metadata*, beside *data*, for every input shape. The window remembers the choice, and opening a past run or **Rerun** restores it with that run's metadata.", page:'quick-page' }
+  ] },
   { version:'1.8.0', date:'2026-11-03', items:[
     { title:'Imports keep the styling switch', text:"importing **Component style** from a file no longer changes the **Component styling** switch on the home menu, just as **Reset style** leaves it alone. A file shared by a teammate who had styling turned off no longer turns it off for you.", page:'transfer-page' },
     { title:'Settings stay in step', text:"with the toolbar popup and the floating menu open together, or after importing a file in the Unqlock window, a change made in one no longer puts back the settings the other loaded earlier." },
