@@ -18,8 +18,10 @@ export interface Release {
 }
 
 export const releases: Release[] = [
-  { version:'1.7.4', items:[
-    { title:'Imports keep the styling switch', text:"importing **Component style** from a file no longer changes the **Component styling** switch on the home menu, just as **Reset style** leaves it alone. A file shared by a teammate who had styling turned off no longer turns it off for you.", page:'transfer-page' }
+  { version:'1.8.0', date:'2026-11-03', items:[
+    { title:'Imports keep the styling switch', text:"importing **Component style** from a file no longer changes the **Component styling** switch on the home menu, just as **Reset style** leaves it alone. A file shared by a teammate who had styling turned off no longer turns it off for you.", page:'transfer-page' },
+    { title:'Settings stay in step', text:"with the toolbar popup and the floating menu open together, or after importing a file in the Unqlock window, a change made in one no longer puts back the settings the other loaded earlier." },
+    { title:'SSE debugger fixes', text:"a run too large to save stays in **Runs** while its window is open, **Stop** works right after **Run module**, and a saved run that failed names the step it stopped in.", page:'quick-page' }
   ] },
   { version:'1.7.3', date:'2026-11-03', items:[
     { title:'Input sent as shown', text:"the SSE debugger now sends the input as the request's *data* exactly as the fixed lines around **Input** show it, for **data**, **_request**, **query** and **body**. 1.7.2 put every shape inside an extra *data* object, so the module did not receive the input.", page:'quick-page' },
