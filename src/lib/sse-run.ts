@@ -93,10 +93,14 @@ export async function readSseContext(knownHost?: string): Promise<SseContext | {
   };
 }
 
-// Injected like readSseContext, so also self-contained.
-export async function runSseExecute(request: SseRequest): Promise<SseResponse> {
+// Injected like readSseContext, so also self-contained. `runId` names the run so stopSseExecute can abort it.
+export async function runSseExecute(request: SseRequest, runId = ''): Promise<SseResponse> {
   const started = performance.now();
   const elapsed = () => Math.round(performance.now() - started);
+  // Runs in flight on this page, by ID; a later injection reaches them through the global symbol registry.
+  const runs = ((globalThis as unknown as Record<symbol, Record<string, AbortController> | undefined>)[Symbol.for('unqlock.sse.runs')] ??= {});
+  const controller = new AbortController();
+  if (runId) runs[runId] = controller;
   try {
     if (location.href !== request.url) return { ok:false, ms:0, headers:{}, body:null, error:'The builder tab is on another page now. Choose Run module again.' };
     if (!/^[0-9a-f]{24}$/i.test(request.moduleId)) return { ok:false, ms:0, headers:{}, body:null, error:'That is not a module ID.' };
@@ -124,8 +128,7 @@ export async function runSseExecute(request: SseRequest): Promise<SseResponse> {
     if (request.hydrate) body.hydrateDataInitially = true;
     const sent: SseSent = { url, method:'PUT', headers, body };
     // Unqork allows long-running executions six minutes.
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 360000);
+    const timer = setTimeout(() => controller.abort('timeout'), 360000);
     try {
       const response = await fetch(url, { method:'PUT', credentials:'include', headers, body:JSON.stringify(body), signal:controller.signal });
       const text = await response.text();
@@ -136,9 +139,22 @@ export async function runSseExecute(request: SseRequest): Promise<SseResponse> {
       return { ok:response.ok, status:response.status, ms:elapsed(), headers:kept, body:parsed ?? null, ...(parsed === undefined ? { text:text.slice(0, 20000) } : {}), sent };
     } finally { clearTimeout(timer); }
   } catch (error) {
-    const aborted = (error as Error)?.name === 'AbortError';
-    return { ok:false, ms:elapsed(), headers:{}, body:null, error:aborted ? 'No response after six minutes, so Unqlock stopped waiting.' : 'The request did not reach Unqork: ' + ((error as Error)?.message || 'unknown error') + '.' };
+    // Stopping ends only the wait here: the server may still finish the run.
+    const reason = controller.signal.aborted ? controller.signal.reason : undefined;
+    return { ok:false, ms:elapsed(), headers:{}, body:null, error:reason === 'stopped' ? `You stopped waiting for this run. Unqork may still finish it on the server${request.save ? ' and save its result' : ''}.`
+      : reason ? 'No response after six minutes, so Unqlock stopped waiting.'
+      : 'The request did not reach Unqork: ' + ((error as Error)?.message || 'unknown error') + '.' };
+  } finally {
+    delete runs[runId];
   }
+}
+
+// Injected like readSseContext, so also self-contained: stops waiting for the run runSseExecute started under
+// `runId` on this page. False when there is no such run, as after the page moved or the run ended.
+export function stopSseExecute(runId: string): boolean {
+  const controller = (globalThis as unknown as Record<symbol, Record<string, AbortController> | undefined>)[Symbol.for('unqlock.sse.runs')]?.[runId];
+  controller?.abort('stopped');
+  return Boolean(controller);
 }
 
 // The input JSON, which becomes the submission data the module runs with.

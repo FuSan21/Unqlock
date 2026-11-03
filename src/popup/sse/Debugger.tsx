@@ -6,7 +6,7 @@ import { inputShapes, outcome as outcomeOf, parseInput, type IdentityMode, type 
 import { buildTrace, duration, slowAfter, type Trace, type TraceEvent } from '@/lib/sse-trace';
 import { params } from '../runtime';
 import { Steps, type StepsMode } from './Steps';
-import { readContext, run as runModule, type TabEnvironment } from './tab';
+import { readContext, run as runModule, stop as stopRun, type TabEnvironment } from './tab';
 import { Changes, Empty, Output, Raw } from './views';
 
 export interface Run {
@@ -81,6 +81,9 @@ export function Debugger() {
   const [keeping, setKeeping] = useState(false);
   const [current, setCurrent] = useState<string>();
   const [running, setRunning] = useState(false);
+  // The run in flight, which Stop ends the wait for.
+  const active = useRef<string | undefined>(undefined);
+  const [stopping, setStopping] = useState(false);
   const [confirm, setConfirm] = useState<{ text: ReactNode; action: string }>();
   const [notice, setNotice] = useState('');
   const [view, setView] = useState<ViewId>('steps');
@@ -236,11 +239,15 @@ export function Debugger() {
     setNotice('');
     setRunning(true);
     const request: SseRequest = { url:context.url, moduleId:context.moduleId, data:parsed.data, shape, submissionId:submissionId.trim() || undefined, validate, hydrate, save, mode, role:role.trim() };
-    const result = await runModule(tab, request, production && confirmed);
+    const id = crypto.randomUUID();
+    active.current = id;
+    const result = await runModule(tab, request, production && confirmed, id);
+    active.current = undefined;
+    setStopping(false);
     const response: SseResponse = result.ok ? result.response : { ok:false, ms:0, headers:{}, body:null, error:result.error };
     const outcome = outcomeOf(response);
     const trace = buildTrace(response.body?.eventLog, outcome.problem);
-    const entry: Run = { id:crypto.randomUUID(), at:new Date(), title:context.title, moduleId:context.moduleId, request, response, outcome, trace };
+    const entry: Run = { id, at:new Date(), title:context.title, moduleId:context.moduleId, request, response, outcome, trace };
     if (keep.current) {
       // Read again before writing, so a run another window saved meanwhile is kept.
       const stored = writeRuns(localStorage, [store(entry), ...readRuns(localStorage)]);
@@ -252,6 +259,24 @@ export function Debugger() {
     setSelected(trace.events.find(event => event.kind === 'fail')?.id);
     setRunning(false);
   }
+
+  // Ends the wait for the run in flight; it comes back as a run that stopped, and Run module is focused again.
+  async function stop() {
+    const id = active.current;
+    if (!id || stopping) return;
+    setStopping(true);
+    if (!await stopRun(tab, id) && active.current === id) {
+      setStopping(false);
+      setNotice('Couldn’t stop the run. The builder tab may have moved or closed; its run ends with it.');
+    }
+  }
+  // Run module replaces Stop when the run ends; focus left with Stop moves to it rather than to the page.
+  const ran = useRef(false);
+  useEffect(() => {
+    if (running) { ran.current = true; return; }
+    if (ran.current && (!document.activeElement || document.activeElement === document.body)) runButton.current?.focus({ preventScroll:true });
+    ran.current = false;
+  }, [running]);
 
   function cancelConfirm() {
     setConfirm(undefined);
@@ -284,7 +309,8 @@ export function Debugger() {
       if (event.key === '/' && !typing(event.target)) { event.preventDefault(); filterField.current?.focus(); return; }
       if (event.altKey && /^[1-4]$/.test(event.key)) { event.preventDefault(); setView(views[Number(event.key) - 1][0]); return; }
       if (event.key === 'Escape' && !event.defaultPrevented) {
-        if (confirm) { event.preventDefault(); cancelConfirm(); }
+        if (running) { event.preventDefault(); stop(); }
+        else if (confirm) { event.preventDefault(); cancelConfirm(); }
         else if (railOpen) { event.preventDefault(); setRailOpen(false); }
         else if (selected) { event.preventDefault(); setSelected(undefined); }
       }
@@ -357,9 +383,15 @@ export function Debugger() {
               onChange={event => { identityChosen.current = true; setRole(event.target.value); }} />
           )}
         </fieldset>
-        <button ref={runButton} id="run-module" type="button" className="run" disabled={!context || running || Boolean(unavailable) || Boolean(blockReason)} title={blockReason || undefined} onClick={() => execute()}>
-          {running ? 'Running…' : save ? 'Run and save' : 'Run module'} <kbd>Ctrl ↵</kbd>
-        </button>
+        {running ? (
+          <button id="stop-run" type="button" className="run stop" disabled={stopping} title="Stop waiting for this run. Unqork may still finish it on the server." onClick={stop}>
+            {stopping ? 'Stopping…' : 'Stop'} <kbd>Esc</kbd>
+          </button>
+        ) : (
+          <button ref={runButton} id="run-module" type="button" className="run" disabled={!context || Boolean(unavailable) || Boolean(blockReason)} title={blockReason || undefined} onClick={() => execute()}>
+            {save ? 'Run and save' : 'Run module'} <kbd>Ctrl ↵</kbd>
+          </button>
+        )}
       </header>
       <div className="progress" data-running={running ? '' : undefined} aria-hidden="true" />
 

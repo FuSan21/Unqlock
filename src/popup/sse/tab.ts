@@ -1,7 +1,7 @@
 import { api } from '@/lib/api';
 import * as DevOverlay from '@/lib/dev-overlay';
 import * as Environment from '@/lib/environment';
-import { inputShapes, readSseContext, runSseExecute, type SseContext, type SseRequest, type SseResponse } from '@/lib/sse-run';
+import { inputShapes, readSseContext, runSseExecute, stopSseExecute, type SseContext, type SseRequest, type SseResponse } from '@/lib/sse-run';
 
 // The debugger window reads and runs its builder tab itself, through the extension APIs every extension page
 // has, rather than through the background: a Manifest V3 background stops when idle (Chrome's service worker,
@@ -45,7 +45,8 @@ export async function readContext(tabId: number, knownHost?: string): Promise<Co
 
 // Runs the module, applying the production rules Debug tools uses: none while Environments blocks production
 // actions, otherwise only with a confirmation for this run.
-export async function run(tabId: number, request: SseRequest, productionConfirmed: boolean): Promise<RunResult> {
+// `runId` names the run so stop can end the wait for it.
+export async function run(tabId: number, request: SseRequest, productionConfirmed: boolean, runId = ''): Promise<RunResult> {
   try {
     if (!request || typeof request.url !== 'string' || typeof request.moduleId !== 'string' || !request.data || typeof request.data !== 'object' || Array.isArray(request.data)
       || !inputShapes.some(shape => shape.id === request.shape) || !['designer', 'express'].includes(request.mode) || typeof request.role !== 'string' || request.role.length > 200) return { ok:false, error:'That run request is not valid.' };
@@ -59,8 +60,18 @@ export async function run(tabId: number, request: SseRequest, productionConfirme
       if (config.blockProduction) return { ok:false, error:'Production actions are turned off in Environments.' };
       if (productionConfirmed !== true) return { ok:false, error:'Confirm the production run again.' };
     }
-    const [result] = await api.scripting.executeScript({ target:{ tabId }, world:'MAIN', func:runSseExecute, args:[request] });
+    const [result] = await api.scripting.executeScript({ target:{ tabId }, world:'MAIN', func:runSseExecute, args:[request, runId] });
     if (!result?.result) return { ok:false, error:'The builder tab did not answer. Reload it and try again.' };
     return { ok:true, response:result.result as SseResponse };
   } catch (error) { return { ok:false, error:(error as Error).message || 'The run did not start.' }; }
+}
+
+// Stops waiting for a run in flight. Unqork may still finish it on the server. False when the tab no longer
+// holds it, as after the tab closed, moved or the run ended.
+export async function stop(tabId: number, runId: string): Promise<boolean> {
+  try {
+    if (await builderTab(tabId)) return false;
+    const [result] = await api.scripting.executeScript({ target:{ tabId }, world:'MAIN', func:stopSseExecute, args:[runId] });
+    return result?.result === true;
+  } catch { return false; }
 }

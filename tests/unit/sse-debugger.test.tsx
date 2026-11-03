@@ -295,6 +295,41 @@ test('with Keep past runs, past runs outlast the window, follow other windows, a
   expect(query('.runs').textContent).toMatch(/Your last 10 runs appear here, kept for 30 days or until you clear them/);
 });
 
+test.each(apiNames)('Stop and Escape end the wait for a run in flight (%s)', async apiName => {
+  const { api } = setup(apiName);
+  // The tab answers a run only when it is stopped, as a long run would.
+  const execute = api.scripting.executeScript;
+  let release: ((value: { result: object }[]) => void) | undefined;
+  const stops: unknown[] = [];
+  api.scripting.executeScript = async (options: Parameters<typeof execute>[0]): Promise<{ result: object }[]> => {
+    if (options.func.name === 'runSseExecute') return new Promise<{ result: object }[]>(resolve => { release = resolve; });
+    if (options.func.name === 'stopSseExecute') {
+      stops.push(options.args![0]);
+      release?.([{ result:{ ok:false, ms:4200, headers:{}, body:null, error:'You stopped waiting for this run. Unqork may still finish it on the server.' } }]);
+      return [{ result:true as unknown as object }];
+    }
+    return execute(options);
+  };
+  await renderDebugger(apiName, api);
+  for (const how of ['button', 'escape']) {
+    click(runButton()); await settle();
+    const stopButton = byId<HTMLButtonElement>('stop-run');
+    expect(document.getElementById('run-module')).toBeNull();
+    expect(query('.progress').hasAttribute('data-running')).toBe(true);
+    if (how === 'button') click(stopButton);
+    else press('Escape', document.body);
+    await settle();
+    expect(document.getElementById('stop-run')).toBeNull();
+    expect(query('.outcome .status').textContent).toBe('No response');
+    expect(query('.callout').textContent).toMatch(/You stopped waiting for this run\. Unqork may still finish it on the server\./);
+    expect(document.activeElement).toBe(runButton());
+  }
+  // Each Stop named the run in flight, and each stopped run is listed.
+  expect(stops).toHaveLength(2);
+  expect(stops[0]).not.toBe(stops[1]);
+  expect(document.querySelectorAll('.runs li')).toHaveLength(2);
+});
+
 test('a run too large to save in full is kept trimmed, listed, and can be rerun', async () => {
   // Storage that refuses any list holding an event log, as a full quota would for a big module.
   const setItem = Storage.prototype.setItem;

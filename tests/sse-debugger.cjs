@@ -44,6 +44,7 @@ const log = [
     context.on('page', page => page.on('pageerror', error => errors.push(error.message)));
     // Routes run newest first: the execute endpoint, then every other page as the builder fixture.
     const executed = [];
+    let hold = false;
     await context.route(origin + '/**', request => request.fulfill({ contentType:'text/html', body:html }));
     // The environment's roles, as Unqork's /fbu/uapi/roles lists them (more fields in reality).
     await context.route(origin + '/fbu/uapi/roles', request => request.fulfill({ contentType:'application/json',
@@ -51,6 +52,8 @@ const log = [
     await context.route(origin + '/fbu/uapi/modules/*/execute', async request => {
       const call = { method:request.request().method(), headers:request.request().headers(), body:JSON.parse(request.request().postData() || '{}') };
       executed.push(call);
+      // A held run never answers, so Stop has a request in flight to end.
+      if (hold) return;
       if (executed.length === 2) return request.fulfill({ status:412, contentType:'application/json', headers:{ 'x-assume-role':'Viewer' },
         body:JSON.stringify({ executionError:{ component:'callService', message:'Request failed with status code 500', code:500 }, eventLog:log.slice(0, -1) }) });
       return request.fulfill({ status:200, contentType:'application/json', headers:{ 'x-assume-role':'Viewer', 'x-service-log-id':'6ae7e4bcf8cab860cdbcca9a' },
@@ -129,6 +132,16 @@ const log = [
     assert.equal(await debuggerWindow.locator('.lane[data-key="env"]').count(), 0);
     if (process.env.SSE_SCREENSHOTS) await debuggerWindow.screenshot({ path:path.join(process.env.SSE_SCREENSHOTS, 'chrome-rerun.png') });
 
+    // Stop ends the wait for a run the server has not answered, through the page's real fetch abort.
+    hold = true;
+    await debuggerWindow.locator('#run-module').click();
+    await debuggerWindow.locator('#stop-run').click();
+    await debuggerWindow.locator('.callout', { hasText:'You stopped waiting for this run. Unqork may still finish it on the server.' }).waitFor({ timeout:5000 });
+    assert.equal(await debuggerWindow.locator('.outcome .status').textContent(), 'No response');
+    assert.equal(await debuggerWindow.locator('#run-module').isEnabled(), true);
+    assert.equal(executed.length, 4);
+    hold = false;
+
     // Clicking the button again focuses the same window rather than opening another.
     const pages = context.pages().length;
     await button.click();
@@ -161,7 +174,7 @@ const log = [
     await extension.waitForFunction(() => chrome.storage.local.get('sseDebugger').then(result => result.sseDebugger === false), null, { timeout:5000 });
     await button.waitFor({ state:'detached', timeout:5000 });
     assert.deepEqual(errors, []);
-    console.log('PASS: Unqlock SSE debugger switch, its button on the dev overlay, one window per tab, runs with Unqork’s headers and body, steps and inspector, Slow, a failed run, Rerun, In values, Hide setup values, Use instead of Unqork’s debugger, and removal (Chrome extension).');
+    console.log('PASS: Unqlock SSE debugger switch, its button on the dev overlay, one window per tab, runs with Unqork’s headers and body, steps and inspector, Slow, a failed run, Rerun, In values, Hide setup values, Stop, Use instead of Unqork’s debugger, and removal (Chrome extension).');
   } finally {
     await context.close();
   }

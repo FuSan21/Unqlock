@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import { runSseExecute, type InputShape, type SseRequest } from '@/lib/sse-run';
+import { runSseExecute, stopSseExecute, type InputShape, type SseRequest } from '@/lib/sse-run';
 import { apiNames, type ApiName } from './harness';
 
 // The debugger window reads and runs its builder tab itself (src/popup/sse/tab.ts), with the checks the
@@ -34,11 +34,27 @@ test.each(apiNames)('reads the context and runs the module in the tab’s MAIN w
   const { tab, injected } = await load(apiName);
   const read = await tab.readContext(7);
   expect(read).toMatchObject({ ok:true, environment:{ kind:'staging', label:'STAGING', blocked:false } });
-  expect(await tab.run(7, request, false)).toMatchObject({ ok:true, response:{ status:200 } });
+  expect(await tab.run(7, request, false, 'run-1')).toMatchObject({ ok:true, response:{ status:200 } });
+  // Stop reaches the same tab's MAIN world with the run's ID.
+  expect(await tab.stop(7, 'run-1')).toBe(false);
   expect(injected).toEqual([
     { tabId:7, world:'MAIN', name:'readSseContext', args:[''] },
-    { tabId:7, world:'MAIN', name:'runSseExecute', args:[request] }
+    { tabId:7, world:'MAIN', name:'runSseExecute', args:[request, 'run-1'] },
+    { tabId:7, world:'MAIN', name:'stopSseExecute', args:['run-1'] }
   ]);
+});
+
+test('Stop ends the wait for a run in flight, and says Unqork may still finish it', async () => {
+  // A fetch that waits until it is aborted, as a long run does.
+  vi.stubGlobal('fetch', (_url: string, init: RequestInit) => new Promise((_resolve, reject) => init.signal!.addEventListener('abort', () => reject(init.signal!.reason))));
+  try {
+    const running = runSseExecute({ ...request, url:location.href, save:true }, 'run-2');
+    expect(stopSseExecute('run-2')).toBe(true);
+    const response = await running;
+    expect(response).toMatchObject({ ok:false, error:'You stopped waiting for this run. Unqork may still finish it on the server and save its result.' });
+    // The run is gone from the page once it ends.
+    expect(stopSseExecute('run-2')).toBe(false);
+  } finally { vi.unstubAllGlobals(); }
 });
 
 test.each(apiNames)('refuses a tab that has left Unqork, closed, or lost its access, before injecting anything (%s)', async apiName => {
