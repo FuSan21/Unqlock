@@ -1,10 +1,6 @@
-## New in 1.7.3
+## New in 1.7.4
 
-- **Input sent as shown:** the SSE debugger now sends the input as the request's *data* exactly as the fixed lines around **Input** show it, for **data**, **_request**, **query** and **body**. 1.7.2 put every shape inside an extra *data* object, so the module did not receive the input.
-- **Large runs stay in Runs:** with **Keep past runs** on, a run whose steps and response are too large for the browser's storage is no longer left out. It stays in **Runs** with its input, options and result, and **Rerun** runs it again to show the rest.
-- **Stop a run:** while a run is in flight, **Stop**, or Escape, stops waiting for it. Unqork may still finish the run on the server, and save its result if **Save to submission** was on.
-- **Lines for values integrators save:** selecting a value an integrator saved under its own key now draws the lines back to the integrator's run, and **How it got here** shows where it came from, as for any other value.
-- **Opening a run restores its input:** selecting a run in **Runs** puts its input and input shape back in the **Input** box, so you can change it and run it again.
+- **Imports keep the styling switch:** importing **Component style** from a file no longer changes the **Component styling** switch on the home menu, just as **Reset style** leaves it alone. A file shared by a teammate who had styling turned off no longer turns it off for you.
 
 ## Package notes
 

@@ -108,7 +108,8 @@ test.each(apiNames)('export by copy and download, review and import by paste and
 
   // Review lists every section; only the chosen ones are replaced.
   const incoming = structuredClone(exported);
-  Object.assign(incoming.settings.appearance, { compact:false, icons:true, containerGuides:false });
+  // The home switch is off in the file, but an import leaves this browser's switch alone.
+  Object.assign(incoming.settings.appearance, { enabled:false, compact:false, icons:true, containerGuides:false });
   incoming.settings.rowLayout.enabled = false;
   incoming.settings.canvasToolbar = { search:'native', sort:'always' };
   incoming.settings.componentColors = { logic:{ dark:{ ink:'#7c3aed' } } };
@@ -142,6 +143,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   expect(byId('import-preview').hidden).toBe(true);
   expect(document.activeElement?.id).toBe('import-review');
   const appearance = store.appearance as Record<string, boolean>;
+  expect(appearance.enabled).toBe(true);
   expect(appearance.icons).toBe(true);
   expect(appearance.compact).toBe(true);
   expect(appearance.containerGuides).toBe(true);
@@ -200,4 +202,8 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   expect(store.environment.badge).toBe(true);
   expect(store.environment.groups).toEqual(incoming.settings.environment.groups);
   expect(store.floating).toEqual({ enabled:true, mode:'fixed', corner:'bottom-right' });
+
+  // The home switch alone is not a Component style section.
+  paste('{"unqlock":1,"settings":{"appearance":{"enabled":false},"floating":{"enabled":true}}}');
+  expect(boxes().map(box => box.name)).toEqual(['launcher']);
 });

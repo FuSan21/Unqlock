@@ -1,6 +1,6 @@
 // Settings export and import. Pure functions over stored values; the popup does the reading and writing.
 import type { Stored } from './api';
-import { appearanceSettings, layoutKeys, type AppearanceKey } from './appearance';
+import { appearanceSettings, layoutKeys, styleKeys } from './appearance';
 import * as Colors from './component-colors';
 import * as Environment from './environment';
 import * as Labels from './label-settings';
@@ -71,7 +71,8 @@ export function parse(text: unknown): Parsed {
   const appearance = settings.appearance || {};
   const isLayoutKey = (key: string) => (layoutKeys as string[]).includes(key);
   const present: Record<SectionId, boolean> = {
-    style: Object.keys(appearance).some(key => !isLayoutKey(key)) || Boolean(settings.componentColors),
+    // The home switch travels in every export but is not part of Component style.
+    style: Object.keys(appearance).some(key => key !== 'enabled' && !isLayoutKey(key)) || Boolean(settings.componentColors),
     layout: Object.keys(appearance).some(isLayoutKey) || Boolean(settings.rowLayout || settings.canvasToolbar) || Object.hasOwn(settings, Labels.key),
     panels: Boolean(settings.builderPanels || settings.panelWidths) || [Panels.tabsKey, Panels.tabsCollapsedKey].some(key => Object.hasOwn(settings, key)),
     environments: Boolean(settings.environment) && ['groups', 'blockProduction', 'autoDiscover'].some(key => Object.hasOwn(settings.environment as object, key)),
@@ -98,7 +99,8 @@ export function apply(parsed: Parsed, chosen: SectionId[], stored: Stored) {
   const update: Record<string, unknown> = {};
   const current = appearanceSettings(stored.appearance);
   const incoming = appearanceSettings(settings.appearance);
-  const styleKeys = (Object.keys(current) as AppearanceKey[]).filter(key => !layoutKeys.includes(key));
+  // As with Reset style, the home switch stays as it is: a file shared by a teammate with styling off does
+  // not turn it off here.
   if (selected('style') || selected('layout')) {
     update.appearance = {
       ...current,
