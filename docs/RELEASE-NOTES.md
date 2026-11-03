@@ -4,6 +4,7 @@
 - **Large runs stay in Runs:** with **Keep past runs** on, a run whose steps and response are too large for the browser's storage is no longer left out. It stays in **Runs** with its input, options and result, and **Rerun** runs it again to show the rest.
 - **Stop a run:** while a run is in flight, **Stop**, or Escape, stops waiting for it. Unqork may still finish the run on the server, and save its result if **Save to submission** was on.
 - **Lines for values integrators save:** selecting a value an integrator saved under its own key now draws the lines back to the integrator's run, and **How it got here** shows where it came from, as for any other value.
+- **Opening a run restores its input:** selecting a run in **Runs** puts its input and input shape back in the **Input** box, so you can change it and run it again.
 
 ## Package notes
 
