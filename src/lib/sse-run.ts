@@ -111,13 +111,13 @@ export async function runSseExecute(request: SseRequest): Promise<SseResponse> {
     const headers: Record<string, string> = { 'Content-Type':'application/json', 'x-xsrf':'' };
     if (request.role) headers['x-assume-role'] = request.role;
     if (request.mode === 'designer') headers['x-quill-preview'] = 'true';
-    // Unqork reads the submission's values from data.data, so the input always goes inside that wrapper, and
-    // under _request, its query or its body for an API module. Kept in step with inputShapes.
+    // The input is the body's data as it is, or for an API module its _request, query or body; the window draws
+    // exactly this as the fixed lines around the input. Kept in step with inputShapes.
     const values = request.shape === 'request' ? { _request:request.data }
       : request.shape === 'query' ? { _request:{ query:request.data } }
       : request.shape === 'body' ? { _request:{ body:request.data } }
       : request.data;
-    const body: Record<string, unknown> = { moduleId:request.moduleId, data:{ data:values }, verbose:true };
+    const body: Record<string, unknown> = { moduleId:request.moduleId, data:values, verbose:true };
     if (request.submissionId) body.submissionId = request.submissionId;
     if (request.save) body.save = true;
     if (request.validate) body.validate = true;

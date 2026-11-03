@@ -89,13 +89,13 @@ test.each<[InputShape, unknown]>([
   ['request', { _request:{ a:1 } }],
   ['query', { _request:{ query:{ a:1 } } }],
   ['body', { _request:{ body:{ a:1 } } }]
-])('the %s shape places the input inside data.data', async (shape, values) => {
+])('the %s shape places the input in the body’s data, as the window draws it', async (shape, values) => {
   const sent: { url: string; init: RequestInit }[] = [];
   vi.stubGlobal('fetch', async (url: string, init: RequestInit) => { sent.push({ url, init }); return new Response('{}', { status:200 }); });
   try {
     const response = await runSseExecute({ ...request, url:location.href, shape });
     expect(response.ok).toBe(true);
-    expect(JSON.parse(sent[0].init.body as string)).toEqual({ moduleId:request.moduleId, data:{ data:values }, verbose:true });
-    expect(response.sent?.body).toEqual({ moduleId:request.moduleId, data:{ data:values }, verbose:true });
+    expect(JSON.parse(sent[0].init.body as string)).toEqual({ moduleId:request.moduleId, data:values, verbose:true });
+    expect(response.sent?.body).toEqual({ moduleId:request.moduleId, data:values, verbose:true });
   } finally { vi.unstubAllGlobals(); }
 });
