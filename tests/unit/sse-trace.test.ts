@@ -53,6 +53,21 @@ test('unknown event types are kept as other, and an error-like type as a failure
   expect(describe(trace.events.at(-1)!)).toBe('logged somethingNew');
 });
 
+test('a value an integrator saves under its own key follows from its wait, as one it saves elsewhere does', () => {
+  const trace = buildTrace([...log,
+    entry(3, 'setData', 'callService', 'callService', 'integrator', 12, { value:{ status:200 }, update:true }),
+    entry(3, 'setData', 'callService', 'response', 'hidden', 12, { value:'ok', update:true })
+  ]);
+  const wait = trace.events.find(event => event.key === 'callService' && event.kind === 'wait')!;
+  const own = trace.events.find(event => event.key === 'callService' && event.kind === 'set')!;
+  const other = trace.events.find(event => event.key === 'response' && event.kind === 'set')!;
+  expect([own.cause, other.cause]).toEqual([wait.id, wait.id]);
+  // Selecting the value highlights the wait, and its path runs through the wait to the value.
+  expect(chain(trace, own.id).has(wait.id)).toBe(true);
+  expect(chain(trace, wait.id).has(own.id)).toBe(true);
+  expect(path(trace, own.id).slice(-2).map(event => event.id)).toEqual([wait.id, own.id]);
+});
+
 test('a run lasts until the last event it caused in its step, and runs and waits past their limits are slow', () => {
   const trace = buildTrace([
     entry(0, 'addTrigger', '__setup__', 'calc', 'calculator', 0),

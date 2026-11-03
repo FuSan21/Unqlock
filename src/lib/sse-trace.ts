@@ -99,7 +99,9 @@ export function buildTrace(log: Stored, problem?: Problem): Trace {
       }
     }
     let event: TraceEvent;
-    if (eventType === 'setData') event = { ...base, kind:'set', cause:causeOf(key, causeKey) };
+    // A component that sets its own value, as an integrator saves its response under its own key, does so from
+    // its own latest run or wait.
+    if (eventType === 'setData') event = { ...base, kind:'set', cause:causeKey === key ? latestRun.get(key)?.id : causeOf(key, causeKey) };
     else if (eventType === 'addTrigger') {
       event = { ...base, kind:'queued', cause:causeOf(key, causeKey) };
       const waiting = queued.get(key);
