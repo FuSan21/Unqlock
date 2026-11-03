@@ -1,25 +1,15 @@
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { chromium } = require('playwright');
+const { extensionId: readExtensionId, extensionWith, launchChrome } = require('./browser.cjs');
 // The prompt window against the real background, in the installed Chrome extension. The browser's own
 // permission prompt cannot be accepted from automation, so this copy of the extension already holds
 // unqork.io access and the request resolves without one.
 (async () => {
-  const extensionPath = fs.mkdtempSync(path.join(os.tmpdir(), 'unqlock-prompt-extension-'));
-  fs.cpSync(path.resolve(__dirname, '../dist/chrome'), extensionPath, { recursive:true });
-  const manifestPath = path.join(extensionPath, 'manifest.json');
-  fs.writeFileSync(manifestPath, JSON.stringify({ ...JSON.parse(fs.readFileSync(manifestPath, 'utf8')), host_permissions:['https://*.unqork.io/*'] }));
-  const context = await chromium.launchPersistentContext(fs.mkdtempSync(path.join(os.tmpdir(), 'unqlock-prompt-')), {
-    ...(process.env.CHROME_PATH ? { executablePath:process.env.CHROME_PATH } : { channel:'chromium' }), headless:true,
-    args:['--disable-extensions-except=' + extensionPath, '--load-extension=' + extensionPath]
-  });
+  const extensionPath = extensionWith('prompt', ['https://*.unqork.io/*']);
+  const context = await launchChrome('prompt', { extension:extensionPath });
   try {
     const errors = [];
     const extension = await context.newPage();
-    await extension.goto('chrome://extensions');
-    const id = await extension.evaluate(() => new Promise(resolve => chrome.developerPrivate.getExtensionsInfo({}, list => resolve(list.find(e => e.name === 'Unqlock').id))));
+    const id = await readExtensionId(extension);
     await extension.goto(`chrome-extension://${id}/popup.html`);
     const stored = key => extension.evaluate(key => chrome.storage.local.get(key).then(result => result[key]), key);
     const open = async query => {

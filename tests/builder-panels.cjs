@@ -1,11 +1,10 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
-const { chromium, firefox } = require('playwright');
+const { builtScript, close, extensionId: readExtensionId, installStorageDouble, launchChrome, launchFirefox, storage } = require('./browser.cjs');
 const { buildSync } = require('esbuild');
 // The Firefox branch injects the built content scripts into the fixture page.
-const source = name => fs.readFileSync(path.resolve(__dirname, '../dist/firefox/content-scripts', name), 'utf8');
+const source = name => builtScript('firefox', name);
 const bundle = buildSync({ entryPoints:[path.join(__dirname, 'fixtures/builder-panels.jsx')], bundle:true, write:false, format:'iife' }).outputFiles[0].text;
 const html = '<!doctype html><style>body{margin:0}button{height:30px} [data-panel]{background:#fafafa;border:1px solid #ddd!important;box-sizing:border-box}</style><div id="root"></div><script>' + bundle.replace(/<\/script/gi, '<\\/script') + '</script>';
 const fixtureUrl = 'https://panels-fixture.unqork.io/ide/builder/workspaces/test/modules/first';
@@ -16,15 +15,9 @@ const names = {
 async function run(firefoxMode) {
   let context;
   if (firefoxMode) {
-    const browser = await firefox.launch({headless:true});
-    context = await browser.newContext({viewport:{width:2560,height:800}});
-    context.closeBrowser = () => browser.close();
+    context = await launchFirefox({viewport:{width:2560,height:800}});
   } else {
-    context = await chromium.launchPersistentContext(fs.mkdtempSync(path.join(os.tmpdir(), 'unqlock-panels-')), {
-      ...(process.env.CHROME_PATH ? {executablePath:process.env.CHROME_PATH} : {channel:'chromium'}), headless:true,
-      args:['--disable-extensions-except=' + path.resolve(__dirname,'../dist/chrome'), '--load-extension=' + path.resolve(__dirname,'../dist/chrome')],
-      viewport:{width:2560,height:800}
-    });
+    context = await launchChrome('panels', {viewport:{width:2560,height:800}});
   }
   try {
     const errors = [];
@@ -35,32 +28,12 @@ async function run(firefoxMode) {
     let extensionId;
     if (!firefoxMode) {
       popup = await context.newPage();
-      await popup.goto('chrome://extensions');
-      extensionId = await popup.evaluate(() => new Promise(resolve => chrome.developerPrivate.getExtensionsInfo({}, list => resolve(list.find(e => e.name === 'Unqlock').id))));
+      extensionId = await readExtensionId(popup);
       await popup.goto(`chrome-extension://${extensionId}/popup.html`);
     } else {
-      await page.addInitScript(() => {
-        const callbacks = [];
-        window.browser = { runtime:{id:'fixture',onMessage:{addListener() {}}}, storage:{
-          local:{get:async () => JSON.parse(localStorage.getItem('fixture') || '{}'), set:async updates => {
-            const data = JSON.parse(localStorage.getItem('fixture') || '{}'); const changes = {};
-            for (const [key,value] of Object.entries(updates)) { changes[key] = {oldValue:data[key],newValue:value}; data[key] = value; }
-            localStorage.setItem('fixture',JSON.stringify(data)); callbacks.forEach(fn => fn(changes,'local'));
-          }}, onChanged:{addListener:fn => callbacks.push(fn)}
-        }};
-      });
+      await installStorageDouble(page);
     }
-    async function set(values) { await (popup || page).evaluate(values => (window.chrome?.storage || window.browser.storage).local.set(values), values); }
-    async function get() { return (popup || page).evaluate(() => (window.chrome?.storage || window.browser.storage).local.get(null)); }
-    async function storedWhen(predicate) {
-      const until = Date.now() + 7000;
-      while (Date.now() < until) {
-        const values = await get();
-        if (predicate(values)) return values;
-        await new Promise(resolve => setTimeout(resolve,50));
-      }
-      throw new Error('Storage did not reach the expected state: ' + JSON.stringify(await get()));
-    }
+    const { set, get, storedWhen } = storage(popup || page);
     async function load(url = fixtureUrl) {
       await page.goto(url);
       await page.getByRole('button',{name:'Collapse left',exact:true}).waitFor();
@@ -217,9 +190,6 @@ async function run(firefoxMode) {
     }
     assert.deepEqual(errors,[]);
     console.log('PASS: native nested panel sizing, collapse policy, drag persistence, navigation and settings (' + (firefoxMode ? 'Firefox' : 'Chrome extension') + ').');
-  } finally {
-    if (context.closeBrowser) await context.closeBrowser();
-    else await context.close();
-  }
+  } finally { await close(context); }
 }
 run(process.argv.includes('--firefox')).catch(error => {console.error(error);process.exitCode=1;});

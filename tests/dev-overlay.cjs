@@ -1,19 +1,16 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
-const { chromium, firefox } = require('playwright');
+const { builtScript, close, extensionId: readExtensionId, extensionWith, frames: nextFrames, launchChrome, launchFirefox } = require('./browser.cjs');
 // The Firefox branch injects the built content scripts into every fixture page, the popup included.
-const source = name => fs.readFileSync(path.resolve(__dirname, '../dist/firefox/content-scripts', name), 'utf8');
+const source = name => builtScript('firefox', name);
 const html = fs.readFileSync(path.join(__dirname, 'fixtures/dev-overlay.html'), 'utf8');
 const origin = 'https://overlay-fixture.unqork.io';
 const route = '/ide/builder/workspaces/test/modules/first';
 async function run(firefoxMode) {
   let context;
   if (firefoxMode) {
-    const browser = await firefox.launch({ headless:true });
-    context = await browser.newContext();
-    context.closeBrowser = () => browser.close();
+    context = await launchFirefox();
     // The background registers both scripts while the option is on; here the MAIN-world guard runs
     // before the page's scripts, and the isolated script, with a storage double, once it is parsed.
     await context.addInitScript({ content:source('dev-overlay-guard.js') });
@@ -37,14 +34,8 @@ async function run(firefoxMode) {
   } else {
     // Turning the option on requests unqork.io access through a prompt automation cannot accept, so this
     // copy of the extension holds that access already and the request resolves without one.
-    const extensionPath = fs.mkdtempSync(path.join(os.tmpdir(), 'unqlock-overlay-extension-'));
-    fs.cpSync(path.resolve(__dirname, '../dist/chrome'), extensionPath, { recursive:true });
-    const manifestPath = path.join(extensionPath, 'manifest.json');
-    fs.writeFileSync(manifestPath, JSON.stringify({ ...JSON.parse(fs.readFileSync(manifestPath, 'utf8')), host_permissions:['https://*.unqork.io/*'] }));
-    context = await chromium.launchPersistentContext(fs.mkdtempSync(path.join(os.tmpdir(), 'unqlock-overlay-')), {
-      ...(process.env.CHROME_PATH ? { executablePath:process.env.CHROME_PATH } : { channel:'chromium' }), headless:true,
-      args:['--disable-extensions-except=' + extensionPath, '--load-extension=' + extensionPath]
-    });
+    const extensionPath = extensionWith('overlay', ['https://*.unqork.io/*']);
+    context = await launchChrome('overlay', { extension:extensionPath });
   }
   try {
     const errors = [];
@@ -52,12 +43,11 @@ async function run(firefoxMode) {
     await context.route(origin + '/**', request => request.fulfill({ contentType:'text/html', body:html }));
     const page = await context.newPage();
     page.on('pageerror', error => errors.push(error.message));
-    const frames = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const frames = () => nextFrames(page);
     let extension;
     if (!firefoxMode) {
       extension = await context.newPage();
-      await extension.goto('chrome://extensions');
-      const extensionId = await extension.evaluate(() => new Promise(resolve => chrome.developerPrivate.getExtensionsInfo({}, list => resolve(list.find(e => e.name === 'Unqlock').id))));
+      const extensionId = await readExtensionId(extension);
       await extension.goto(`chrome-extension://${extensionId}/popup.html`);
       await extension.locator('[aria-controls="quick-page"]').click();
     }
@@ -206,9 +196,6 @@ async function run(firefoxMode) {
     assert.equal(await page.locator('[data-unqlock-detach]').count(), 0);
     assert.deepEqual(errors, []);
     console.log('PASS: dev overlay option off by default, injection when turned on, removal when off, Detach and Reattach, the full-window popup, its storage guard, portaled menus and scope (' + (firefoxMode ? 'Firefox' : 'Chrome extension') + ').');
-  } finally {
-    if (context.closeBrowser) await context.closeBrowser();
-    else await context.close();
-  }
+  } finally { await close(context); }
 }
 run(process.argv.includes('--firefox')).catch(error => { console.error(error); process.exitCode = 1; });

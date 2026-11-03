@@ -1,24 +1,18 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
-const { chromium, firefox } = require('playwright');
+const { builtScript, close, extensionId: readExtensionId, frames: nextFrames, installStorageDouble, launchChrome, launchFirefox, storage } = require('./browser.cjs');
 // The Firefox branch injects the built content script into the fixture page.
-const source = name => fs.readFileSync(path.resolve(__dirname, '../dist/firefox/content-scripts', name), 'utf8');
+const source = name => builtScript('firefox', name);
 const html = fs.readFileSync(path.join(__dirname, 'fixtures/navigation-tabs.html'), 'utf8');
 const origin = 'https://tabs-fixture.unqork.io';
 const modulePath = name => '/builder/workspaces/test/modules/' + name;
 async function run(firefoxMode) {
   let context;
   if (firefoxMode) {
-    const browser = await firefox.launch({ headless:true });
-    context = await browser.newContext();
-    context.closeBrowser = () => browser.close();
+    context = await launchFirefox();
   } else {
-    context = await chromium.launchPersistentContext(fs.mkdtempSync(path.join(os.tmpdir(), 'unqlock-tabs-')), {
-      ...(process.env.CHROME_PATH ? { executablePath:process.env.CHROME_PATH } : { channel:'chromium' }), headless:true,
-      args:['--disable-extensions-except=' + path.resolve(__dirname, '../dist/chrome'), '--load-extension=' + path.resolve(__dirname, '../dist/chrome')]
-    });
+    context = await launchChrome('tabs');
   }
   try {
     const errors = [];
@@ -28,33 +22,13 @@ async function run(firefoxMode) {
     let popup;
     if (!firefoxMode) {
       popup = await context.newPage();
-      await popup.goto('chrome://extensions');
-      const extensionId = await popup.evaluate(() => new Promise(resolve => chrome.developerPrivate.getExtensionsInfo({}, list => resolve(list.find(e => e.name === 'Unqlock').id))));
+      const extensionId = await readExtensionId(popup);
       await popup.goto(`chrome-extension://${extensionId}/popup.html`);
     } else {
-      await page.addInitScript(() => {
-        const callbacks = [];
-        window.browser = { runtime:{ id:'fixture', onMessage:{ addListener() {} } }, storage:{
-          local:{ get:async () => JSON.parse(localStorage.getItem('fixture') || '{}'), set:async updates => {
-            const data = JSON.parse(localStorage.getItem('fixture') || '{}'); const changes = {};
-            for (const [key, value] of Object.entries(updates)) { changes[key] = { oldValue:data[key], newValue:value }; data[key] = value; }
-            localStorage.setItem('fixture', JSON.stringify(data)); callbacks.forEach(fn => fn(changes, 'local'));
-          } }, onChanged:{ addListener:fn => callbacks.push(fn) }
-        } };
-      });
+      await installStorageDouble(page);
     }
-    const set = values => (popup || page).evaluate(values => (window.chrome?.storage || window.browser.storage).local.set(values), values);
-    const get = () => (popup || page).evaluate(() => (window.chrome?.storage || window.browser.storage).local.get(null));
-    async function storedWhen(predicate) {
-      const until = Date.now() + 7000;
-      while (Date.now() < until) {
-        const values = await get();
-        if (predicate(values)) return values;
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
-      throw new Error('Storage did not reach the expected state: ' + JSON.stringify(await get()));
-    }
-    const frames = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const { set, get, storedWhen } = storage(popup || page);
+    const frames = () => nextFrames(page);
     async function load(route = modulePath('first')) {
       await page.goto(origin + '/ide' + route);
       await page.locator('nav[data-testid="navigation-tabs"] [data-sortable-tab]').first().waitFor({ state:'attached' });
@@ -250,9 +224,6 @@ async function run(firefoxMode) {
     }
     assert.deepEqual(errors, []);
     console.log('PASS: navigation tab bar hiding, the toolbar title, Multi-line full names, collapsed until header hover, single-tab pruning through collapsed groups, reload, loop guard, Default, scope and popup settings (' + (firefoxMode ? 'Firefox' : 'Chrome extension') + ').');
-  } finally {
-    if (context.closeBrowser) await context.closeBrowser();
-    else await context.close();
-  }
+  } finally { await close(context); }
 }
 run(process.argv.includes('--firefox')).catch(error => { console.error(error); process.exitCode = 1; });

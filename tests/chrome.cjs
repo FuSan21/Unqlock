@@ -1,16 +1,11 @@
-const { chromium } = require('playwright');
+const { launchChrome } = require('./browser.cjs');
 const path = require('node:path');
 const fs = require('node:fs');
 const assert = require('node:assert/strict');
 const lib = require('./lib.cjs');
 (async () => {
   fs.mkdirSync(path.resolve(__dirname, '../artifacts'), { recursive:true });
-  const extension = path.resolve(__dirname, '../dist/chrome');
-  const context = await chromium.launchPersistentContext(fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'unqlock-chrome-')), {
-    ...(process.env.CHROME_PATH ? { executablePath:process.env.CHROME_PATH } : { channel:'chromium' }), headless:true,
-    args:[`--disable-extensions-except=${extension}`, `--load-extension=${extension}`],
-    viewport:{width:420,height:740}
-  });
+  const context = await launchChrome('chrome', { viewport:{width:420,height:740} });
   try {
     const page = await context.newPage();
     await page.goto('chrome://extensions');

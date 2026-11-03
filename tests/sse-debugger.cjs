@@ -1,8 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
-const { chromium } = require('playwright');
+const { extensionId: readExtensionId, extensionWith, launchChrome } = require('./browser.cjs');
 // The Unqlock SSE debugger end to end in Chrome: the Debug tools switch, the button on the dev overlay
 // fixture, the window it opens, and runs against a stand-in for Unqork's execute endpoint.
 const html = fs.readFileSync(path.join(__dirname, 'fixtures/dev-overlay.html'), 'utf8');
@@ -30,15 +29,8 @@ const log = [
 (async () => {
   // Turning the option on requests unqork.io access through a prompt automation cannot accept, so this copy
   // of the extension holds that access already and the request resolves without one.
-  const extensionPath = fs.mkdtempSync(path.join(os.tmpdir(), 'unqlock-sse-extension-'));
-  fs.cpSync(path.resolve(__dirname, '../dist/chrome'), extensionPath, { recursive:true });
-  const manifestPath = path.join(extensionPath, 'manifest.json');
-  fs.writeFileSync(manifestPath, JSON.stringify({ ...JSON.parse(fs.readFileSync(manifestPath, 'utf8')), host_permissions:['https://*.unqork.io/*'] }));
-  const context = await chromium.launchPersistentContext(fs.mkdtempSync(path.join(os.tmpdir(), 'unqlock-sse-')), {
-    ...(process.env.CHROME_PATH ? { executablePath:process.env.CHROME_PATH } : { channel:'chromium' }), headless:true,
-    viewport:{ width:1280, height:800 },
-    args:['--disable-extensions-except=' + extensionPath, '--load-extension=' + extensionPath]
-  });
+  const extensionPath = extensionWith('sse', ['https://*.unqork.io/*']);
+  const context = await launchChrome('sse', { extension:extensionPath, viewport:{ width:1280, height:800 } });
   try {
     const errors = [];
     context.on('page', page => page.on('pageerror', error => errors.push(error.message)));
@@ -61,8 +53,7 @@ const log = [
     });
 
     const extension = await context.newPage();
-    await extension.goto('chrome://extensions');
-    const extensionId = await extension.evaluate(() => new Promise(resolve => chrome.developerPrivate.getExtensionsInfo({}, list => resolve(list.find(e => e.name === 'Unqlock').id))));
+    const extensionId = await readExtensionId(extension);
     await extension.goto(`chrome-extension://${extensionId}/popup.html`);
     await extension.locator('[aria-controls="quick-page"]').click();
     const option = extension.getByLabel('Unqlock SSE debugger', { exact:true });

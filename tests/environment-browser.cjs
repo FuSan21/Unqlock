@@ -1,7 +1,7 @@
 const { chromium } = require('playwright');
 const path = require('node:path');
 const fs = require('node:fs');
-const os = require('node:os');
+const { tempDir } = require('./browser.cjs');
 const assert = require('node:assert/strict');
 // A stalled step reports where it stopped instead of running into the runner's timeout silently.
 let step = 'start';
@@ -10,7 +10,8 @@ const mark = name => { step = name; console.log('  · ' + name); };
 const watchdog = setTimeout(() => { console.error('Stalled at step: ' + step); process.exit(1); }, 4 * 60 * 1000);
 watchdog.unref();
 (async () => {
-  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'unqlock-environment-'));
+  // Removed when the run ends; the profile inside it lasts across the restart below.
+  const fixture = tempDir('environment');
   const extension = path.join(fixture, 'extension');
   fs.cpSync(path.resolve(__dirname, '../dist/chrome'), extension, { recursive:true });
   const manifestPath = path.join(extension, 'manifest.json');

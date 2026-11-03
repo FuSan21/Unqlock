@@ -17,7 +17,7 @@ const fixture = `<main><aside>${catalog.components.map(tray).join('')}</aside><s
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'));
 assert.deepEqual(manifest.permissions, ['storage', 'activeTab', 'scripting']);
 for (const file of [...manifest.content_scripts[0].js, ...manifest.content_scripts[0].css, manifest.action.default_popup]) assert(fs.existsSync(path.join(root, file)));
-const dom = new JSDOM(fixture, { url:'https://american-equity-staging.unqork.io/ide/builder/test', runScripts:'outside-only', pretendToBeVisual:true });
+const dom = new JSDOM(fixture, { url:'https://example-org-staging.unqork.io/ide/builder/test', runScripts:'outside-only', pretendToBeVisual:true });
 let change;
 let testObserver;
 const NativeObserver = dom.window.MutationObserver;
@@ -394,150 +394,152 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
   dom.window.close();
   console.log('PASS: all 54 types, UI blocks, custom components, shape colors, aliases, nested ownership, row layout placement, container structure and depth, unknown types, dynamic inserts/type changes, scope, disable cleanup, SVG preservation and click handlers.');
   const browser = await (firefoxMode ? firefox : chromium).launch({ ...(firefoxMode ? {} : process.env.CHROME_PATH ? { executablePath:process.env.CHROME_PATH } : {}), headless:true });
-  const page = await browser.newPage({ viewport:{ width:1100, height:820 } });
-  const failures = [];
-  page.on('pageerror', error => failures.push(error.message));
-  await page.route('https://american-equity-staging.unqork.io/**', route => route.fulfill({ contentType:'text/html', body:'<meta charset="utf-8">'+fixture }));
-  await page.goto('https://american-equity-staging.unqork.io/ide/builder/test');
-  await page.evaluate((useFirefox) => { window[useFirefox ? 'browser' : 'chrome'] = { storage: { local: { get:async () => ({}) }, onChanged: { addListener: listener => { window.updateAppearance = listener; } } } }; }, firefoxMode);
-  await page.addStyleTag({ content:'body{font:14px Segoe UI;background:#f8fafc;color:#172033;margin:28px}main{display:grid;grid-template-columns:260px 1fr;gap:32px}aside,section{display:grid;align-content:start;gap:10px}[data-tray-type]{display:flex;align-items:center;gap:12px;border:1px solid #d9e1ec;border-radius:6px;padding:8px}[data-handle]{width:10px;height:12px}section>[data-component-key]{border:1px solid #d9e1ec;border-radius:8px;padding:12px}.header{display:flex;align-items:center;gap:12px}.tile{width:32px;height:32px;display:grid;place-items:center;border-radius:6px}.text-2xs{font-size:10px;margin-top:4px}.trailing{margin-left:auto;display:flex;align-items:center;gap:4px}.header button{border:0;background:none;color:inherit}.dark body{background:#0b0e13;color:#cbd2da}.dark [data-component-key],.dark [data-tray-type]{border-color:#262d38}main>* > :nth-child(n+12){display:none}' });
-  await page.addStyleTag({ content:css });
-  await page.addScriptTag({ content:script });
-  // The accent must keep Unqork's selection ring, a Tailwind box-shadow layer on the same row.
-  assert.match(await page.evaluate(() => {
-    const row = document.createElement('div');
-    row.setAttribute('data-uq-accent', '');
-    row.setAttribute('data-uq-family', 'inputs');
-    row.style.setProperty('--tw-ring-shadow', '0 0 0 2px rgb(0, 188, 200)');
-    document.body.append(row);
-    const shadow = getComputedStyle(row).boxShadow;
-    row.remove();
-    return shadow;
-  }), /inset.*rgb\(0, 188, 200\) 0px 0px 0px 2px/);
-  // Unqork's selection and search-match ring colors are undefined classes; styled rows must show them in real colors
-  // over full borders and backgrounds, the current match must get its amber background back, and nested rows inherit neither.
-  assert.deepEqual(await page.evaluate(() => {
-    const row = (classes, marks, parent = document.body) => {
-      const element = document.createElement('div');
-      element.className = 'border border-border bg-background ' + classes;
-      for (const mark of ['data-uq-family', 'data-uq-accent', ...marks]) element.setAttribute(mark, mark === 'data-uq-family' ? 'inputs' : '');
-      parent.append(element);
-      return element;
-    };
-    const read = element => { const style = getComputedStyle(element); return [style.boxShadow, style.borderTopColor, style.backgroundColor]; };
-    const selected = row('ring-2 ring-unqork-brand/70', ['data-uq-border', 'data-uq-background']);
-    const match = row('ring-2 ring-amber-400/70', ['data-uq-border']);
-    const current = row('bg-amber-50 ring-2 ring-amber-500', ['data-uq-background']);
-    const nested = row('', ['data-uq-border'], selected);
-    const result = { selected:read(selected), match:read(match), current:read(current), nested:read(nested) };
-    selected.remove(); match.remove(); current.remove();
-    return result;
-  }), {
-    selected:['rgb(30, 64, 175) 3px 0px 0px 0px inset, rgb(0, 188, 200) 0px 0px 0px 3px', 'rgb(0, 188, 200)', 'rgb(191, 219, 254)'],
-    match:['rgb(30, 64, 175) 3px 0px 0px 0px inset, rgb(252, 187, 0) 0px 0px 0px 3px', 'rgb(252, 187, 0)', 'rgba(0, 0, 0, 0)'],
-    current:['rgb(30, 64, 175) 3px 0px 0px 0px inset, rgb(249, 156, 0) 0px 0px 0px 4px', 'rgb(23, 32, 51)', 'rgb(255, 251, 235)'],
-    nested:['rgb(30, 64, 175) 3px 0px 0px 0px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px', 'rgb(30, 64, 175)', 'rgba(0, 0, 0, 0)'],
-  });
-  await page.waitForSelector('[data-uq-family]');
-  // The legacy type line shows the property ID muted and the type in the type's color; compact puts the badge on the type alone.
-  assert.deepEqual(await page.evaluate(() => {
-    const line = document.createElement('div');
-    line.className = 'text-2xs';
-    for (const [name, value] of [['data-uq-legacy-id', 'vgFiles'], ['data-uq-legacy-type', 'VIEW GRID'], ['data-uq-label', ''], ['data-uq-family', 'grids']]) line.setAttribute(name, value);
-    document.body.style.setProperty('--muted-foreground', 'rgb(1, 2, 3)');
-    document.body.append(line);
-    const read = () => { const own = getComputedStyle(line), id = getComputedStyle(line, '::before'), type = getComputedStyle(line, '::after'); return [own.fontSize, id.content, id.color, type.content, type.color === own.color, type.borderTopStyle, own.borderTopStyle]; };
-    const plain = read();
-    line.setAttribute('data-uq-compact-type', '');
-    const compact = read();
-    line.remove();
-    document.body.style.removeProperty('--muted-foreground');
-    return { plain, compact };
-  }), { plain:['0px', '"vgFiles"', 'rgb(1, 2, 3)', '"VIEW GRID"', true, 'none', 'none'], compact:['0px', '"vgFiles"', 'rgb(1, 2, 3)', '"VIEW GRID"', true, 'solid', 'none'] });
-  // A component label follows the property ID in a lighter weight.
-  assert.deepEqual(await page.evaluate(() => {
-    const name = document.createElement('strong');
-    name.setAttribute('data-uq-component-label', 'Status');
-    document.body.append(name);
-    const after = getComputedStyle(name, '::after');
-    const result = [after.content, after.fontWeight];
-    name.remove();
-    return result;
-  }), ['"Status"', '400']);
-  assert.equal(await page.locator('[data-tray-type="number"] svg').first().evaluate(element => getComputedStyle(element).color), 'rgb(30, 64, 175)');
-  await page.screenshot({ path:path.join(__dirname, '../artifacts/extension-light.png') });
-  await page.evaluate(() => document.documentElement.classList.add('dark'));
-  assert.equal(await page.locator('[data-tray-type="number"] svg').first().evaluate(element => getComputedStyle(element).color), 'rgb(147, 197, 253)');
-  const custom = page.locator('[data-tray-type="select"] svg').first();
-  assert.match(await custom.evaluate(element => getComputedStyle(element).backgroundImage), /data:image\/svg\+xml/);
-  assert.equal(await custom.locator('path').evaluate(element => getComputedStyle(element).visibility), 'hidden');
-  await page.screenshot({ path:path.join(__dirname, '../artifacts/extension-dark.png') });
-  const regularHeight = await page.locator('[data-component-key="number"]').evaluate(el => el.getBoundingClientRect().height);
-  await page.evaluate(() => window.updateAppearance({ appearance:{ newValue:{ compact:true } } }, 'local'));
-  await page.waitForSelector('[data-uq-compact="canvas"]');
-  assert(await page.locator('[data-component-key="number"]').evaluate(el => el.getBoundingClientRect().height) < regularHeight);
-  await page.screenshot({ path:path.join(__dirname, '../artifacts/compact-dark.png') });
-  await page.evaluate(() => document.documentElement.classList.remove('dark'));
-  await page.screenshot({ path:path.join(__dirname, '../artifacts/compact-light.png') });
-  await page.setViewportSize({ width:640, height:820 });
-  assert(await page.locator('[data-component-key="number"] [data-slot="dropdown-menu-trigger"]').isVisible());
-  assert.equal(await page.locator('[data-component-key="number"] .text-2xs').evaluate(el => el.scrollWidth <= el.clientWidth), true);
-  await page.evaluate(() => window.updateAppearance({ appearance:{ newValue:{} } }, 'local'));
-  await page.waitForFunction(() => !document.querySelector('[data-uq-compact]'));
-  await page.setViewportSize({ width:1100, height:820 });
-  const row = page.locator('[data-component-key="number"]');
-  const boxes = () => row.evaluate(card => Object.fromEntries(['.header', '.tile', 'strong', '.text-2xs', '[data-slot="popover-trigger"]', '[data-slot="dropdown-menu-trigger"]'].map(selector => [selector, card.querySelector(selector).getBoundingClientRect().toJSON()])));
-  const native = await boxes();
-  const place = value => page.evaluate(value => window.updateAppearance({ rowLayout:{ newValue:value } }, 'local'), value);
-  await place(allLeft);
-  await page.waitForSelector('[data-uq-row-layout]');
-  let current = await boxes();
-  assert.equal(await row.locator('[data-slot="dropdown-menu-trigger"]').evaluate(element => getComputedStyle(element).order), '15');
-  assert(current['.text-2xs'].left > current.strong.right && current['.text-2xs'].left - current.strong.right < 20);
-  assert(current['[data-slot="dropdown-menu-trigger"]'].right < current['.header'].right - 200);
-  await page.screenshot({ path:path.join(__dirname, '../artifacts/row-layout-left.png') });
-  await place(middle);
-  await page.waitForFunction(() => getComputedStyle(document.querySelector('[data-component-key="number"] .text-2xs')).order === '33');
-  current = await boxes();
-  // The middle group sits halfway between the left and right groups.
-  const gap = (current['.text-2xs'].left + current['[data-slot="popover-trigger"]'].right) / 2 - (current.strong.right + current['[data-slot="dropdown-menu-trigger"]'].left) / 2;
-  assert(current['.text-2xs'].left > current.strong.right + 100 && Math.abs(gap) < 12);
-  assert(Math.abs(current['[data-slot="dropdown-menu-trigger"]'].right - native['[data-slot="dropdown-menu-trigger"]'].right) < 2);
-  await page.screenshot({ path:path.join(__dirname, '../artifacts/row-layout-middle.png') });
-  await page.setViewportSize({ width:640, height:820 });
-  assert(await row.locator('[data-slot="dropdown-menu-trigger"]').isVisible());
-  // A Columns cell clips its contents without scrolling, so its containers must not pin.
-  await page.evaluate(html => document.body.insertAdjacentHTML('beforeend', `<div id="containers">${html}</div>`), nestedContainers + `<div style="overflow:hidden">${containerFrame('PANEL', 'cell', '')}</div>`);
-  await page.evaluate(value => window.updateAppearance({ appearance:{ newValue:value } }, 'local'), allContainers);
-  await page.waitForSelector('[data-uq-container-sticky]');
-  const sticky = key => page.locator(`[data-component-key="${key}"]`).evaluate(element => { const style = getComputedStyle(element); return [style.position, style.top]; });
-  assert.deepEqual(await sticky('outer'), ['sticky', '0px']);
-  assert.deepEqual(await sticky('inner'), ['sticky', '56px']);
-  assert.equal((await sticky('cell'))[0], 'static');
-  // Unqork selects a container from its identity block and toggles it from the rest of the header.
-  assert(await page.locator('[data-component-key="outer"]').evaluate(header => {
-    header.scrollIntoView({ block:'center' });
-    const box = header.getBoundingClientRect(), name = header.querySelector('strong').getBoundingClientRect();
-    const target = document.elementFromPoint(name.right + 30, box.top + box.height / 2);
-    window.scrollTo(0, 0);
-    return target === header.querySelector('[data-uq-row-contents="identity"]');
-  }));
-  assert.match(await page.locator('[data-component-key="outer"]').evaluate(element => getComputedStyle(element).backgroundImage), /gradient/);
-  assert.match(await page.locator('#inner-body').evaluate(element => getComputedStyle(element, '::after').content), /End of\W*inner/);
-  assert.notEqual(await page.locator('#inner-body').evaluate(element => getComputedStyle(element).borderLeftWidth), '0px');
-  await page.evaluate(value => window.updateAppearance({ appearance:{ newValue:value } }, 'local'), { ...allContainers, compact:true });
-  await page.waitForSelector('[data-component-key="inner"][data-uq-compact]');
-  assert.deepEqual(await sticky('inner'), ['sticky', '38px']);
-  await page.screenshot({ path:path.join(__dirname, '../artifacts/containers.png') });
-  await page.evaluate(() => { document.getElementById('containers').remove(); window.updateAppearance({ appearance:{ newValue:{} } }, 'local'); });
-  await page.setViewportSize({ width:1100, height:820 });
-  await place({ ...middle, enabled:false });
-  await page.waitForFunction(() => !document.querySelector('[data-uq-row-layout],[data-uq-section]'));
-  assert.deepEqual(await boxes(), native);
-  await page.emulateMedia({ forcedColors:'active' });
-  assert.equal(await custom.evaluate(element => getComputedStyle(element).backgroundImage), 'none');
-  assert.equal(await custom.locator('path').evaluate(element => getComputedStyle(element).visibility), 'visible');
-  assert.deepEqual(failures, []);
-  await browser.close();
+  // Closed whatever happens, so a failed assertion does not leave the browser running.
+  try {
+    const page = await browser.newPage({ viewport:{ width:1100, height:820 } });
+    const failures = [];
+    page.on('pageerror', error => failures.push(error.message));
+    await page.route('https://example-org-staging.unqork.io/**', route => route.fulfill({ contentType:'text/html', body:'<meta charset="utf-8">'+fixture }));
+    await page.goto('https://example-org-staging.unqork.io/ide/builder/test');
+    await page.evaluate((useFirefox) => { window[useFirefox ? 'browser' : 'chrome'] = { storage: { local: { get:async () => ({}) }, onChanged: { addListener: listener => { window.updateAppearance = listener; } } } }; }, firefoxMode);
+    await page.addStyleTag({ content:'body{font:14px Segoe UI;background:#f8fafc;color:#172033;margin:28px}main{display:grid;grid-template-columns:260px 1fr;gap:32px}aside,section{display:grid;align-content:start;gap:10px}[data-tray-type]{display:flex;align-items:center;gap:12px;border:1px solid #d9e1ec;border-radius:6px;padding:8px}[data-handle]{width:10px;height:12px}section>[data-component-key]{border:1px solid #d9e1ec;border-radius:8px;padding:12px}.header{display:flex;align-items:center;gap:12px}.tile{width:32px;height:32px;display:grid;place-items:center;border-radius:6px}.text-2xs{font-size:10px;margin-top:4px}.trailing{margin-left:auto;display:flex;align-items:center;gap:4px}.header button{border:0;background:none;color:inherit}.dark body{background:#0b0e13;color:#cbd2da}.dark [data-component-key],.dark [data-tray-type]{border-color:#262d38}main>* > :nth-child(n+12){display:none}' });
+    await page.addStyleTag({ content:css });
+    await page.addScriptTag({ content:script });
+    // The accent must keep Unqork's selection ring, a Tailwind box-shadow layer on the same row.
+    assert.match(await page.evaluate(() => {
+      const row = document.createElement('div');
+      row.setAttribute('data-uq-accent', '');
+      row.setAttribute('data-uq-family', 'inputs');
+      row.style.setProperty('--tw-ring-shadow', '0 0 0 2px rgb(0, 188, 200)');
+      document.body.append(row);
+      const shadow = getComputedStyle(row).boxShadow;
+      row.remove();
+      return shadow;
+    }), /inset.*rgb\(0, 188, 200\) 0px 0px 0px 2px/);
+    // Unqork's selection and search-match ring colors are undefined classes; styled rows must show them in real colors
+    // over full borders and backgrounds, the current match must get its amber background back, and nested rows inherit neither.
+    assert.deepEqual(await page.evaluate(() => {
+      const row = (classes, marks, parent = document.body) => {
+        const element = document.createElement('div');
+        element.className = 'border border-border bg-background ' + classes;
+        for (const mark of ['data-uq-family', 'data-uq-accent', ...marks]) element.setAttribute(mark, mark === 'data-uq-family' ? 'inputs' : '');
+        parent.append(element);
+        return element;
+      };
+      const read = element => { const style = getComputedStyle(element); return [style.boxShadow, style.borderTopColor, style.backgroundColor]; };
+      const selected = row('ring-2 ring-unqork-brand/70', ['data-uq-border', 'data-uq-background']);
+      const match = row('ring-2 ring-amber-400/70', ['data-uq-border']);
+      const current = row('bg-amber-50 ring-2 ring-amber-500', ['data-uq-background']);
+      const nested = row('', ['data-uq-border'], selected);
+      const result = { selected:read(selected), match:read(match), current:read(current), nested:read(nested) };
+      selected.remove(); match.remove(); current.remove();
+      return result;
+    }), {
+      selected:['rgb(30, 64, 175) 3px 0px 0px 0px inset, rgb(0, 188, 200) 0px 0px 0px 3px', 'rgb(0, 188, 200)', 'rgb(191, 219, 254)'],
+      match:['rgb(30, 64, 175) 3px 0px 0px 0px inset, rgb(252, 187, 0) 0px 0px 0px 3px', 'rgb(252, 187, 0)', 'rgba(0, 0, 0, 0)'],
+      current:['rgb(30, 64, 175) 3px 0px 0px 0px inset, rgb(249, 156, 0) 0px 0px 0px 4px', 'rgb(23, 32, 51)', 'rgb(255, 251, 235)'],
+      nested:['rgb(30, 64, 175) 3px 0px 0px 0px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px', 'rgb(30, 64, 175)', 'rgba(0, 0, 0, 0)'],
+    });
+    await page.waitForSelector('[data-uq-family]');
+    // The legacy type line shows the property ID muted and the type in the type's color; compact puts the badge on the type alone.
+    assert.deepEqual(await page.evaluate(() => {
+      const line = document.createElement('div');
+      line.className = 'text-2xs';
+      for (const [name, value] of [['data-uq-legacy-id', 'vgFiles'], ['data-uq-legacy-type', 'VIEW GRID'], ['data-uq-label', ''], ['data-uq-family', 'grids']]) line.setAttribute(name, value);
+      document.body.style.setProperty('--muted-foreground', 'rgb(1, 2, 3)');
+      document.body.append(line);
+      const read = () => { const own = getComputedStyle(line), id = getComputedStyle(line, '::before'), type = getComputedStyle(line, '::after'); return [own.fontSize, id.content, id.color, type.content, type.color === own.color, type.borderTopStyle, own.borderTopStyle]; };
+      const plain = read();
+      line.setAttribute('data-uq-compact-type', '');
+      const compact = read();
+      line.remove();
+      document.body.style.removeProperty('--muted-foreground');
+      return { plain, compact };
+    }), { plain:['0px', '"vgFiles"', 'rgb(1, 2, 3)', '"VIEW GRID"', true, 'none', 'none'], compact:['0px', '"vgFiles"', 'rgb(1, 2, 3)', '"VIEW GRID"', true, 'solid', 'none'] });
+    // A component label follows the property ID in a lighter weight.
+    assert.deepEqual(await page.evaluate(() => {
+      const name = document.createElement('strong');
+      name.setAttribute('data-uq-component-label', 'Status');
+      document.body.append(name);
+      const after = getComputedStyle(name, '::after');
+      const result = [after.content, after.fontWeight];
+      name.remove();
+      return result;
+    }), ['"Status"', '400']);
+    assert.equal(await page.locator('[data-tray-type="number"] svg').first().evaluate(element => getComputedStyle(element).color), 'rgb(30, 64, 175)');
+    await page.screenshot({ path:path.join(__dirname, '../artifacts/extension-light.png') });
+    await page.evaluate(() => document.documentElement.classList.add('dark'));
+    assert.equal(await page.locator('[data-tray-type="number"] svg').first().evaluate(element => getComputedStyle(element).color), 'rgb(147, 197, 253)');
+    const custom = page.locator('[data-tray-type="select"] svg').first();
+    assert.match(await custom.evaluate(element => getComputedStyle(element).backgroundImage), /data:image\/svg\+xml/);
+    assert.equal(await custom.locator('path').evaluate(element => getComputedStyle(element).visibility), 'hidden');
+    await page.screenshot({ path:path.join(__dirname, '../artifacts/extension-dark.png') });
+    const regularHeight = await page.locator('[data-component-key="number"]').evaluate(el => el.getBoundingClientRect().height);
+    await page.evaluate(() => window.updateAppearance({ appearance:{ newValue:{ compact:true } } }, 'local'));
+    await page.waitForSelector('[data-uq-compact="canvas"]');
+    assert(await page.locator('[data-component-key="number"]').evaluate(el => el.getBoundingClientRect().height) < regularHeight);
+    await page.screenshot({ path:path.join(__dirname, '../artifacts/compact-dark.png') });
+    await page.evaluate(() => document.documentElement.classList.remove('dark'));
+    await page.screenshot({ path:path.join(__dirname, '../artifacts/compact-light.png') });
+    await page.setViewportSize({ width:640, height:820 });
+    assert(await page.locator('[data-component-key="number"] [data-slot="dropdown-menu-trigger"]').isVisible());
+    assert.equal(await page.locator('[data-component-key="number"] .text-2xs').evaluate(el => el.scrollWidth <= el.clientWidth), true);
+    await page.evaluate(() => window.updateAppearance({ appearance:{ newValue:{} } }, 'local'));
+    await page.waitForFunction(() => !document.querySelector('[data-uq-compact]'));
+    await page.setViewportSize({ width:1100, height:820 });
+    const row = page.locator('[data-component-key="number"]');
+    const boxes = () => row.evaluate(card => Object.fromEntries(['.header', '.tile', 'strong', '.text-2xs', '[data-slot="popover-trigger"]', '[data-slot="dropdown-menu-trigger"]'].map(selector => [selector, card.querySelector(selector).getBoundingClientRect().toJSON()])));
+    const native = await boxes();
+    const place = value => page.evaluate(value => window.updateAppearance({ rowLayout:{ newValue:value } }, 'local'), value);
+    await place(allLeft);
+    await page.waitForSelector('[data-uq-row-layout]');
+    let current = await boxes();
+    assert.equal(await row.locator('[data-slot="dropdown-menu-trigger"]').evaluate(element => getComputedStyle(element).order), '15');
+    assert(current['.text-2xs'].left > current.strong.right && current['.text-2xs'].left - current.strong.right < 20);
+    assert(current['[data-slot="dropdown-menu-trigger"]'].right < current['.header'].right - 200);
+    await page.screenshot({ path:path.join(__dirname, '../artifacts/row-layout-left.png') });
+    await place(middle);
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('[data-component-key="number"] .text-2xs')).order === '33');
+    current = await boxes();
+    // The middle group sits halfway between the left and right groups.
+    const gap = (current['.text-2xs'].left + current['[data-slot="popover-trigger"]'].right) / 2 - (current.strong.right + current['[data-slot="dropdown-menu-trigger"]'].left) / 2;
+    assert(current['.text-2xs'].left > current.strong.right + 100 && Math.abs(gap) < 12);
+    assert(Math.abs(current['[data-slot="dropdown-menu-trigger"]'].right - native['[data-slot="dropdown-menu-trigger"]'].right) < 2);
+    await page.screenshot({ path:path.join(__dirname, '../artifacts/row-layout-middle.png') });
+    await page.setViewportSize({ width:640, height:820 });
+    assert(await row.locator('[data-slot="dropdown-menu-trigger"]').isVisible());
+    // A Columns cell clips its contents without scrolling, so its containers must not pin.
+    await page.evaluate(html => document.body.insertAdjacentHTML('beforeend', `<div id="containers">${html}</div>`), nestedContainers + `<div style="overflow:hidden">${containerFrame('PANEL', 'cell', '')}</div>`);
+    await page.evaluate(value => window.updateAppearance({ appearance:{ newValue:value } }, 'local'), allContainers);
+    await page.waitForSelector('[data-uq-container-sticky]');
+    const sticky = key => page.locator(`[data-component-key="${key}"]`).evaluate(element => { const style = getComputedStyle(element); return [style.position, style.top]; });
+    assert.deepEqual(await sticky('outer'), ['sticky', '0px']);
+    assert.deepEqual(await sticky('inner'), ['sticky', '56px']);
+    assert.equal((await sticky('cell'))[0], 'static');
+    // Unqork selects a container from its identity block and toggles it from the rest of the header.
+    assert(await page.locator('[data-component-key="outer"]').evaluate(header => {
+      header.scrollIntoView({ block:'center' });
+      const box = header.getBoundingClientRect(), name = header.querySelector('strong').getBoundingClientRect();
+      const target = document.elementFromPoint(name.right + 30, box.top + box.height / 2);
+      window.scrollTo(0, 0);
+      return target === header.querySelector('[data-uq-row-contents="identity"]');
+    }));
+    assert.match(await page.locator('[data-component-key="outer"]').evaluate(element => getComputedStyle(element).backgroundImage), /gradient/);
+    assert.match(await page.locator('#inner-body').evaluate(element => getComputedStyle(element, '::after').content), /End of\W*inner/);
+    assert.notEqual(await page.locator('#inner-body').evaluate(element => getComputedStyle(element).borderLeftWidth), '0px');
+    await page.evaluate(value => window.updateAppearance({ appearance:{ newValue:value } }, 'local'), { ...allContainers, compact:true });
+    await page.waitForSelector('[data-component-key="inner"][data-uq-compact]');
+    assert.deepEqual(await sticky('inner'), ['sticky', '38px']);
+    await page.screenshot({ path:path.join(__dirname, '../artifacts/containers.png') });
+    await page.evaluate(() => { document.getElementById('containers').remove(); window.updateAppearance({ appearance:{ newValue:{} } }, 'local'); });
+    await page.setViewportSize({ width:1100, height:820 });
+    await place({ ...middle, enabled:false });
+    await page.waitForFunction(() => !document.querySelector('[data-uq-row-layout],[data-uq-section]'));
+    assert.deepEqual(await boxes(), native);
+    await page.emulateMedia({ forcedColors:'active' });
+    assert.equal(await custom.evaluate(element => getComputedStyle(element).backgroundImage), 'none');
+    assert.equal(await custom.locator('path').evaluate(element => getComputedStyle(element).visibility), 'visible');
+    assert.deepEqual(failures, []);
+  } finally { await browser.close(); }
   console.log('PASS: browser rendering, light/dark colors, custom glyph overlays, forced-colors fallback, no page errors.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -5,6 +5,7 @@ const path = require('node:path');
 const http = require('node:http');
 const { firefox } = require('playwright');
 const { buildSync } = require('esbuild');
+const { exitWebExt } = require('./browser.cjs');
 
 (async () => {
   const bundle = buildSync({entryPoints:[path.join(__dirname,'fixtures/builder-panels.jsx')],bundle:true,write:false,format:'iife'}).outputFiles[0].text;
@@ -13,7 +14,11 @@ const { buildSync } = require('esbuild');
   const server = http.createServer((req,res) => {
     if (req.url === '/report') {
       let body = ''; req.on('data',part => { body += part; });
-      req.on('end',() => { report(JSON.parse(body)); res.end('ok'); });
+      req.on('end',() => {
+        // An unreadable report fails the test rather than crashing the server.
+        try { report(JSON.parse(body)); } catch { report({ok:false,error:'Unreadable report: ' + body.slice(0,200)}); }
+        res.end('ok');
+      });
     } else {
       res.setHeader('Content-Type','text/html');
       res.end('<!doctype html><style>body{margin:0;width:2560px}</style><div id="root"></div><script>' + bundle.replace(/<\/script/gi,'<\\/script') + '</script>');
@@ -107,7 +112,7 @@ const { buildSync } = require('esbuild');
     console.log('PASS: installed Firefox extension resizes, prevents reopen flicker and restores expansion through the isolated-to-MAIN bridge.');
   } finally {
     clearTimeout(timer);
-    if (runner) await runner.exit();
+    await exitWebExt(runner);
     await new Promise(resolve => server.close(resolve));
     fs.rmSync(sourceDir,{recursive:true,force:true});
   }

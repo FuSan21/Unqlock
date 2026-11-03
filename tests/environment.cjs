@@ -9,24 +9,24 @@ const settle = () => new Promise(resolve => setTimeout(resolve, 0));
   const dom = new JSDOM('', { url:'https://example-prod.unqork.io/app', runScripts:'outside-only' });
   const env = lib.load('environment');
   for (const [host, expected] of Object.entries({
-    'american-equity-stagingx':'staging', 'american-equity-uatx':'uat', 'american-equity-qa-uatx':'unknown',
+    'example-org-stagingx':'staging', 'example-org-uatx':'uat', 'example-org-qa-uatx':'unknown',
     'org-qa':'qa', 'org-prod':'production', 'org-prod-designer':'production', 'org-pre-prod':'preprod',
     'org-preproduction':'preprod', 'org-product':'unknown', 'org-qa-prod':'production', 'org':'unknown'
   })) assert.equal(env.detect('https://' + host + '.unqork.io').kind, expected, host);
   assert.equal(env.detect('https://org-prod.unqork.io.evil.test').kind, 'unknown');
   assert.equal(env.detect('https://custom.test', { hosts:{ production:'custom.test' } }).kind, 'production');
-  assert.equal(env.detect('https://american-equity-qa-uatx.unqork.io', { hosts:{ qa:'american-equity-qa-uatx.unqork.io' } }).kind, 'qa');
+  assert.equal(env.detect('https://example-org-qa-uatx.unqork.io', { hosts:{ qa:'example-org-qa-uatx.unqork.io' } }).kind, 'qa');
   for (const bad of ['https://example.test', 'example.test/path', '*.example.test', 'user@example.test', 'example.test:443', 'example.test?x', '-example.test']) assert.throws(() => env.hostname(bad));
   assert.throws(() => env.settings({ hosts:{ qa:'same.test', uat:'same.test' } }));
   assert.equal(env.switchUrl('https://a.test/app?a=1#/display/dashboard', 'b.test'), 'https://b.test/app?a=1#/display/dashboard');
-  let discovered = env.discover({}, 'american-equity-stagingx.unqork.io');
-  discovered = env.discover(discovered, 'american-equity-uatx.unqork.io');
-  discovered = env.discover(discovered, 'american-equity-qa-uatx.unqork.io');
+  let discovered = env.discover({}, 'example-org-stagingx.unqork.io');
+  discovered = env.discover(discovered, 'example-org-uatx.unqork.io');
+  discovered = env.discover(discovered, 'example-org-qa-uatx.unqork.io');
   assert.equal(discovered.groups.length, 1);
   assert.equal(discovered.groups[0].domains.length, 3);
   assert.equal(discovered.groups[0].domains[2].environment, 'unknown');
   discovered.groups[0].domains[2].environment = 'qa';
-  discovered = env.discover(discovered, 'american-equity-qa-uatx.unqork.io');
+  discovered = env.discover(discovered, 'example-org-qa-uatx.unqork.io');
   assert.equal(discovered.groups[0].domains[2].environment, 'qa');
   discovered = env.discover(discovered, 'another-stagingx.unqork.io');
   assert.equal(discovered.groups.length, 2);
