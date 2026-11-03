@@ -4,7 +4,7 @@ import { cleanup } from '@testing-library/react';
 import { expect, test } from 'vitest';
 import * as Environment from '@/lib/environment';
 import * as Notes from '@/lib/whats-new';
-import { apiNames, byId, click, press, query, renderPopup, settle } from './harness';
+import { apiNames, byId, click, memoryStorage, press, query, renderPopup, settle } from './harness';
 
 const project = resolve(__dirname, '../..');
 const pages = ['style-page', 'layout-page', 'panels-page', 'quick-page', 'environment-page', 'launcher-page', 'transfer-page'];
@@ -39,10 +39,11 @@ test('Versions compare numerically and only minor or major releases bring a noti
 });
 
 function double(version: string, whatsNew?: object) {
-  const store: Record<string, unknown> = { whatsNew };
+  const memory = memoryStorage({ whatsNew });
+  const store = memory.data;
   const badges: string[] = [];
   const api = {
-    storage:{ local:{ get:async (key?: string | string[]) => typeof key === 'string' ? { [key]:store[key] } : { ...store }, set:async (value: object) => { Object.assign(store, value); } }, onChanged:{ addListener:() => {}, removeListener:() => {} } },
+    storage:memory.storage,
     tabs:{ query:async () => [] },
     runtime:{ getManifest:() => ({ version }), sendMessage:async () => ({ ok:true, config:Environment.settings(undefined), missingOrigins:[] }) },
     permissions:{ contains:async () => false, request:async () => false },

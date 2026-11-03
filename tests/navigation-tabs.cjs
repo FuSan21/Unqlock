@@ -165,6 +165,7 @@ async function run(firefoxMode) {
     await page.hover('header');
     await nav.waitFor({ state:'visible' });
     await nav.hover();
+    // Longer than the bar's fade, which is timed in CSS rather than by frames.
     await page.waitForTimeout(600);
     assert(await nav.isVisible(), 'The bar stays open under the pointer');
     await page.mouse.move(400, 600);

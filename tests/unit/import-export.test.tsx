@@ -1,7 +1,7 @@
 import { fireEvent } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 import * as Environment from '@/lib/environment';
-import { apiNames, byId, click, press, query, renderPopup, settle, type } from './harness';
+import { apiNames, byId, click, memoryStorage, press, query, renderPopup, settle, type } from './harness';
 
 type Store = Record<string, unknown> & { environment: Environment.EnvironmentSettings };
 
@@ -19,7 +19,8 @@ test.each(apiNames)('export by copy and download, review and import by paste and
     floating:{ enabled:true, mode:'draggable', corner:'top-right' },
     environment:{ badge:true, blockProduction:true, autoDiscover:false, groups:[{ id:'org', name:'Org', domains:[{ hostname:'org-prod.unqork.io', environment:'production' }] }] }
   };
-  let store: Store = structuredClone(original);
+  const memory = memoryStorage(original);
+  const store = memory.data as Store;
   const messages: { replace?: unknown }[] = [];
   let clipboard = '';
   let clipboardBlocked = false;
@@ -30,13 +31,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   document.execCommand = () => false;
   vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { downloaded = { href:this.href, name:this.download }; });
   await renderPopup(apiName, {
-    storage:{
-      local:{
-        get:async (keys: string | string[]) => structuredClone(Object.fromEntries((Array.isArray(keys) ? keys : [keys]).filter(key => key in store).map(key => [key, store[key]]))),
-        set:async (value: object) => { Object.assign(store, structuredClone(value)); }
-      },
-      onChanged:{ addListener:() => {}, removeListener:() => {} }
-    },
+    storage:memory.storage,
     tabs:{
       query:async () => [{ id:7, url:'https://org-prod.unqork.io/app' }],
       sendMessage:async () => ({})

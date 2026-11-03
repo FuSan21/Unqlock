@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import * as Environment from '@/lib/environment';
-import { Toggle } from '../components/controls';
+import { Select, TextField, Toggle } from '../components/controls';
 import { AccessButton, ActionRow, Button, Note, Page, Status } from '../components/layout';
 import { requestAccess, useAccessChanged } from '../access';
 import { useEnvironment, type EnvironmentResult } from '../environment';
@@ -130,11 +130,8 @@ export function Environments() {
                 if (editor) save(editor, next, true);
               }} />
           ))}
-          <label htmlFor="environment-group">Domain group</label>
-          <select id="environment-group" value={saved ? editor!.id : ''} onChange={event => edit(event.target.value)}>
-            <option value="">New group</option>
-            {config?.groups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
-          </select>
+          <Select id="environment-group" label="Domain group" value={saved ? editor!.id : ''} onChange={edit}
+            options={[['', 'New group'], ...(config?.groups ?? []).map(group => [group.id, group.name] as const)]} />
           <ActionRow>
             <button id="environment-new-group" type="button" onClick={() => { edit(''); setFocus('name'); }}>New group</button>
             <Button id="environment-delete-group" reason={saved ? '' : unsavedReason} onClick={async () => {
@@ -149,8 +146,7 @@ export function Environments() {
               finally { setLoading(false); }
             }}>Delete group</Button>
           </ActionRow>
-          <label htmlFor="environment-group-name">Group name</label>
-          <input ref={nameInput} id="environment-group-name" type="text" maxLength={80} placeholder="Organization or project" value={editor?.name ?? ''}
+          <TextField ref={nameInput} id="environment-group-name" label="Group name" maxLength={80} placeholder="Organization or project" value={editor?.name ?? ''}
             onChange={event => editor && change({ ...editor, name:event.target.value })} />
           <Note>Visited Unqork hosts are grouped automatically. Edit detected labels or add your own domains. Unknown does not mean non-production. Valid changes save automatically.</Note>
           <div id="environment-hosts">

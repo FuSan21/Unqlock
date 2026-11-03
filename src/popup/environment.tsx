@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { send, type Message } from '@/lib/messages';
 import * as Environment from '@/lib/environment';
 import { getTargetTab, type TargetTab } from './runtime';
+import { useStorageChange } from './storage';
 
 export type EnvironmentMessage = Message<'environment.read' | 'environment.save' | 'environment.sync'>;
 
@@ -56,6 +57,11 @@ export function EnvironmentProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     reload().catch((reason: Error) => setError(reason.message || 'Could not identify this page.'));
   }, [reload]);
+  // A change made elsewhere, such as auto-discovery in another tab or the prompt window's import, updates the
+  // home strip at once. Environments loads its editor on opening, so an edit in progress stays as it is.
+  useStorageChange(['environment'], changes => {
+    try { setConfig(Environment.settings(changes.environment.newValue)); } catch { /* Environments reports an invalid configuration. */ }
+  });
 
   const current = useMemo(() => config && target ? Environment.detect(target.url, config) : null, [config, target]);
   const value = useMemo(() => ({ config, missingOrigins, target, current, error, message, reload }), [config, missingOrigins, target, current, error, message, reload]);

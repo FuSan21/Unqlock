@@ -4,9 +4,8 @@ import * as DevOverlay from '@/lib/dev-overlay';
 import { send as sendMessage, type Message } from '@/lib/messages';
 import * as SseDebugger from '@/lib/sse-debugger';
 import { clearRuns } from '@/lib/sse-history';
-import { Segmented, Select, TextField, Toggle } from '../components/controls';
+import { Segmented, Select, TextArea, TextField, Toggle } from '../components/controls';
 import { Tabs } from '../components/Tabs';
-import { Unavailable } from '../components/Unavailable';
 import { AccessButton, ActionRow, Button, Confirmation, Note, Page, SettingsHeading, Status } from '../components/layout';
 import { promptWindow, requestAccess } from '../access';
 import { useDebug, type FeedbackId, type ValueType } from '../debug';
@@ -155,10 +154,7 @@ export function DebugTools() {
         <TextField id="property-key" label="Property name (exact key)" placeholder="customerId" value={form.propertyKey} reason={productionReason} onChange={event => setForm({ propertyKey:event.target.value })} />
         <Segmented<ValueType> className="value-types" name="value-type" legend="Value type" label="Value type" optionLabel={(_value, text) => text} options={[['text', 'Text'], ['number', 'Number'], ['object', 'JSON']]}
           value={form.valueType} reason={productionReason} onChange={valueType => setForm({ valueType })} />
-        <label htmlFor="property-value">Value</label>
-        <Unavailable reason={productionReason} label="Value">
-          <textarea id="property-value" rows={3} spellCheck={false} placeholder="Enter a value" value={form.value} disabled={Boolean(productionReason)} onChange={event => setForm({ value:event.target.value })} />
-        </Unavailable>
+        <TextArea id="property-value" label="Value" rows={3} spellCheck={false} placeholder="Enter a value" value={form.value} reason={productionReason} onChange={event => setForm({ value:event.target.value })} />
         <ActionRow>
           <ActionButton action="set" feedback="data" primary>Update property</ActionButton>
           <ActionButton action="remove" feedback="data">Remove property</ActionButton>

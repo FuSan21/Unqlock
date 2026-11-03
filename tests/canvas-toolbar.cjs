@@ -135,7 +135,8 @@ async function run(firefoxMode) {
     assert.equal(await switches.count(), 0);
     await page.getByRole('button', { name:'Close search', exact:true }).click();
     await searchButton.waitFor();
-    await page.waitForTimeout(200);
+    // The script reopens the field on its next frame if it is wrong, so a few frames show it stays closed.
+    for (let i = 0; i < 5; i++) await frames();
     assert.equal(await searchInput.count(), 0);
 
     // Outside the builder nothing changes.

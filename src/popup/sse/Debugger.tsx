@@ -197,7 +197,7 @@ export function Debugger() {
     const entry: Run = { id, at:new Date(), title:context.title, moduleId:context.moduleId, request, response, outcome, trace };
     history.add(entry);
     setCurrent(entry.id);
-    setSelected(trace.events.find(event => event.kind === 'fail')?.id);
+    setSelected(trace.failure?.id);
     setRunning(false);
   }
 
@@ -260,16 +260,6 @@ export function Debugger() {
     return () => document.removeEventListener('keydown', listener);
   });
 
-  function tabKeys(event: ReactKeyboardEvent<HTMLDivElement>) {
-    const index = views.findIndex(([id]) => id === view);
-    const next = event.key === 'ArrowRight' ? index + 1 : event.key === 'ArrowLeft' ? index - 1 : event.key === 'Home' ? 0 : event.key === 'End' ? views.length - 1 : -2;
-    if (next === -2) return;
-    event.preventDefault();
-    const id = views[(next + views.length) % views.length][0];
-    setView(id);
-    document.getElementById('view-tab-' + id)?.focus();
-  }
-
   function format() {
     if (!parsed.ok || !input.trim()) return;
     setInput(JSON.stringify(parsed.data, null, 2));
@@ -291,7 +281,7 @@ export function Debugger() {
   }
   const expanded = rail >= window.innerWidth * .45;
 
-  const changes = run?.trace.events.filter(event => event.kind === 'set').length ?? 0;
+  const changes = run?.trace.sets ?? 0;
 
   return (
     <div className="app" style={{ ['--rail' as string]:rail + 'px' }} data-rail={railOpen ? 'open' : undefined}>
@@ -377,7 +367,7 @@ export function Debugger() {
             <ol>
               {runs.map(entry => (
                 <li key={entry.id}>
-                  <button type="button" className="run-entry" aria-current={entry.id === current} onClick={() => { setCurrent(entry.id); setSelected(entry.trace.events.find(event => event.kind === 'fail')?.id); restoreInput(entry.request); }}>
+                  <button type="button" className="run-entry" aria-current={entry.id === current} onClick={() => { setCurrent(entry.id); setSelected(entry.trace.failure?.id); restoreInput(entry.request); }}>
                     <span className="dot" aria-hidden="true" />
                     <span className="mono muted">{stamp(entry.at)}</span>
                     <span className="mono" data-state={entry.outcome.ok ? 'ok' : 'fail'}>{entry.response.status ?? '—'}</span>
@@ -409,7 +399,7 @@ export function Debugger() {
           </div>
         ) : null}
         {notice && <p className="notice" role="alert">{notice}</p>}
-        {!unavailable && (run ? <RunResult run={run} view={view} setView={setView} tabKeys={tabKeys} stepsMode={stepsMode} setStepsMode={setStepsMode}
+        {!unavailable && (run ? <RunResult run={run} view={view} setView={setView} stepsMode={stepsMode} setStepsMode={setStepsMode}
           filter={filter} setFilter={setFilter} values={values} setValues={setValues} hideSetup={hideSetup} setHideSetup={setHideSetup} filterField={filterField} selected={selected} setSelected={setSelected} changes={changes}
           showKey={showKey} showEvent={showEvent} current={context?.moduleId}
           onRerun={!context || running || unavailable || blockReason ? undefined : () => runAgain(run)} /> : context && !confirm && (

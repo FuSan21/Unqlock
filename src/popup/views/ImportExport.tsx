@@ -26,6 +26,7 @@ export function ImportExport() {
   const [busy, setBusy] = useState(false);
   const [exportMessage, setExportMessage] = useState<Message>({ text:'' });
   const [importMessage, setImportMessage] = useState<Message>({ text:'' });
+  // The export shown for copying by hand, where the clipboard refused it.
   const [manualCopy, setManualCopy] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [review, setReview] = useState<Review | null>(null);
@@ -45,7 +46,6 @@ export function ImportExport() {
       return true;
     } catch { /* The floating menu's frame may not be allowed to write to the clipboard. */ }
     flushSync(() => setManualCopy(value));
-    output.current!.value = value;
     output.current!.focus();
     output.current!.select();
     try { return document.execCommand('copy'); } catch { return false; }
@@ -135,7 +135,7 @@ export function ImportExport() {
           finally { flushSync(() => setBusy(false)); }
         }}>Download file</button>
       </ActionRow>
-      <textarea ref={output} id="export-output" className="transfer-text" rows={6} readOnly spellCheck={false} aria-label="Exported settings" hidden={manualCopy === null} defaultValue="" />
+      <textarea ref={output} id="export-output" className="transfer-text" rows={6} readOnly spellCheck={false} aria-label="Exported settings" hidden={manualCopy === null} value={manualCopy ?? ''} />
       <TransferStatus id="export-status" message={exportMessage} />
       <SettingsHeading>Import</SettingsHeading>
       <label htmlFor="import-text" className="stacked">Paste exported JSON</label>

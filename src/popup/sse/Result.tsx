@@ -1,7 +1,8 @@
 // The result of a run: its outcome line, the problem callout and the four views of what it did.
-import type { KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject } from 'react';
+import type { ReactNode, RefObject } from 'react';
+import { TabList } from '../components/Tabs';
 import { duration, slowAfter, type TraceEvent } from '@/lib/sse-trace';
-import { failedStep, firstFailure, type Run } from './runs';
+import { failedStep, type Run } from './runs';
 import { Steps, type StepsMode } from './Steps';
 import { Changes, Empty, Output, Raw, useCopy } from './views';
 
@@ -23,7 +24,6 @@ interface ResultProps {
   run: Run;
   view: ViewId;
   setView: (view: ViewId) => void;
-  tabKeys: (event: ReactKeyboardEvent<HTMLDivElement>) => void;
   stepsMode: StepsMode;
   setStepsMode: (mode: StepsMode) => void;
   filter: string;
@@ -43,10 +43,10 @@ interface ResultProps {
   onRerun?: () => void;
 }
 
-export function RunResult({ run, view, setView, tabKeys, stepsMode, setStepsMode, filter, setFilter, values, setValues, hideSetup, setHideSetup, filterField, selected, setSelected, changes, showKey, showEvent, current, onRerun }: ResultProps) {
+export function RunResult({ run, view, setView, stepsMode, setStepsMode, filter, setFilter, values, setValues, hideSetup, setHideSetup, filterField, selected, setSelected, changes, showKey, showEvent, current, onRerun }: ResultProps) {
   const { outcome, response, trace } = run;
   // A trimmed run's views give way to a note, so it has no step to show.
-  const failure = run.summary ? undefined : firstFailure(trace);
+  const failure = run.summary ? undefined : trace.failure;
   const step = failedStep(run);
   const setupLanes = trace.lanes.filter(lane => lane.setup).length;
   return (
@@ -81,14 +81,8 @@ export function RunResult({ run, view, setView, tabKeys, stepsMode, setStepsMode
         </div>
       ) : <>
       <div className="viewbar">
-        <div className="tabs" role="tablist" aria-label="Run views" onKeyDown={tabKeys}>
-          {views.map(([id, name], index) => (
-            <button key={id} id={'view-tab-' + id} type="button" role="tab" aria-selected={view === id} aria-controls="view-panel" tabIndex={view === id ? 0 : -1}
-              title={`${name} (Alt+${index + 1})`} onClick={() => setView(id)}>
-              {name}{id === 'changes' && <span className="count">{changes}</span>}
-            </button>
-          ))}
-        </div>
+        <TabList className="tabs" label="Run views" selected={view} onSelect={setView} tabId={id => 'view-tab-' + id} panelId={() => 'view-panel'}
+          tabs={views.map(([id, name], index) => ({ id, title:`${name} (Alt+${index + 1})`, label:<>{name}{id === 'changes' && <span className="count">{changes}</span>}</> }))} />
         {view === 'steps' && (
           <div className="mode" role="group" aria-label="Steps layout">
             <button type="button" aria-pressed={stepsMode === 'lanes'} onClick={() => setStepsMode('lanes')}>Lanes</button>
@@ -131,7 +125,7 @@ function OutcomeLine({ run, onShow }: { run: Run; onShow: (id: string) => void }
   const { outcome, response, trace } = run;
   const failed = failedStep(run);
   const steps = run.summary?.steps ?? trace.steps.length;
-  const sets = run.summary?.sets ?? trace.events.filter(event => event.kind === 'set').length;
+  const sets = run.summary?.sets ?? trace.sets;
   const parts: ReactNode[] = [];
   if (outcome.problem?.component) parts.push(<>Stopped at <b className="mono">{outcome.problem.component}</b></>);
   else if (outcome.validation.length) parts.push(`${outcome.validation.length} validation ${outcome.validation.length === 1 ? 'error' : 'errors'}`);

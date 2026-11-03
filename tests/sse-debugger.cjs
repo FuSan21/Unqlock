@@ -136,6 +136,7 @@ const log = [
     // Clicking the button again focuses the same window rather than opening another.
     const pages = context.pages().length;
     await button.click();
+    // A second window would open through the background; nothing on the page reports that it did not.
     await page.waitForTimeout(500);
     assert.equal(context.pages().length, pages);
 

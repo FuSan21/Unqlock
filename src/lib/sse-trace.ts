@@ -43,7 +43,8 @@ export interface TraceEvent {
 export interface Step { tick: number; number: number; ms?: number; events: number; changes: number }
 // A setup lane holds only values set during setup, such as the module's hidden fields filled from the input.
 export interface Lane { key: string; type: string; setup: boolean }
-export interface Trace { steps: Step[]; lanes: Lane[]; events: TraceEvent[]; byId: Map<string, TraceEvent> }
+// `sets` counts the values set, and `failure` is the first failure, which the result line and callout name.
+export interface Trace { steps: Step[]; lanes: Lane[]; events: TraceEvent[]; byId: Map<string, TraceEvent>; sets: number; failure?: TraceEvent }
 
 const setup = '__setup__';
 
@@ -141,7 +142,7 @@ export function buildTrace(log: Stored, problem?: Problem): Trace {
     cause.ms = Math.max(cause.ms ?? 0, event.at - cause.at);
   }
   for (const event of events) if ((event.kind === 'ran' || event.kind === 'wait') && event.ms !== undefined && event.ms >= slowAfter[event.kind]) event.slow = true;
-  return { steps, lanes:[...lanes.values()], events, byId };
+  return { steps, lanes:[...lanes.values()], events, byId, sets:steps.reduce((total, step) => total + step.changes, 0), failure:events.find(event => event.kind === 'fail') };
 }
 
 // The event and every event it follows from, then the events that follow directly from it.

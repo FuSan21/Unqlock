@@ -1,18 +1,16 @@
 import { waitFor } from '@testing-library/react';
 import { expect, test } from 'vitest';
-import { apiNames, byId, click, renderPopup, settle, type } from './harness';
+import { apiNames, byId, click, memoryStorage, renderPopup, settle, type } from './harness';
 
 const builder = 'https://fixture.unqork.io/ide/builder/workspaces/test/modules/first';
 
 test.each(apiNames)('queued saves and resets, focus, measured widths and validation (%s)', async apiName => {
-  const saved: Record<string, any> = {};
+  // Slow writes let changes queue up behind each other.
+  const memory = memoryStorage({}, { delay:30 });
+  const saved: Record<string, any> = memory.data;
   const widths: Record<string, number> = {};
   await renderPopup(apiName, {
-    storage:{ local:{
-      get:async () => structuredClone(saved),
-      // Slow writes let changes queue up behind each other.
-      set:async (patch: object) => { await new Promise(resolve => setTimeout(resolve, 30)); Object.assign(saved, structuredClone(patch)); }
-    }, onChanged:{ addListener:() => {}, removeListener:() => {} } },
+    storage:memory.storage,
     tabs:{ query:async () => [{ id:1, url:builder }], sendMessage:async () => ({ widths:structuredClone(widths) }) },
     runtime:{ getManifest:() => ({ version:'1.0.0' }), sendMessage:async () => ({ ok:true, config:{}, missingOrigins:[] }) }
   });
@@ -52,12 +50,10 @@ test.each(apiNames)('queued saves and resets, focus, measured widths and validat
 });
 
 test.each(apiNames)('navigation tabs switch loads, saves and resets with all panels (%s)', async apiName => {
-  const saved: Record<string, any> = { navigationTabs:'hidden', navigationTabsCollapsed:true };
+  const memory = memoryStorage({ navigationTabs:'hidden', navigationTabsCollapsed:true });
+  const saved: Record<string, any> = memory.data;
   await renderPopup(apiName, {
-    storage:{ local:{
-      get:async () => structuredClone(saved),
-      set:async (patch: object) => { Object.assign(saved, structuredClone(patch)); }
-    }, onChanged:{ addListener:() => {}, removeListener:() => {} } },
+    storage:memory.storage,
     tabs:{ query:async () => [{ id:1, url:builder }], sendMessage:async () => ({ widths:{} }) },
     runtime:{ getManifest:() => ({ version:'1.0.0' }), sendMessage:async () => ({ ok:true, config:{}, missingOrigins:[] }) }
   });

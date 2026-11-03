@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react';
+import type { InputHTMLAttributes, ReactNode, Ref, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react';
 import { Unavailable } from './Unavailable';
 
 interface ToggleProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'type'> {
@@ -89,6 +89,7 @@ interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'id
   id: string;
   label: string;
   reason?: string;
+  ref?: Ref<HTMLInputElement>;
 }
 
 // A stacked label and text input.
@@ -98,6 +99,24 @@ export function TextField({ id, label, reason = '', disabled, ...input }: TextFi
       <label htmlFor={id}>{label}</label>
       <Unavailable reason={reason} label={label}>
         <input id={id} type="text" autoComplete="off" {...input} disabled={Boolean(reason) || disabled} />
+      </Unavailable>
+    </>
+  );
+}
+
+interface TextAreaProps extends Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'id'> {
+  id: string;
+  label: string;
+  reason?: string;
+}
+
+// A stacked label and multi-line text box.
+export function TextArea({ id, label, reason = '', disabled, ...textarea }: TextAreaProps) {
+  return (
+    <>
+      <label htmlFor={id}>{label}</label>
+      <Unavailable reason={reason} label={label}>
+        <textarea id={id} {...textarea} disabled={Boolean(reason) || disabled} />
       </Unavailable>
     </>
   );

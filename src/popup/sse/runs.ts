@@ -27,11 +27,10 @@ export function restore(stored: StoredRun): Run {
     trace:buildTrace(stored.response.body?.eventLog, outcome.problem), ...(stored.trimmed ? { trimmed:true, summary:stored.summary } : {}) };
 }
 export const store = (run: Run): StoredRun => ({ id:run.id, at:run.at.getTime(), title:run.title, moduleId:run.moduleId, request:run.request, response:run.response,
-  summary:run.summary ?? { steps:run.trace.steps.length, sets:run.trace.events.filter(event => event.kind === 'set').length, failedStep:firstFailure(run.trace)?.step }, ...(run.trimmed ? { trimmed:true as const } : {}) });
-export const firstFailure = (trace: Trace) => trace.events.find(event => event.kind === 'fail');
+  summary:run.summary ?? { steps:run.trace.steps.length, sets:run.trace.sets, failedStep:run.trace.failure?.step }, ...(run.trimmed ? { trimmed:true as const } : {}) });
 // The step that stopped the run. A restored trimmed run has no event log, so it comes from the stored summary;
 // the failure its trace still adds from the execution error is not placed in a real step.
-export const failedStep = (run: Run) => run.summary ? run.summary.failedStep : firstFailure(run.trace)?.step;
+export const failedStep = (run: Run) => run.summary ? run.summary.failedStep : run.trace.failure?.step;
 // The stored list as runs, reusing those already worked out; a run held in full notes when storage trimmed it.
 // A run too large to store stays in the window that ran it, among the stored ones by time.
 export const synced = (list: Run[], stored: StoredRun[]) => [...stored.map((each): Run => {

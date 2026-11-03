@@ -72,8 +72,9 @@ type StorageListener = (changes: Record<string, { oldValue?: unknown; newValue?:
 
 // An in-memory storage.local with onChanged, reading keys the way the browser does: null for everything,
 // a key, a list of keys, or an object of keys with defaults. A write reports itself to every listener, and
-// `write` stands in for another copy of the popup or the prompt window writing.
-export function memoryStorage(initial: Record<string, unknown> = {}) {
+// `write` stands in for another copy of the popup or the prompt window writing. `delay` slows the popup's own
+// writes, so changes can queue up behind each other.
+export function memoryStorage(initial: Record<string, unknown> = {}, { delay = 0 } = {}) {
   const data: Record<string, unknown> = structuredClone(initial);
   const listeners = new Set<StorageListener>();
   const pick = (keys?: string | string[] | Record<string, unknown> | null) => {
@@ -89,7 +90,10 @@ export function memoryStorage(initial: Record<string, unknown> = {}) {
   return {
     data, write,
     storage:{
-      local:{ get:async (keys?: Parameters<typeof pick>[0]) => pick(keys), set:async (items: Record<string, unknown>) => write(items) },
+      local:{ get:async (keys?: Parameters<typeof pick>[0]) => pick(keys), set:async (items: Record<string, unknown>) => {
+        if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+        write(items);
+      } },
       onChanged:{ addListener:(listener: StorageListener) => { listeners.add(listener); }, removeListener:(listener: StorageListener) => { listeners.delete(listener); } }
     }
   };
