@@ -46,6 +46,17 @@ test('an execution error marks its component, and a wait without a finish stays 
   expect(buildTrace(undefined)).toMatchObject({ steps:[], lanes:[], events:[] });
 });
 
+test('overlapping waits of one component finish in the order they began', () => {
+  const trace = buildTrace([
+    entry(1, 'executeComponentAsyncStart', 'init', 'callService', 'integrator', 0),
+    entry(1, 'executeComponentAsyncStart', 'init', 'callService', 'integrator', 10),
+    entry(2, 'executeComponentAsyncFinish', 'callService', 'callService', 'integrator', 100),
+    entry(3, 'executeComponentAsyncFinish', 'callService', 'callService', 'integrator', 400)
+  ]);
+  const waits = trace.events.filter(event => event.kind === 'wait');
+  expect(waits.map(wait => [wait.open, wait.ms])).toEqual([[false, 100], [false, 390]]);
+});
+
 test('unknown event types are kept as other, and an error-like type as a failure', () => {
   const trace = buildTrace([...log, entry(2, 'componentError', 'callService', 'callService', 'integrator', 12, { message:'Timed out' }), entry(2, 'somethingNew', 'init', 'vars', 'hidden', 12)]);
   expect(trace.events.at(-2)).toMatchObject({ kind:'fail', message:'Timed out' });

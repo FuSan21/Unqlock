@@ -1,4 +1,5 @@
 import type { Stored } from './api';
+import { flag, oneOf } from './normalize';
 
 export const panels = {
   agent: { label:'Build Agent', close:'Collapse left', open:'Expand left', side:'left' },
@@ -7,8 +8,12 @@ export const panels = {
   tray: { label:'Component tray', close:'Close component tray', open:'Expand component tray panel', side:'left' }
 };
 export type PanelId = keyof typeof panels;
-export type Visibility = 'native' | 'start' | 'always';
-export type Sizing = 'native' | 'custom' | 'remember';
+export const visibilities = ['native', 'start', 'always'] as const;
+export type Visibility = typeof visibilities[number];
+export const sizings = ['native', 'custom', 'remember'] as const;
+export type Sizing = typeof sizings[number];
+const visibility = oneOf(visibilities, 'native');
+const sizing = oneOf(sizings, 'native');
 export interface PanelPreference { visibility: Visibility; sizing: Sizing; width: number | null }
 export type PanelSettings = Record<PanelId, PanelPreference>;
 export const panelIds = Object.keys(panels) as PanelId[];
@@ -19,8 +24,8 @@ export function settings(value?: Stored): PanelSettings {
   return Object.fromEntries(panelIds.map(id => {
     const raw = value?.[id];
     return [id, {
-      visibility:['native', 'start', 'always'].includes(raw?.visibility) ? raw.visibility : 'native',
-      sizing:['native', 'custom', 'remember'].includes(raw?.sizing) ? raw.sizing : 'native',
+      visibility:visibility(raw?.visibility),
+      sizing:sizing(raw?.sizing),
       width:width(raw?.width)
     }];
   })) as PanelSettings;
@@ -33,8 +38,8 @@ export const rememberedKey = (id: string) => 'panelWidth_' + id;
 export const tabsModes = ['native', 'wrapped', 'hidden'] as const;
 export type TabsMode = typeof tabsModes[number];
 export const tabsKey = 'navigationTabs';
-export const tabsMode = (value: unknown): TabsMode => tabsModes.includes(value as TabsMode) ? value as TabsMode : 'native';
+export const tabsMode = oneOf(tabsModes, 'native');
 // Default and Multi-line can keep the bar collapsed until the builder header is hovered. Hidden has no
 // bar to show, so it ignores this.
 export const tabsCollapsedKey = 'navigationTabsCollapsed';
-export const tabsCollapsed = (value: unknown) => value === true;
+export const tabsCollapsed = flag;

@@ -198,9 +198,11 @@ export default defineContentScript({
       placeMenu();
       button.setAttribute('aria-expanded', 'true');
     });
+    // The menu frame's origin, the only one its messages are sent to and accepted from.
+    const menuOrigin = new URL(api.runtime.getURL('/popup.html')).origin;
     api.runtime.onMessage.addListener((message, _sender, respond) => {
       if (message?.type === 'access.changed') {
-        frame?.contentWindow?.postMessage({ type:'unqlock.accessChanged', kind:message.kind }, new URL(api.runtime.getURL('/popup.html')).origin);
+        frame?.contentWindow?.postMessage({ type:'unqlock.accessChanged', kind:message.kind }, menuOrigin);
         respond({ ok:true });
         return;
       }
@@ -208,7 +210,7 @@ export default defineContentScript({
       respond({ ok:true, url:location.href });
     });
     window.addEventListener('message', event => {
-      if (frame && event.source === frame.contentWindow && event.origin === new URL(api.runtime.getURL('/popup.html')).origin && event.data?.type === 'unqlock.close') closeMenu();
+      if (frame && event.source === frame.contentWindow && event.origin === menuOrigin && event.data?.type === 'unqlock.close') closeMenu();
     });
     document.addEventListener('pointerdown', event => {
       if (frame && !event.composedPath().includes(host)) closeMenu(false);

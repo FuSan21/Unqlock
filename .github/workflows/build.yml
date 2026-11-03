@@ -30,7 +30,6 @@ jobs:
         run: npm run version:check -- "$RELEASE_TAG"
       - name: 'Test: Build and package checks'
         run: node scripts/test.cjs build
-      - run: npm run lint:firefox
       - run: npm run package:source
       - name: List test groups
         id: matrix

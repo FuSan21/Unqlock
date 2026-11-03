@@ -1,15 +1,13 @@
 // Import steps shared by Import & export and the prompt window's file import.
 import { api } from '@/lib/api';
 import * as Environment from '@/lib/environment';
-import * as Panels from '@/lib/panel-settings';
 import * as Transfer from '@/lib/settings-transfer';
 
-export const storedKeys = ['appearance', 'rowLayout', 'canvasToolbar', 'canvasLabels', 'componentColors', 'builderPanels', Panels.tabsKey, Panels.tabsCollapsedKey, 'environment', 'floating', ...Panels.panelIds.map(Panels.rememberedKey)];
-const maxSize = 1024 * 1024;
+export const { storedKeys } = Transfer;
 
 // A chosen file's text, refusing anything an export could not be.
 export async function readFile(file: File) {
-  if (file.size > maxSize) throw new Error('This file is larger than 1 MB and is not an Unqlock export.');
+  if (file.size > Transfer.maxSize) throw new Error(Transfer.tooLarge);
   try { return await file.text(); }
   catch { throw new Error('Could not read ' + file.name + '. Try again.'); }
 }

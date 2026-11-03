@@ -18,10 +18,15 @@ export default defineBackground(() => {
   async function readConfig() {
     return Environment.settings((await api.storage.local.get('environment')).environment);
   }
-  async function syncScripts(config: Environment.EnvironmentSettings) {
+  // The saved custom domains, split by whether the browser has granted each one.
+  async function customAccess(config: Environment.EnvironmentSettings) {
     const origins = Environment.customOrigins(config);
-    const permitted: string[] = [];
-    for (const origin of origins) if (await api.permissions.contains({ origins:[origin] })) permitted.push(origin);
+    const granted = await Promise.all(origins.map(origin => api.permissions.contains({ origins:[origin] })));
+    return { permitted:origins.filter((_, index) => granted[index]), missing:origins.filter((_, index) => !granted[index]) };
+  }
+  // Registers the badge for the granted custom domains and returns the access each domain has.
+  async function syncScripts(config: Environment.EnvironmentSettings) {
+    const { permitted, missing } = await customAccess(config);
     const id = 'unqlock-custom-environments';
     const existing = await api.scripting.getRegisteredContentScripts({ ids:[id] });
     if (!permitted.length) {
@@ -31,7 +36,7 @@ export default defineBackground(() => {
       if (existing.length) await api.scripting.updateContentScripts([script]);
       else await api.scripting.registerContentScripts([script]);
     }
-    return origins.filter(origin => !permitted.includes(origin));
+    return { permitted, missing };
   }
   // The dev overlay's scripts exist only while Detach dev overlay or the Unqlock SSE debugger is on and
   // their site access is granted: Chrome does not extend the manifest content scripts' access to
@@ -124,9 +129,7 @@ export default defineBackground(() => {
       if (tabId === undefined) throw new Error('Debug tools need a page.');
       return [(await configuredPage(tabId)).url.origin + '/*'];
     }
-    const missing: string[] = [];
-    for (const origin of Environment.customOrigins(await readConfig())) if (!await api.permissions.contains({ origins:[origin] })) missing.push(origin);
-    return missing;
+    return (await customAccess(await readConfig())).missing;
   }
   // Finishes a granted request in the background, since a Firefox toolbar popup has closed by now.
   async function afterGrant(kind: Access.AccessKind, tabId?: number) {
@@ -135,13 +138,7 @@ export default defineBackground(() => {
     if (kind === 'sseDebugger') await serial(() => api.storage.local.set({ [SseDebugger.key]:true }));
     if (kind === 'badges') {
       // Read inside the queue, so a save queued meanwhile is not overwritten with the older domains.
-      const config = await serial(async () => {
-        const config = await readConfig();
-        await syncScripts(config);
-        return config;
-      });
-      const permitted: string[] = [];
-      for (const origin of Environment.customOrigins(config)) if (await api.permissions.contains({ origins:[origin] })) permitted.push(origin);
+      const { permitted } = await serial(async () => syncScripts(await readConfig()));
       if (permitted.length) for (const tab of await api.tabs.query({ url:permitted })) {
         if (tab.id !== undefined) api.scripting.executeScript({ target:{ tabId:tab.id }, files:['/content-scripts/environment-badge.js'] }).catch(() => {});
       }
@@ -266,10 +263,8 @@ export default defineBackground(() => {
         const request: QuickRequest | undefined = message.request;
         if (!request || request.url !== href) throw new Error('Page changed. Reopen Debug tools and try again.');
         const current = Environment.detect(href, config);
-        if (request.action !== 'log' && current.kind === 'production') {
-          if (config.blockProduction) throw new Error('Production actions are disabled.');
-          if (request.productionConfirmed !== true) throw new Error('Review and confirm the production action again.');
-        }
+        const refusal = request.action === 'log' ? null : Environment.productionRefusal(href, config, request.productionConfirmed === true);
+        if (refusal) throw new Error(refusal === 'blocked' ? 'Production actions are disabled.' : 'Review and confirm the production action again.');
         const results = await api.scripting.executeScript({
           target:{ tabId }, world:'MAIN', func:runQuickAction,
           args:[{ ...request, production:current.kind === 'production', blockProduction:config.blockProduction }]
@@ -301,8 +296,8 @@ export default defineBackground(() => {
         config = Environment.settings({ ...config, ...message.preferences, groups:config.groups });
         await api.storage.local.set({ environment:config });
       }
-      const missingOrigins = await syncScripts(config);
-      return { ok:true, config, missingOrigins };
+      const { missing } = await syncScripts(config);
+      return { ok:true, config, missingOrigins:missing };
     }));
   });
   // The toolbar shows NEW after an update that brings a minor or major release the user has not read.

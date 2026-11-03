@@ -4,12 +4,15 @@ import { appearanceSettings, layoutKeys, styleKeys } from './appearance';
 import * as Colors from './component-colors';
 import * as Environment from './environment';
 import * as Labels from './label-settings';
+import { choices } from './normalize';
 import * as Panels from './panel-settings';
 import * as RowLayout from './row-layout';
 import * as Toolbar from './toolbar-settings';
 
 export const format = 1;
-const maxLength = 1024 * 1024;
+// An export is far smaller; anything larger is refused before it is read or parsed.
+export const maxSize = 1024 * 1024;
+export const tooLarge = 'This file is larger than 1 MB and is not an Unqlock export.';
 // Sections follow the popup pages, so an import can replace one page's settings and keep the rest.
 export const sections = {
   style: 'Component style',
@@ -27,6 +30,9 @@ const pick = <T extends object>(source: T, keys: string[]) => Object.fromEntries
 function panelWidths(stored: Stored) {
   return Object.fromEntries(Panels.panelIds.map(id => [id, Panels.width(stored[Panels.rememberedKey(id)])]));
 }
+
+// The storage keys an export reads and an import may replace.
+export const storedKeys = ['appearance', 'rowLayout', 'canvasToolbar', Labels.key, 'componentColors', 'builderPanels', Panels.tabsKey, Panels.tabsCollapsedKey, 'environment', 'floating', ...Panels.panelIds.map(Panels.rememberedKey)];
 
 export function create(stored: Stored, { version, now = new Date() }: { version: string; now?: Date }) {
   return {
@@ -56,7 +62,7 @@ export function stringify(stored: Stored, options: { version: string; now?: Date
 // Returns the sections present in a file. Invalid values are rejected here, before anything is written.
 export function parse(text: unknown): Parsed {
   if (typeof text !== 'string' || !text.trim()) throw new Error('Paste exported settings or choose a JSON file.');
-  if (text.length > maxLength) throw new Error('This file is larger than 1 MB and is not an Unqlock export.');
+  if (text.length > maxSize) throw new Error(tooLarge);
   let file: Stored;
   try { file = JSON.parse(text); } catch { throw new Error('This is not valid JSON. Copy the whole export and try again.'); }
   if (!isObject(file) || !Number.isInteger(file.unqlock) || !isObject(file.settings)) throw new Error('This JSON is not an Unqlock settings export.');
@@ -65,8 +71,8 @@ export function parse(text: unknown): Parsed {
   for (const key of ['appearance', 'rowLayout', 'canvasToolbar', 'componentColors', 'builderPanels', 'panelWidths', 'environment', 'floating']) {
     if (Object.hasOwn(settings, key) && !isObject(settings[key])) throw new Error('The ' + key + ' value must be an object.');
   }
-  if (Object.hasOwn(settings, Panels.tabsKey) && !(Panels.tabsModes as readonly unknown[]).includes(settings[Panels.tabsKey])) throw new Error('The navigationTabs value must be "native", "wrapped" or "hidden".');
-  if (Object.hasOwn(settings, Labels.key) && Labels.mode(settings[Labels.key]) !== settings[Labels.key]) throw new Error('The canvasLabels value must be "native", "different" or "always".');
+  if (Object.hasOwn(settings, Panels.tabsKey) && !(Panels.tabsModes as readonly unknown[]).includes(settings[Panels.tabsKey])) throw new Error('The navigationTabs value must be ' + choices(Panels.tabsModes) + '.');
+  if (Object.hasOwn(settings, Labels.key) && Labels.mode(settings[Labels.key]) !== settings[Labels.key]) throw new Error('The canvasLabels value must be ' + choices(Labels.modes.map(([id]) => id)) + '.');
   if (Object.hasOwn(settings, Panels.tabsCollapsedKey) && typeof settings[Panels.tabsCollapsedKey] !== 'boolean') throw new Error('The navigationTabsCollapsed value must be true or false.');
   const appearance = settings.appearance || {};
   const isLayoutKey = (key: string) => (layoutKeys as string[]).includes(key);

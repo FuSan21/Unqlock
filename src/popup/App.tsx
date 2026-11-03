@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { api } from '@/lib/api';
 import { send } from '@/lib/messages';
 import { DebugProvider } from './debug';
@@ -54,7 +54,8 @@ export function App() {
   }, []);
 
   const closeOrigin = state.status === 'ready' ? state.closeOrigin : null;
-  const close = closeOrigin ? () => parent.postMessage({ type:'unqlock.close' }, closeOrigin) : undefined;
+  // Stable, since the pages' Escape listener resubscribes whenever it changes.
+  const close = useMemo(() => closeOrigin ? () => parent.postMessage({ type:'unqlock.close' }, closeOrigin) : undefined, [closeOrigin]);
   return (
     <>
       <button id="floating-close" type="button" aria-label="Close Unqlock menu" hidden={!close} onClick={close}>×</button>

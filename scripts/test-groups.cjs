@@ -13,7 +13,8 @@ const groups = {
     ['Version rules', test('version.cjs')],
     ['Page actions', test('quick-actions.cjs')],
     ['Build both browsers', path.join(__dirname, 'build.cjs')],
-    ['Manifests and archives', test('build.cjs')]
+    ['Manifests and archives', test('build.cjs')],
+    ['Firefox lint', path.join(__dirname, 'lint-firefox.cjs')]
   ] },
   models:{ title:'Environment and background', browsers:[], tests:[
     ['Environment detection and badge', test('environment.cjs')],

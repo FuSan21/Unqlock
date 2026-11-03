@@ -57,7 +57,8 @@ export function buildTrace(log: Stored, problem?: Problem): Trace {
   const events: TraceEvent[] = [];
   const lanes = new Map<string, Lane>();
   const ticks = new Map<number, { min?: number; max?: number; events: number; changes: number }>();
-  const waits = new Map<string, TraceEvent>();
+  // A component's waits not yet finished, oldest first, so overlapping waits finish in the order they began.
+  const waits = new Map<string, TraceEvent[]>();
   // A component's queued triggers not yet followed by its run.
   const queued = new Map<string, TraceEvent[]>();
   // Each component's latest event, and its latest run, kept as events are added so a long log stays linear.
@@ -89,9 +90,8 @@ export function buildTrace(log: Stored, problem?: Problem): Trace {
     // A run follows the trigger that queued it; anything else follows the run of its cause.
     const runCause = () => queued.get(key)?.shift()?.id ?? causeOf(key, causeKey);
     if (eventType === 'executeComponentAsyncFinish') {
-      const wait = waits.get(key);
+      const wait = waits.get(key)?.shift();
       if (wait) {
-        waits.delete(key);
         wait.open = false;
         if (wait.at !== undefined && base.at !== undefined) wait.ms = Math.max(0, base.at - wait.at);
         if (tick !== wait.tick) wait.endTick = tick;
@@ -109,7 +109,8 @@ export function buildTrace(log: Stored, problem?: Problem): Trace {
     } else if (eventType === 'executeComponent') event = { ...base, kind:'ran', cause:runCause() };
     else if (eventType === 'executeComponentAsyncStart') {
       event = { ...base, kind:'wait', open:true, cause:runCause() };
-      waits.set(key, event);
+      const open = waits.get(key);
+      if (open) open.push(event); else waits.set(key, [event]);
     } else if (/error|fail/i.test(eventType)) event = { ...base, kind:'fail', cause:latestEvent.get(key)?.id ?? causeOf(key, causeKey), message:string(attributes.message) || undefined };
     else event = { ...base, kind:'other', cause:causeOf(key, causeKey) };
     if (event.kind === 'set') step.changes++;

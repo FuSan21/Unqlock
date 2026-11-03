@@ -7,7 +7,7 @@ import { buildTrace, duration, slowAfter, type Trace, type TraceEvent } from '@/
 import { params } from '../runtime';
 import { Steps, type StepsMode } from './Steps';
 import { readContext, run as runModule, stop as stopRun, type TabEnvironment } from './tab';
-import { Changes, Empty, Output, Raw } from './views';
+import { Changes, Empty, Output, Raw, useCopy } from './views';
 
 export interface Run {
   id: string;
@@ -501,10 +501,10 @@ export function Debugger() {
 
 // The full module ID, which copies on click; the confirmation appears beside it, so the ID stays in view.
 function CopyId({ id }: { id: string }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, copy] = useCopy();
   return (
     <>
-      <button type="button" className="module-id mono" title="Copy module ID" onClick={() => navigator.clipboard.writeText(id).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }, () => {})}>{id}</button>
+      <button type="button" className="module-id mono" title="Copy module ID" onClick={() => copy(id)}>{id}</button>
       <span className="copied" role="status">{copied ? 'Copied' : ''}</span>
     </>
   );

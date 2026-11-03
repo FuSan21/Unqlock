@@ -1,4 +1,5 @@
 import type { Stored } from './api';
+import { oneOf } from './normalize';
 
 // Shared by the popup, the background and isolated content scripts. No page data is inspected.
 export const labels = { staging:'STAGING', qa:'QA', uat:'UAT', preprod:'PRE-PROD', production:'PRODUCTION', unknown:'UNKNOWN' } as const;
@@ -7,9 +8,12 @@ export interface Domain { hostname: string; environment: EnvironmentKind }
 export interface Group { id: string; name: string; autoKey?: string; domains: Domain[] }
 export interface EnvironmentSettings { badge: boolean; blockProduction: boolean; autoDiscover: boolean; groups: Group[] }
 export interface Detected { kind: EnvironmentKind; label: string; host: string; groupId?: string; source: string }
-export type Corner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+export const corners = ['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const;
+export type Corner = typeof corners[number];
 // Fixed keeps the launcher in its corner. Draggable starts it there, and a page keeps a dragged spot for its session.
-export type FloatingMode = 'fixed' | 'draggable';
+export const floatingModes = ['fixed', 'draggable'] as const;
+export type FloatingMode = typeof floatingModes[number];
+const floatingMode = oneOf(floatingModes, 'fixed');
 export interface FloatingSettings { enabled: boolean; mode: FloatingMode; corner: Corner }
 
 export function hostname(value: unknown): string {
@@ -89,13 +93,20 @@ export function discover(value: Stored, host: string): EnvironmentSettings {
   return settings(config);
 }
 
+// The production rule every run and page action applies just before it starts: nothing runs on production while
+// Environments blocks it, and otherwise only with a confirmation for this run. Callers word the refusal.
+export function productionRefusal(url: string, config: EnvironmentSettings, confirmed: boolean): 'blocked' | 'unconfirmed' | null {
+  if (detect(url, config).kind !== 'production') return null;
+  if (config.blockProduction) return 'blocked';
+  return confirmed === true ? null : 'unconfirmed';
+}
+
 export function customOrigins(value: Stored): string[] {
   return settings(value).groups.flatMap(group => group.domains).filter(domain => !domain.hostname.endsWith('.unqork.io')).map(domain => '*://' + domain.hostname + '/*');
 }
 
 export function floatingSettings(value?: Stored): FloatingSettings {
-  const corners: Corner[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
   // Versions before the Fixed and Draggable modes saved the corner as position; their settings and exports still load.
-  const corner = [value?.corner, value?.position].find(candidate => corners.includes(candidate)) || 'bottom-left';
-  return { enabled:value?.enabled !== false, mode:value?.mode === 'draggable' ? 'draggable' : 'fixed', corner };
+  const corner: Corner = [value?.corner, value?.position].find(candidate => corners.includes(candidate)) || 'bottom-left';
+  return { enabled:value?.enabled !== false, mode:floatingMode(value?.mode), corner };
 }

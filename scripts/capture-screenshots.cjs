@@ -16,7 +16,7 @@ const settings = {
   canvasToolbar:{ search:'always', sort:'always' },
   builderPanels:{ agent:{ visibility:'start', sizing:'native', width:null }, explore:{ visibility:'always', sizing:'native', width:null }, properties:{ visibility:'native', sizing:'custom', width:320 }, tray:{ visibility:'native', sizing:'remember', width:null } },
   panelWidth_tray:264,
-  floating:{ enabled:true, position:'bottom-left' },
+  floating:{ enabled:true, mode:'fixed', corner:'bottom-left' },
   environment:{ badge:true, blockProduction:true, autoDiscover:true, groups:[{ id:'demo', name:'Demo Group', domains:[
     { hostname:'example-staging.unqork.io', environment:'staging' },
     { hostname:'example-qa.unqork.io', environment:'qa' },

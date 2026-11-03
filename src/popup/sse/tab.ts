@@ -56,10 +56,8 @@ export async function run(tabId: number, request: SseRequest, productionConfirme
     const problem = await builderTab(tabId);
     if (problem) return { ok:false, error:problem };
     const config = await settings();
-    if (Environment.detect(request.url, config).kind === 'production') {
-      if (config.blockProduction) return { ok:false, error:'Production actions are turned off in Environments.' };
-      if (productionConfirmed !== true) return { ok:false, error:'Confirm the production run again.' };
-    }
+    const refusal = Environment.productionRefusal(request.url, config, productionConfirmed);
+    if (refusal) return { ok:false, error:refusal === 'blocked' ? 'Production actions are turned off in Environments.' : 'Confirm the production run again.' };
     const [result] = await api.scripting.executeScript({ target:{ tabId }, world:'MAIN', func:runSseExecute, args:[request, runId] });
     if (!result?.result) return { ok:false, error:'The builder tab did not answer. Reload it and try again.' };
     return { ok:true, response:result.result as SseResponse };

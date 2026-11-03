@@ -151,10 +151,8 @@ export function DebugProvider({ children }: { children: ReactNode }) {
     try {
       const config = Environment.settings((await api.storage.local.get('environment')).environment);
       const current = Environment.detect(request.url, config);
-      if (request.action !== 'log') {
-        if (current.kind === 'production' && config.blockProduction) throw new Error('Production actions are disabled.');
-        if (current.kind === 'production' && request.productionConfirmed !== true) throw new Error('Environment settings changed. Review and confirm the action again.');
-      }
+      const refusal = request.action === 'log' ? null : Environment.productionRefusal(request.url, config, request.productionConfirmed === true);
+      if (refusal) throw new Error(refusal === 'blocked' ? 'Production actions are disabled.' : 'Environment settings changed. Review and confirm the action again.');
       request.production = current.kind === 'production';
       request.blockProduction = config.blockProduction;
       let result: QuickResult | undefined;

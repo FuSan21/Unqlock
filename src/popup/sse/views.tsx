@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Stored } from '@/lib/api';
 import { fetchSnippet } from '@/lib/sse-run';
 import { duration, type TraceEvent } from '@/lib/sse-trace';
@@ -23,13 +23,24 @@ export function preview(value: unknown, length = 160) {
   return text.length > length ? text.slice(0, length - 1) + '…' : text;
 }
 
+// Copies text to the clipboard and is true for a moment after, for a "Copied" confirmation.
+export function useCopy(): [boolean, (text: string) => void] {
+  const [copied, setCopied] = useState(false);
+  const timer = useRef(0);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const copy = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      clearTimeout(timer.current);
+      timer.current = window.setTimeout(() => setCopied(false), 1500);
+    }, () => {});
+  };
+  return [copied, copy];
+}
+
 export function CopyButton({ text, label, id }: { text: () => string; label: string; id?: string }) {
-  const [done, setDone] = useState(false);
-  return (
-    <button id={id} type="button" className="link" onClick={() => {
-      navigator.clipboard.writeText(text()).then(() => { setDone(true); setTimeout(() => setDone(false), 1500); }, () => {});
-    }}>{done ? 'Copied' : label}</button>
-  );
+  const [done, copy] = useCopy();
+  return <button id={id} type="button" className="link" onClick={() => copy(text())}>{done ? 'Copied' : label}</button>;
 }
 
 // A collapsible JSON value. Objects and arrays open to `open` levels deep.
