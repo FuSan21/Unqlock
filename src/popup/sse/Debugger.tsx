@@ -20,7 +20,7 @@ export interface Run {
   trace: Trace;
   // Restored without its event log and response body, with the counts the result line shows.
   trimmed?: boolean;
-  summary?: { steps: number; sets: number };
+  summary?: StoredRun['summary'];
   // A run this window holds in full that storage keeps only trimmed, or not at all.
   saved?: 'trimmed' | 'none';
 }
@@ -46,14 +46,20 @@ function restore(stored: StoredRun): Run {
     trace:buildTrace(stored.response.body?.eventLog, outcome.problem), ...(stored.trimmed ? { trimmed:true, summary:stored.summary } : {}) };
 }
 const store = (run: Run): StoredRun => ({ id:run.id, at:run.at.getTime(), title:run.title, moduleId:run.moduleId, request:run.request, response:run.response,
-  summary:run.summary ?? { steps:run.trace.steps.length, sets:run.trace.events.filter(event => event.kind === 'set').length }, ...(run.trimmed ? { trimmed:true as const } : {}) });
+  summary:run.summary ?? { steps:run.trace.steps.length, sets:run.trace.events.filter(event => event.kind === 'set').length, failedStep:firstFailure(run.trace)?.step }, ...(run.trimmed ? { trimmed:true as const } : {}) });
+const firstFailure = (trace: Trace) => trace.events.find(event => event.kind === 'fail');
+// The step that stopped the run. A restored trimmed run has no event log, so it comes from the stored summary;
+// the failure its trace still adds from the execution error is not placed in a real step.
+const failedStep = (run: Run) => run.summary ? run.summary.failedStep : firstFailure(run.trace)?.step;
 // The stored list as runs, reusing those already worked out; a run held in full notes when storage trimmed it.
-const synced = (list: Run[], stored: StoredRun[]) => stored.map((each): Run => {
+// A run too large to store stays in the window that ran it, among the stored ones by time.
+const synced = (list: Run[], stored: StoredRun[]) => [...stored.map((each): Run => {
   const held = list.find(run => run.id === each.id);
   if (!held) return restore(each);
   const saved = each.trimmed && !held.trimmed ? 'trimmed' as const : undefined;
   return held.saved === saved ? held : { ...held, saved };
-});
+}), ...list.filter(run => run.saved === 'none' && !stored.some(each => each.id === run.id))]
+  .sort((a, b) => b.at.getTime() - a.at.getTime()).slice(0, keptRuns);
 
 const time = (date: Date) => date.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false });
 // A run from an earlier day also names its date.
@@ -77,6 +83,10 @@ export function Debugger() {
   const [role, setRole] = useState('');
   const identityChosen = useRef(false);
   const [runs, setRuns] = useState<Run[]>([]);
+  // Changes to the list read and write localStorage, which a state updater must not do, so they work from a ref
+  // that always holds the latest list.
+  const runsRef = useRef(runs);
+  const updateRuns = (change: (list: Run[]) => Run[]) => { runsRef.current = change(runsRef.current); setRuns(runsRef.current); };
   const keep = useRef(false);
   const [keeping, setKeeping] = useState(false);
   const [current, setCurrent] = useState<string>();
@@ -176,15 +186,15 @@ export function Debugger() {
       keep.current = on;
       setKeeping(on);
       if (!on) { clearRuns(localStorage); return; }
-      setRuns(list => {
+      updateRuns(list => {
         const stored = writeRuns(localStorage, [...list.map(store), ...readRuns(localStorage)]);
         // A run too large to store stays in this window.
-        return [...synced(list, stored), ...list.filter(run => !stored.some(each => each.id === run.id))].sort((a, b) => b.at.getTime() - a.at.getTime()).slice(0, keptRuns);
+        return synced(list.map(run => stored.some(each => each.id === run.id) ? run : { ...run, saved:'none' as const }), stored);
       });
     };
     api.storage?.local?.get(SseDebugger.keepRunsKey).then(stored => apply(SseDebugger.enabled(stored?.[SseDebugger.keepRunsKey])), () => apply(false));
     const option = (changes: Record<string, { newValue?: unknown }>, area: string) => { if (area === 'local' && changes[SseDebugger.keepRunsKey]) apply(SseDebugger.enabled(changes[SseDebugger.keepRunsKey].newValue)); };
-    const changed = (event: StorageEvent) => { if (keep.current && (event.key === historyKey || event.key === null)) setRuns(list => synced(list, readRuns(localStorage))); };
+    const changed = (event: StorageEvent) => { if (keep.current && (event.key === historyKey || event.key === null)) updateRuns(list => synced(list, readRuns(localStorage))); };
     api.storage?.onChanged?.addListener(option);
     window.addEventListener('storage', changed);
     return () => { api.storage?.onChanged?.removeListener(option); window.removeEventListener('storage', changed); };
@@ -259,8 +269,8 @@ export function Debugger() {
       const stored = writeRuns(localStorage, [store(entry), ...readRuns(localStorage)]);
       const own = stored.find(each => each.id === entry.id);
       const held: Run = { ...entry, saved:!own ? 'none' : own.trimmed ? 'trimmed' : undefined };
-      setRuns(list => [held, ...synced(list, stored).filter(run => run.id !== entry.id)].slice(0, keptRuns));
-    } else setRuns(list => [entry, ...list].slice(0, keptRuns));
+      updateRuns(list => synced([held, ...list.filter(run => run.id !== entry.id)], stored));
+    } else updateRuns(list => [entry, ...list].slice(0, keptRuns));
     setCurrent(entry.id);
     setSelected(trace.events.find(event => event.kind === 'fail')?.id);
     setRunning(false);
@@ -437,7 +447,7 @@ export function Debugger() {
           </fieldset>
         </section>
         <section className="runs" aria-labelledby="runs-title">
-          <div className="rail-head"><h2 id="runs-title">Runs</h2>{runs.length > 0 && <button type="button" className="link" title={keeping ? 'Remove every saved run' : undefined} onClick={() => { clearRuns(localStorage); setRuns([]); setCurrent(undefined); setSelected(undefined); }}>Clear</button>}</div>
+          <div className="rail-head"><h2 id="runs-title">Runs</h2>{runs.length > 0 && <button type="button" className="link" title={keeping ? 'Remove every saved run' : undefined} onClick={() => { clearRuns(localStorage); updateRuns(() => []); setCurrent(undefined); setSelected(undefined); }}>Clear</button>}</div>
           {runs.length ? (
             <ol>
               {runs.map(entry => (
@@ -526,7 +536,9 @@ interface ResultProps {
 
 function RunResult({ run, view, setView, tabKeys, stepsMode, setStepsMode, filter, setFilter, values, setValues, hideSetup, setHideSetup, filterField, selected, setSelected, changes, showKey, showEvent, current, onRerun }: ResultProps) {
   const { outcome, response, trace } = run;
-  const failure = trace.events.find(event => event.kind === 'fail');
+  // A trimmed run's views give way to a note, so it has no step to show.
+  const failure = run.summary ? undefined : firstFailure(trace);
+  const step = failedStep(run);
   const setupLanes = trace.lanes.filter(lane => lane.setup).length;
   return (
     <>
@@ -537,7 +549,7 @@ function RunResult({ run, view, setView, tabKeys, stepsMode, setStepsMode, filte
           <div>
             {outcome.problem ? (
               <p>
-                {outcome.problem.component ? <><strong className="mono">{outcome.problem.component}</strong> stopped the run{failure ? ` in step ${failure.step}` : ''}.</> : <strong>The run failed.</strong>}
+                {outcome.problem.component ? <><strong className="mono">{outcome.problem.component}</strong> stopped the run{step ? ` in step ${step}` : ''}.</> : <strong>The run failed.</strong>}
                 {run.request.save && ' Nothing was saved.'}
                 <span className="message mono">{outcome.problem.message}{outcome.problem.detail ? ' · ' + outcome.problem.detail : ''}</span>
               </p>
@@ -608,7 +620,7 @@ const slowest = (events: TraceEvent[]) => events.filter(event => event.slow).sor
 
 function OutcomeLine({ run, onShow }: { run: Run; onShow: (id: string) => void }) {
   const { outcome, response, trace } = run;
-  const failure = trace.events.find(event => event.kind === 'fail');
+  const failed = failedStep(run);
   const steps = run.summary?.steps ?? trace.steps.length;
   const sets = run.summary?.sets ?? trace.events.filter(event => event.kind === 'set').length;
   const parts: ReactNode[] = [];
@@ -617,7 +629,7 @@ function OutcomeLine({ run, onShow }: { run: Run; onShow: (id: string) => void }
   else if (!outcome.ok) parts.push(outcome.problem?.message.split('. ')[0] || 'Failed');
   if (outcome.ranAs) parts.push(<>{parts.length ? 'ran' : 'Ran'} as <b>{outcome.ranAs}</b></>);
   if (response.status !== undefined) parts.push(duration(response.ms));
-  if (steps) parts.push(failure ? `step ${failure.step} of ${steps}` : `${steps} ${steps === 1 ? 'step' : 'steps'}`);
+  if (steps) parts.push(failed ? `step ${failed} of ${steps}` : `${steps} ${steps === 1 ? 'step' : 'steps'}`);
   if (outcome.ok) parts.push(`${sets} ${sets === 1 ? 'value' : 'values'} set`);
   if (outcome.ok && !outcome.ranAs) parts.unshift('Ran');
   const slow = slowest(trace.events);

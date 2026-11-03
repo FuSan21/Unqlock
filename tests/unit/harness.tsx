@@ -15,7 +15,7 @@ afterEach(() => {
 });
 
 interface Options {
-  // The popup's address, such as a detached window's ?targetTab.
+  // The page's address, including any query string.
   url?: string;
   // Renders as the floating menu's frame on a page.
   embedded?: boolean;
@@ -67,3 +67,30 @@ export const click = (target: string | Element) => fireEvent.click(typeof target
 // Types into a text field, select or textarea the way a person would, which React notices.
 export const type = (target: string | Element, value: string) => fireEvent.change(typeof target === 'string' ? byId(target) : target, { target:{ value } });
 export const press = (key: string, target: Element = document.activeElement || document.body) => fireEvent.keyDown(target, { key, bubbles:true, cancelable:true });
+
+type StorageListener = (changes: Record<string, { oldValue?: unknown; newValue?: unknown }>, area: string) => void;
+
+// An in-memory storage.local with onChanged, reading keys the way the browser does: null for everything,
+// a key, a list of keys, or an object of keys with defaults. A write reports itself to every listener, and
+// `write` stands in for another copy of the popup or the prompt window writing.
+export function memoryStorage(initial: Record<string, unknown> = {}) {
+  const data: Record<string, unknown> = structuredClone(initial);
+  const listeners = new Set<StorageListener>();
+  const pick = (keys?: string | string[] | Record<string, unknown> | null) => {
+    if (keys === null || keys === undefined) return structuredClone(data);
+    const defaults = typeof keys === 'string' ? { [keys]:undefined } : Array.isArray(keys) ? Object.fromEntries(keys.map(key => [key, undefined])) : keys;
+    return Object.fromEntries(Object.entries(defaults).flatMap(([key, fallback]) => key in data ? [[key, structuredClone(data[key])]] : fallback === undefined ? [] : [[key, fallback]]));
+  };
+  const write = (items: Record<string, unknown>) => {
+    const changes = Object.fromEntries(Object.entries(items).map(([key, value]) => [key, { oldValue:data[key], newValue:structuredClone(value) }]));
+    Object.assign(data, structuredClone(items));
+    listeners.forEach(listener => listener(changes, 'local'));
+  };
+  return {
+    data, write,
+    storage:{
+      local:{ get:async (keys?: Parameters<typeof pick>[0]) => pick(keys), set:async (items: Record<string, unknown>) => write(items) },
+      onChanged:{ addListener:(listener: StorageListener) => { listeners.add(listener); }, removeListener:(listener: StorageListener) => { listeners.delete(listener); } }
+    }
+  };
+}

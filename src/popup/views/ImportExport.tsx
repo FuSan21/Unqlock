@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { api } from '@/lib/api';
+import { send } from '@/lib/messages';
 import * as Transfer from '@/lib/settings-transfer';
 import { Toggle } from '../components/controls';
 import { ActionRow, Note, Page, SettingsHeading } from '../components/layout';
@@ -94,6 +95,8 @@ export function ImportExport() {
 
   // Escape dismisses a pending import before leaving the page.
   usePageLeave('transfer-page', ({ escape }) => {
+    // An import under way can no longer be canceled.
+    if (escape && busy) return false;
     if (escape && review) {
       canceled();
       return false;
@@ -142,8 +145,7 @@ export function ImportExport() {
         <button id="import-file-button" type="button" disabled={busy} onClick={async () => {
           if (!firefoxToolbarPopup()) { fileInput.current!.click(); return; }
           try {
-            const result = await api.runtime.sendMessage({ type:'prompt.open', kind:'import' });
-            if (!result?.ok) throw new Error();
+            await send({ type:'prompt.open', kind:'import' }, '');
             window.close();
           } catch { setImportMessage({ text:'Could not open the file picker. Paste the JSON instead.', error:true }); }
         }}>Choose file</button>
@@ -169,7 +171,7 @@ export function ImportExport() {
         <Note>Chosen settings replace the current ones. Anything not chosen stays as it is.</Note>
         <ActionRow>
           <button id="import-apply" className="primary" type="button" disabled={busy} onClick={apply}>Import selected</button>
-          <button id="import-cancel" type="button" onClick={canceled}>Cancel</button>
+          <button id="import-cancel" type="button" disabled={busy} onClick={canceled}>Cancel</button>
         </ActionRow>
       </div>
       <TransferStatus id="import-status" message={importMessage} />

@@ -2,6 +2,7 @@ import { defineContentScript } from 'wxt/utils/define-content-script';
 import { api } from '@/lib/api';
 import { detachedName, inIde, isDetached, whenIde } from '@/lib/builder-route';
 import * as DevOverlay from '@/lib/dev-overlay';
+import type { Message } from '@/lib/messages';
 import * as SseDebugger from '@/lib/sse-debugger';
 import './style.css';
 
@@ -71,6 +72,8 @@ export default defineContentScript({
     let scheduled = false;
     const observer = new MutationObserver(schedule);
     let render = () => {};
+    // Set once the script stands down. A watch that starts later, when the route first reaches /ide/, does nothing.
+    let stopped = false;
     function schedule() {
       if (!scheduled) {
         scheduled = true;
@@ -78,6 +81,7 @@ export default defineContentScript({
       }
     }
     const watch = (step: () => void, options: MutationObserverInit) => {
+      if (stopped) return;
       render = step;
       observer.observe(document.documentElement, { childList:true, subtree:true, ...options });
       schedule();
@@ -90,7 +94,7 @@ export default defineContentScript({
     // Server-Side Execute opens Unqlock's window. Not in a detached copy, which shows only the overlay.
     const replaceAttribute = 'data-unqlock-sse-replace';
     const replacing = () => options.debugger && options.replace && !isDetached();
-    const openDebugger = () => { api.runtime.sendMessage({ type:'sse.open', ...workArea() }).catch(() => {}); };
+    const openDebugger = () => { api.runtime.sendMessage({ type:'sse.open', ...workArea() } satisfies Message<'sse.open'>).catch(() => {}); };
     // Caught on the window in the capture phase, before React's root listener sees the click.
     function serverSideExecute(event: MouseEvent) {
       if (!replacing() || !inIde()) return;
@@ -107,6 +111,7 @@ export default defineContentScript({
       root.toggleAttribute(replaceAttribute, replacing());
       if (options.detach || options.debugger) { schedule(); return; }
       // Standing down: turning an option on again injects a fresh copy, which owns the root attribute.
+      stopped = true;
       observer.disconnect();
       render = () => {};
       api.storage.onChanged.removeListener?.(changed);

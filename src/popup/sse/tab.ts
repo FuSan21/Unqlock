@@ -66,8 +66,8 @@ export async function run(tabId: number, request: SseRequest, productionConfirme
   } catch (error) { return { ok:false, error:(error as Error).message || 'The run did not start.' }; }
 }
 
-// Stops waiting for a run in flight. Unqork may still finish it on the server. False when the tab no longer
-// holds it, as after the tab closed, moved or the run ended.
+// Stops waiting for a run in flight. Unqork may still finish it on the server. False when the tab can no longer
+// be reached, as after it closed or moved.
 export async function stop(tabId: number, runId: string): Promise<boolean> {
   try {
     if (await builderTab(tabId)) return false;

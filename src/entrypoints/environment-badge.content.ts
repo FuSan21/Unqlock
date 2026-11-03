@@ -1,6 +1,7 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
 import { api, type Stored } from '@/lib/api';
 import * as Environment from '@/lib/environment';
+import { send, type Message } from '@/lib/messages';
 
 export default defineContentScript({
   matches: ['https://*.unqork.io/*'],
@@ -179,8 +180,7 @@ export default defineContentScript({
       // Tab URLs stay unreadable without host access, so the page reports its own address first.
       opening = true;
       try {
-        const result = await api.runtime.sendMessage({ type:'floating.open' });
-        if (!result?.ok) throw new Error(result?.error || 'Could not open Unqlock.');
+        await send({ type:'floating.open' }, 'Could not open Unqlock.');
         feedback.hidden = true;
       } catch (error) {
         feedback.textContent = (error as Error).message || 'Could not open Unqlock. Try the browser toolbar.';
@@ -227,6 +227,6 @@ export default defineContentScript({
       floatingValue = result.floating;
       render();
     }).catch(() => {});
-    api.runtime.sendMessage({ type:'environment.observe' }).catch(() => {});
+    api.runtime.sendMessage({ type:'environment.observe' } satisfies Message<'environment.observe'>).catch(() => {});
   }
 });

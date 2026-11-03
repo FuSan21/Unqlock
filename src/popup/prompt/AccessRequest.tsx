@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
+import { send } from '@/lib/messages';
 import { originLabel, type AccessKind } from '@/lib/access';
 
 interface Copy { title: (host?: string) => string; lead: string; uses: string[]; done: string }
@@ -56,14 +57,12 @@ export function AccessRequest({ kind, tab, onBusy }: { kind: AccessKind; tab?: s
   // Tells the background, which finishes the request: it turns the option on, registers badges or
   // tells the page's floating menu.
   async function finish() {
-    const result = await api.runtime.sendMessage({ type:'prompt.granted', kind, tab });
-    if (!result?.ok) throw new Error(result?.error || 'Could not finish the request.');
+    await send({ type:'prompt.granted', kind, tab }, 'Could not finish the request.');
     setPhase('granted');
   }
 
   useEffect(() => {
-    api.runtime.sendMessage({ type:'prompt.describe', kind, tab }).then(async result => {
-      if (!result?.ok) throw new Error(result?.error || 'Could not read the request.');
+    send({ type:'prompt.describe', kind, tab }, 'Could not read the request.').then(async result => {
       setOrigins(result.origins);
       setHost(result.host);
       // Nothing left to ask for, such as badges granted in the meantime.

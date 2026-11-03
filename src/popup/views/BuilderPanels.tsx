@@ -230,7 +230,7 @@ export function BuilderPanels() {
             );
           })}
         </fieldset>
-        <button id="panels-reset" type="button" onClick={() => save(null, null, true)}>Reset all builder panels</button>
+        <button id="panels-reset" type="button" disabled={loading} onClick={() => save(null, null, true)}>Reset all builder panels</button>
       </form>
       <Status id="panels-status">{status}</Status>
     </Page>

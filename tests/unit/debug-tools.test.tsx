@@ -1,11 +1,11 @@
 import { expect, test, vi } from 'vitest';
 import { apiNames, byId, click, press, query, renderPopup, settle, type, type ApiName } from './harness';
 
-// Toolbar popups run actions directly; detached windows and the floating menu go through the
-// background and need site access first.
-const cases: [ApiName, boolean, boolean][] = [['chrome', false, false], ['chrome', true, false], ['browser', false, false], ['browser', true, false], ['browser', false, true]];
+// Toolbar popups run actions directly; the floating menu goes through the background and needs site
+// access first.
+const cases: [ApiName, boolean][] = [['chrome', false], ['chrome', true], ['browser', false], ['browser', true]];
 
-test.each(cases)('home logging, site access, confirmation and tabs (%s, detached %s, embedded %s)', async (apiName, detached, embedded) => {
+test.each(cases)('home logging, site access, confirmation and tabs (%s, embedded %s)', async (apiName, embedded) => {
   let calls = 0;
   const api: Record<string, unknown> & { permissions?: { request: (options: { origins: string[] }) => Promise<boolean> } } = {
     storage:{ local:{ get:async () => ({}), set:async () => {} } },
@@ -30,14 +30,14 @@ test.each(cases)('home logging, site access, confirmation and tabs (%s, detached
       return [{ result:{ ok:true, message:'Done' } }];
     } }
   };
-  await renderPopup(apiName, api, { url:'https://extension.test/popup.html' + (detached ? '?targetTab=7' : ''), embedded });
+  await renderPopup(apiName, api, { url:'https://extension.test/popup.html', embedded });
   expect(byId('environment-summary').textContent).toMatch(/UNKNOWN · example\.test/);
   if (embedded) expect(byId('floating-close').hidden).toBe(false);
 
   // Home logs directly with access, and otherwise hands over to Debug tools.
   const homeLog = byId('home-log');
   click(homeLog); await settle();
-  if (detached || embedded) {
+  if (embedded) {
     expect(byId('quick-page').hidden).toBe(false);
     expect(byId('home').hidden).toBe(true);
     expect(document.activeElement?.id).toBe('quick-title');
@@ -53,7 +53,7 @@ test.each(cases)('home logging, site access, confirmation and tabs (%s, detached
   }
 
   click(query('[aria-controls="quick-page"]')); await settle();
-  if (detached || embedded) {
+  if (embedded) {
     const access = byId<HTMLButtonElement>('quick-access');
     const controls = byId<HTMLFieldSetElement>('quick-controls');
     expect(access.hidden).toBe(false);

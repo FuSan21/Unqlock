@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import * as DevOverlay from '@/lib/dev-overlay';
+import { send as sendMessage, type Message } from '@/lib/messages';
 import * as SseDebugger from '@/lib/sse-debugger';
 import { clearRuns } from '@/lib/sse-history';
 import { Segmented, Select, TextField, Toggle } from '../components/controls';
@@ -10,6 +11,7 @@ import { ActionRow, Button, Note, Page, SettingsHeading, Status } from '../compo
 import { promptWindow, requestAccess } from '../access';
 import { useDebug, type FeedbackId, type ValueType } from '../debug';
 import { usePageLeave, usePageOpen } from '../pages';
+import { useStorageChange } from '../storage';
 
 type TabId = 'inspect' | 'data' | 'execute';
 
@@ -50,10 +52,11 @@ function DebuggerPreference({ storageKey, name, label, onOff }: { storageKey: st
   const load = () => { api.storage.local.get(storageKey).then(stored => setOn(SseDebugger.enabled(stored[storageKey])), () => {}); };
   usePageOpen('quick-page', load);
   useEffect(load, []);
+  useStorageChange([storageKey], changes => setOn(SseDebugger.enabled(changes[storageKey].newValue)));
   const change = (value: boolean) => {
     setOn(value);
-    if (!value) onOff?.();
-    api.storage.local.set({ [storageKey]:value }).catch(() => setOn(!value));
+    // Only once the option is saved off, so a failed save leaves what it kept in place.
+    api.storage.local.set({ [storageKey]:value }).then(() => { if (!value) onOff?.(); }, () => setOn(!value));
   };
   return (
     <Toggle name={name} label={label} checked={on} aria-describedby="dev-overlay-help" onChange={change} />
@@ -67,24 +70,18 @@ function OverlayOption({ option }: { option: keyof typeof overlayOptions }) {
   const [status, setStatus] = useState('');
   // The background answers for the option and its access, since a floating menu frame may have no
   // permissions API to check or remove access with.
-  const send = async (message: { type: 'devOverlay.state' } | { type: 'devOverlay.set'; on: boolean }) => {
-    const result = await api.runtime.sendMessage(option === 'detach' ? message : { ...message, option });
-    if (!result?.ok) throw new Error(result?.error || 'Could not reach Unqlock. Reopen the menu and try again.');
+  const send = async (message: Message<'devOverlay.state'> | Message<'devOverlay.set'>) => {
+    const result: { on: boolean; needsAccess?: boolean } = await sendMessage(option === 'detach' ? message : { ...message, option }, 'Could not reach Unqlock. Reopen the menu and try again.');
     setOn(result.on === true);
-    return result as { on: boolean; needsAccess?: boolean };
+    return result;
   };
   const load = () => { send({ type:'devOverlay.state' }).catch(() => setOn(false)); };
   usePageOpen('quick-page', load);
   // The prompt window saves the option once access is granted there.
-  useEffect(() => {
-    const listener = (changes: Record<string, { newValue?: unknown }>, area: string) => {
-      if (area !== 'local' || !changes[settings.key]) return;
-      load();
-      if (changes[settings.key].newValue === true) setStatus(settings.on);
-    };
-    api.storage.onChanged?.addListener(listener);
-    return () => api.storage.onChanged?.removeListener(listener);
-  }, []);
+  useStorageChange([settings.key], changes => {
+    load();
+    if (changes[settings.key].newValue === true) setStatus(settings.on);
+  });
   async function change(value: boolean) {
     setPending(true);
     try {

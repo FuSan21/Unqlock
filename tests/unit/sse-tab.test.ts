@@ -52,8 +52,18 @@ test('Stop ends the wait for a run in flight, and says Unqork may still finish i
     expect(stopSseExecute('run-2')).toBe(true);
     const response = await running;
     expect(response).toMatchObject({ ok:false, error:'You stopped waiting for this run. Unqork may still finish it on the server and save its result.' });
-    // The run is gone from the page once it ends.
-    expect(stopSseExecute('run-2')).toBe(false);
+  } finally { vi.unstubAllGlobals(); }
+});
+
+test('Stop that arrives while the run is still being checked stops it as it starts', async () => {
+  const fetched = vi.fn();
+  vi.stubGlobal('fetch', fetched);
+  try {
+    expect(stopSseExecute('run-3')).toBe(true);
+    const response = await runSseExecute({ ...request, url:location.href }, 'run-3');
+    expect(response).toMatchObject({ ok:false, error:'You stopped waiting for this run. Unqork may still finish it on the server.' });
+    expect(fetched).not.toHaveBeenCalled();
+    expect(stopSseExecute('')).toBe(false);
   } finally { vi.unstubAllGlobals(); }
 });
 

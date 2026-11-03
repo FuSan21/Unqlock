@@ -1,15 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { api } from '@/lib/api';
+import { send, type Message } from '@/lib/messages';
 import * as Environment from '@/lib/environment';
 import { getTargetTab, type TargetTab } from './runtime';
 
-export interface EnvironmentMessage {
-  type: 'environment.read' | 'environment.save' | 'environment.sync';
-  group?: Environment.Group | null;
-  deleteId?: string;
-  preferences?: Partial<Pick<Environment.EnvironmentSettings, 'badge' | 'blockProduction' | 'autoDiscover'>>;
-  replace?: Environment.EnvironmentSettings;
-}
+export type EnvironmentMessage = Message<'environment.read' | 'environment.save' | 'environment.sync'>;
 
 export interface EnvironmentResult { config: Environment.EnvironmentSettings; missingOrigins: string[] }
 
@@ -44,8 +38,7 @@ export function EnvironmentProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState('');
 
   const message = useCallback(async (request: EnvironmentMessage) => {
-    const response = await api.runtime.sendMessage(request);
-    if (!response?.ok) throw new Error(response?.error || 'Could not save environment settings. Reopen Unqlock to retry.');
+    const response = await send(request, 'Could not save environment settings. Reopen Unqlock to retry.');
     const result = { config:Environment.settings(response.config), missingOrigins:(response.missingOrigins || []) as string[] };
     setConfig(result.config);
     setMissingOrigins(result.missingOrigins);
@@ -55,6 +48,8 @@ export function EnvironmentProvider({ children }: { children: ReactNode }) {
     const [tab, result] = await Promise.all([getTargetTab(), message({ type:'environment.read' })]);
     const page = tab && /^https?:\/\//.test(tab.url) ? tab : null;
     setTarget(page);
+    // A later successful reload, such as opening Environments, clears an earlier failure.
+    setError('');
     return { ...result, target:page };
   }, [message]);
 

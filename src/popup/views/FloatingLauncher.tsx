@@ -5,6 +5,7 @@ import { Segmented, Select, Toggle } from '../components/controls';
 import { Note, Page, Status } from '../components/layout';
 import { useEnvironment } from '../environment';
 import { usePageOpen } from '../pages';
+import { useStorageChange } from '../storage';
 
 const modes: readonly (readonly [Environment.FloatingMode, string])[] = [['fixed', 'Fixed'], ['draggable', 'Draggable']];
 const corners = [['top-left', 'Top left'], ['top-right', 'Top right'], ['bottom-left', 'Bottom left'], ['bottom-right', 'Bottom right']] as const;
@@ -26,6 +27,12 @@ export function FloatingLauncher() {
       setDisabled(false);
       setStatus('');
     } catch { setStatus('Could not load settings. Reopen Unqlock to retry.'); }
+  });
+
+  // Follow changes made elsewhere, so the next save here does not write back what this page loaded.
+  useStorageChange(['floating', 'environment'], changes => {
+    if (changes.floating) setFloating(Environment.floatingSettings(changes.floating.newValue));
+    if (changes.environment) { try { setBadge(Environment.settings(changes.environment.newValue).badge); } catch { /* Environments reports an invalid configuration. */ } }
   });
 
   async function save(task: () => Promise<unknown>) {

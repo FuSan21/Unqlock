@@ -6,6 +6,7 @@ import * as Colors from '@/lib/component-colors';
 import * as Labels from '@/lib/label-settings';
 import * as RowLayout from '@/lib/row-layout';
 import * as Toolbar from '@/lib/toolbar-settings';
+import { newValues, useStorageChange } from './storage';
 
 interface StoredSettings {
   appearance: Appearance;
@@ -15,6 +16,7 @@ interface StoredSettings {
   componentColors: Colors.ColorSettings;
 }
 export type SettingsUpdate = { [Key in keyof StoredSettings]?: unknown };
+const keys = ['appearance', 'rowLayout', 'canvasToolbar', Labels.key, 'componentColors'] as const;
 
 interface Settings extends StoredSettings {
   // True while loading or saving; the style and layout controls wait meanwhile.
@@ -50,7 +52,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState('Loading…');
 
   useEffect(() => {
-    api.storage.local.get(['appearance', 'rowLayout', 'canvasToolbar', Labels.key, 'componentColors']).then(result => {
+    api.storage.local.get([...keys]).then(result => {
       setValues(previous => normalize(result, previous));
       setStatus('Ready');
       setBusy(false);
@@ -58,6 +60,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const show = useCallback((items: SettingsUpdate) => setValues(previous => normalize(items, previous)), []);
+  // Another copy of the popup, the prompt window or an import may write these meanwhile. Showing what they
+  // wrote keeps the next save here from writing back the values this copy loaded.
+  useStorageChange(keys, changes => show(newValues(changes)));
   const save = useCallback(async (items: SettingsUpdate) => {
     // Show the change at once, as the control itself did; the save follows.
     show(items);

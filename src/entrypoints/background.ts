@@ -3,6 +3,7 @@ import { api, type Stored } from '@/lib/api';
 import * as Access from '@/lib/access';
 import * as DevOverlay from '@/lib/dev-overlay';
 import * as Environment from '@/lib/environment';
+import { promptKinds, reply } from '@/lib/messages';
 import { runQuickAction, type QuickRequest } from '@/lib/quick-actions';
 import * as SseDebugger from '@/lib/sse-debugger';
 import * as WhatsNew from '@/lib/whats-new';
@@ -40,7 +41,10 @@ export default defineBackground(() => {
     const stored = await api.storage.local.get([DevOverlay.key, SseDebugger.key]);
     return { detach:DevOverlay.enabled(stored[DevOverlay.key]), debugger:SseDebugger.enabled(stored[SseDebugger.key]) };
   };
-  async function syncOverlay(inject = false) {
+  // `turnedOn` names an option just turned on. Its button is injected into open tabs only when the other option
+  // was off: otherwise the script is already running there, follows the option itself, and injecting again
+  // would only stack another copy of its stylesheet.
+  async function syncOverlay(turnedOn?: 'detach' | 'debugger') {
     const granted = await api.permissions.contains({ origins:DevOverlay.matches });
     const options = await overlayOptions();
     const wanted = granted ? DevOverlay.needed(options.detach, options.debugger) : [];
@@ -50,8 +54,11 @@ export default defineBackground(() => {
     if (extra.length) await api.scripting.unregisterContentScripts({ ids:extra });
     const missing = wanted.filter(script => !existing.includes(script.id));
     if (missing.length) await api.scripting.registerContentScripts(missing);
-    if (!inject || !wanted.length) return;
-    for (const tab of await api.tabs.query({ url:DevOverlay.matches })) {
+    // Persisted registrations keep their definition across updates, so refresh the ones kept.
+    const kept = wanted.filter(script => existing.includes(script.id));
+    if (kept.length) await api.scripting.updateContentScripts(kept);
+    if (!turnedOn || !wanted.length || options[turnedOn === 'detach' ? 'debugger' : 'detach']) return;
+    for (const tab of await api.tabs.query({ url:'https://*.unqork.io/*' })) {
       if (tab.id === undefined) continue;
       api.scripting.insertCSS({ target:{ tabId:tab.id }, files:['/content-scripts/dev-overlay.css'] }).catch(() => {});
       api.scripting.executeScript({ target:{ tabId:tab.id }, files:['/content-scripts/dev-overlay.js'] }).catch(() => {});
@@ -86,6 +93,16 @@ export default defineBackground(() => {
   }
   // The prompt window asks for access or picks a settings file where a popup cannot (src/lib/access.ts).
   const fromPage = (sender: { url?: string }, file: '/popup.html' | typeof Access.page) => sender.url?.split('?')[0] === api.runtime.getURL(file);
+  // The address of the top frame that sent a message, from the browser rather than the page, when it is a web
+  // page using one of `protocols`.
+  function topPage(sender: { url?: string; frameId?: number }, protocols = ['https:']) {
+    if (!sender.url || sender.frameId !== 0) return null;
+    try {
+      const url = new URL(sender.url);
+      return protocols.includes(url.protocol) ? url : null;
+    } catch { return null; }
+  }
+  const onUnqork = (url: URL | null) => url !== null && url.hostname.endsWith('.unqork.io');
   async function openPrompt(kind: Access.AccessKind | 'import', tabId?: number) {
     const query = new URLSearchParams({ kind, ...(tabId === undefined ? {} : { tab:String(tabId) }) });
     await api.windows.create({ url:api.runtime.getURL(Access.page) + '?' + query, type:'popup', ...Access.sizes[kind === 'import' ? 'import' : 'access'] });
@@ -113,11 +130,16 @@ export default defineBackground(() => {
   }
   // Finishes a granted request in the background, since a Firefox toolbar popup has closed by now.
   async function afterGrant(kind: Access.AccessKind, tabId?: number) {
-    if (kind === 'devOverlay') await api.storage.local.set({ [DevOverlay.key]:true });
-    if (kind === 'sseDebugger') await api.storage.local.set({ [SseDebugger.key]:true });
+    // In the queue with devOverlay.set, which reads one option to decide whether to give the shared grant back.
+    if (kind === 'devOverlay') await serial(() => api.storage.local.set({ [DevOverlay.key]:true }));
+    if (kind === 'sseDebugger') await serial(() => api.storage.local.set({ [SseDebugger.key]:true }));
     if (kind === 'badges') {
-      const config = await readConfig();
-      await serial(() => syncScripts(config));
+      // Read inside the queue, so a save queued meanwhile is not overwritten with the older domains.
+      const config = await serial(async () => {
+        const config = await readConfig();
+        await syncScripts(config);
+        return config;
+      });
       const permitted: string[] = [];
       for (const origin of Environment.customOrigins(config)) if (await api.permissions.contains({ origins:[origin] })) permitted.push(origin);
       if (permitted.length) for (const tab of await api.tabs.query({ url:permitted })) {
@@ -158,18 +180,17 @@ export default defineBackground(() => {
   api.runtime.onMessage.addListener((message, sender, respond) => {
     if (message?.type === 'prompt.open') {
       // Debug tools open theirs through debug.permission, which resolves and checks the page first.
-      if (!fromPage(sender, '/popup.html') || !['devOverlay', 'sseDebugger', 'badges', 'import'].includes(message.kind)) return;
+      if (!fromPage(sender, '/popup.html') || !(promptKinds as readonly unknown[]).includes(message.kind)) return;
       // A floating menu names its own tab, to be told when access is granted.
       const tabId = sender.frameId ? sender.tab?.id : undefined;
-      (async () => {
+      return reply(respond, (async () => {
         if (message.kind !== 'import') {
           const origins = await accessOrigins(message.kind);
           if (!origins.length || await api.permissions.contains({ origins })) return { ok:true, granted:true };
         }
         await openPrompt(message.kind, tabId);
         return { ok:true, granted:false };
-      })().then(respond, error => respond({ ok:false, error:error.message }));
-      return true;
+      })());
     }
     // Detach dev overlay and the Unqlock SSE debugger are read and changed here, since a floating menu
     // frame may have no permissions API. They share one unqork.io grant.
@@ -177,7 +198,7 @@ export default defineBackground(() => {
       if (!fromPage(sender, '/popup.html')) return;
       const key = message.option === 'debugger' ? SseDebugger.key : DevOverlay.key;
       const other = key === DevOverlay.key ? SseDebugger.key : DevOverlay.key;
-      (async () => {
+      return reply(respond, serial(async () => {
         const granted = await api.permissions.contains({ origins:DevOverlay.matches });
         if (message.type === 'devOverlay.set') {
           if (message.on === true) {
@@ -192,27 +213,22 @@ export default defineBackground(() => {
         }
         const on = (await api.storage.local.get(key))[key] === true;
         return { ok:true, on:on && await api.permissions.contains({ origins:DevOverlay.matches }) };
-      })().then(respond, error => respond({ ok:false, error:error.message }));
-      return true;
+      }));
     }
     // Open in Unqlock debugger, from the button on Unqork's dev overlay in a builder tab.
     if (message?.type === 'sse.open') {
-      if (!sender.tab?.id || sender.frameId !== 0 || !sender.url) return;
-      let url;
-      try { url = new URL(sender.url); } catch { return; }
-      if (url.protocol !== 'https:' || !url.hostname.endsWith('.unqork.io')) return;
-      (async () => {
+      if (!sender.tab?.id || !onUnqork(topPage(sender))) return;
+      return reply(respond, (async () => {
         if (!(await overlayOptions()).debugger) throw new Error('The Unqlock SSE debugger is off.');
         await serial(() => openDebugger(sender.tab!.id!, { width:message.width, height:message.height, left:message.left, top:message.top }));
         return { ok:true };
-      })().then(respond, error => respond({ ok:false, error:error.message }));
-      return true;
+      })());
     }
     if (message?.type === 'prompt.describe' || message?.type === 'prompt.granted') {
       if (!fromPage(sender, Access.page) || !Access.isAccessKind(message.kind)) return;
       const tabId = message.tab === undefined ? undefined : Number(message.tab);
       if (tabId !== undefined && (!Number.isInteger(tabId) || tabId <= 0)) return;
-      (async () => {
+      return reply(respond, (async () => {
         if (message.type === 'prompt.describe') {
           const origins = await accessOrigins(message.kind, tabId);
           const host = message.kind === 'debug' ? new URL(origins[0].slice(0, -2)).hostname : undefined;
@@ -223,27 +239,21 @@ export default defineBackground(() => {
         if (missing) throw new Error('Site access was not granted.');
         await afterGrant(message.kind, tabId);
         return { ok:true };
-      })().then(respond, error => respond({ ok:false, error:error.message }));
-      return true;
+      })());
     }
     if (message?.type === 'floating.open') {
-      if (!sender.tab?.id || sender.frameId !== 0 || !sender.url) return;
-      let url;
-      try { url = new URL(sender.url); } catch { return; }
-      if (!['https:', 'http:'].includes(url.protocol)) return;
-      (async () => {
+      if (!sender.tab?.id || !topPage(sender, ['https:', 'http:'])) return;
+      return reply(respond, (async () => {
         await rememberSource(sender.tab!.id!, sender.url!);
         return { ok:true };
-      })().then(respond, error => respond({ ok:false, error:error.message }));
-      return true;
+      })());
     }
     if (['floating.target', 'debug.access', 'debug.permission', 'debug.execute'].includes(message?.type)) {
-      if (sender.url?.split('?')[0] !== api.runtime.getURL('/popup.html')) return;
-      const detachedTarget = new URL(sender.url).searchParams.get('targetTab');
-      const tabId = detachedTarget === null ? sender.tab?.id : Number(detachedTarget);
+      // Only the floating menu's frame asks: its tab is the page it acts on, as the browser reports it.
+      if (!fromPage(sender, '/popup.html') || !sender.frameId) return;
+      const tabId = sender.tab?.id;
       if (typeof tabId !== 'number' || !Number.isInteger(tabId) || tabId <= 0) return;
-      if (detachedTarget === null ? !sender.frameId : sender.frameId !== 0) return;
-      (async () => {
+      return reply(respond, (async () => {
         const { href, config } = await configuredPage(tabId);
         const tab = { id:tabId, url:href };
         if (message.type === 'floating.target') return { ok:true, tab };
@@ -265,14 +275,11 @@ export default defineBackground(() => {
           args:[{ ...request, production:current.kind === 'production', blockProduction:config.blockProduction }]
         });
         return { ok:true, result:results[0]?.result };
-      })().then(respond, error => respond({ ok:false, error:error.message }));
-      return true;
+      })());
     }
     if (message?.type === 'environment.observe') {
-      if (!sender.url || sender.frameId !== 0) return;
-      let url;
-      try { url = new URL(sender.url); } catch { return; }
-      if (url.protocol !== 'https:' || !url.hostname.endsWith('.unqork.io')) return;
+      const url = topPage(sender);
+      if (!url || !onUnqork(url)) return;
       serial(() => observe(url.hostname)).then(config => respond({ ok:true, config }), () => respond({ ok:false }));
       return true;
     }
@@ -280,7 +287,7 @@ export default defineBackground(() => {
     // window imports settings files.
     if (!fromPage(sender, '/popup.html') && !fromPage(sender, Access.page)) return;
     if (!['environment.save', 'environment.sync', 'environment.read'].includes(message?.type)) return;
-    serial(async () => {
+    return reply(respond, serial(async () => {
       let config = await readConfig();
       if (message.type === 'environment.save') {
         // An import replaces every group and preference at once.
@@ -296,8 +303,7 @@ export default defineBackground(() => {
       }
       const missingOrigins = await syncScripts(config);
       return { ok:true, config, missingOrigins };
-    }).then(respond, error => respond({ ok:false, error:error.message }));
-    return true;
+    }));
   });
   // The toolbar shows NEW after an update that brings a minor or major release the user has not read.
   // Versions before What's new stored nothing, so their previousVersion is where the notes start.
@@ -320,13 +326,14 @@ export default defineBackground(() => {
   }
   // Persistent registrations survive reloads. Reconcile on grants, revocations and startup.
   const sync = () => serial(async () => syncScripts(await readConfig())).catch(() => {});
-  const syncDevOverlay = (inject?: boolean) => serial(() => syncOverlay(inject)).catch(() => {});
+  const syncDevOverlay = (turnedOn?: 'detach' | 'debugger') => serial(() => syncOverlay(turnedOn)).catch(() => {});
   // The dev overlay's scripts follow their unqork.io grant too.
   api.permissions.onAdded.addListener(() => { sync(); syncDevOverlay(); });
   api.permissions.onRemoved.addListener(() => { sync(); syncDevOverlay(); });
   api.runtime.onStartup.addListener(() => { sync(); syncDevOverlay(); showBadge(); });
   api.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && (changes[DevOverlay.key] || changes[SseDebugger.key])) syncDevOverlay(true);
+    if (area !== 'local' || (!changes[DevOverlay.key] && !changes[SseDebugger.key])) return;
+    syncDevOverlay(changes[DevOverlay.key]?.newValue === true ? 'detach' : changes[SseDebugger.key]?.newValue === true ? 'debugger' : undefined);
   });
   api.runtime.onInstalled.addListener(({ reason, previousVersion }) => {
     installed(reason, previousVersion);

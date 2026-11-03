@@ -1,11 +1,13 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import { api } from '@/lib/api';
+import { send } from '@/lib/messages';
 import * as Environment from '@/lib/environment';
 import { runQuickAction, type QuickRequest, type QuickResult } from '@/lib/quick-actions';
 import { promptWindow, useAccessChanged } from './access';
 import { usePages } from './pages';
-import { detached, embedded, getTargetTab, type TargetTab } from './runtime';
+import { embedded, getTargetTab, type TargetTab } from './runtime';
+import { useStorageChange } from './storage';
 
 export type FeedbackId = 'inspect' | 'data' | 'execute' | 'home';
 export interface Feedback { text: string; state?: 'pending' | 'success' | 'error' }
@@ -82,10 +84,8 @@ export function DebugProvider({ children }: { children: ReactNode }) {
 
   async function hasPageAccess() {
     // The toolbar spends an activeTab grant on click; an embedded menu has no gesture to spend.
-    if (!embedded() && !detached()) return true;
-    const result = await api.runtime.sendMessage({ type:'debug.access' });
-    if (!result?.ok) throw new Error(result?.error || 'Could not check site access.');
-    return result.granted === true;
+    if (!embedded()) return true;
+    return (await send({ type:'debug.access' }, 'Could not check site access.')).granted === true;
   }
 
   function enableControls(value = environment) {
@@ -129,8 +129,7 @@ export function DebugProvider({ children }: { children: ReactNode }) {
     setAccessPending(true);
     try {
       if (promptWindow()) {
-        const result = await api.runtime.sendMessage({ type:'debug.permission' });
-        if (!result?.ok) throw new Error(result?.error || 'Could not open the site access window.');
+        const result = await send({ type:'debug.permission' }, 'Could not open the site access window.');
         if (result.granted) enableControls();
         else setStatus('Allow site access in the Unqlock window, then continue here.');
         return;
@@ -160,9 +159,7 @@ export function DebugProvider({ children }: { children: ReactNode }) {
       request.blockProduction = config.blockProduction;
       let result: QuickResult | undefined;
       if (embedded()) {
-        const response = await api.runtime.sendMessage({ type:'debug.execute', request });
-        if (!response?.ok) throw new Error(response?.error || 'Could not access the page.');
-        result = response.result;
+        result = (await send({ type:'debug.execute', request }, 'Could not access the page.')).result;
       } else {
         const results = await api.scripting.executeScript({ target:{ tabId:target.current!.id }, world:'MAIN', func:runQuickAction, args:[request] });
         result = results[0]?.result as QuickResult | undefined;
@@ -213,9 +210,12 @@ export function DebugProvider({ children }: { children: ReactNode }) {
   // Home runs the log directly when it can, and otherwise hands over to Debug tools to explain or request access.
   async function logFromHome(button: HTMLElement) {
     if (busyRef.current) return;
+    // Busy from the first click, so a second click while the tab is checked does not log twice.
+    busyRef.current = true;
     say('home', 'Checking active tab…');
     let ready = false;
     try { ready = (await prepare()).granted; } catch { /* Debug tools explains unsupported pages. */ }
+    busyRef.current = false;
     if (!ready) {
       say('home', '');
       pages.open('quick-page', button);
@@ -231,20 +231,17 @@ export function DebugProvider({ children }: { children: ReactNode }) {
   }, [cancel]);
 
   // Environment changes, such as the production guard, apply to an open Debug tools page at once.
-  useEffect(() => {
-    const listener = (changes: Record<string, { newValue?: unknown }>, area: string) => {
-      if (area !== 'local' || !changes.environment || !target.current) return;
-      cancel();
-      try {
-        const settings = Environment.settings(changes.environment.newValue);
-        const value = { current:Environment.detect(target.current.url, settings), settings };
-        setEnvironment(value);
-        describe(value);
-      } catch { setControlsDisabled(true); }
-    };
-    api.storage.onChanged?.addListener(listener);
-    return () => api.storage.onChanged?.removeListener(listener);
-  }, [cancel, describe]);
+  useStorageChange(['environment'], changes => {
+    if (!target.current) return;
+    cancel();
+    try {
+      const settings = Environment.settings(changes.environment.newValue);
+      const value = { current:Environment.detect(target.current.url, settings), settings };
+      setEnvironment(value);
+      // While access is still needed, the status keeps saying so.
+      if (!accessOrigin) describe(value);
+    } catch { setControlsDisabled(true); }
+  });
 
   // Access granted in the prompt window enables the controls here.
   useAccessChanged(async () => {

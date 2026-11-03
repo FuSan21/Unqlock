@@ -16,8 +16,8 @@ export interface StoredRun {
   moduleId: string;
   request: SseRequest;
   response: SseResponse;
-  // What the result line counts, kept so a trimmed run can still show it.
-  summary?: { steps: number; sets: number };
+  // What the result line counts, kept so a trimmed run can still show it, with the step that failed, if any.
+  summary?: { steps: number; sets: number; failedStep?: number };
   // Saved without its event log and response body, which the storage quota could not hold.
   trimmed?: true;
 }
@@ -31,9 +31,11 @@ function valid(value: unknown): value is StoredRun {
     && isObject(request) && isObject(request.data) && typeof request.url === 'string' && isObject(response) && typeof response.ms === 'number';
 }
 
-// Newest first, dropping anything unreadable, older than 30 days or beyond the newest 10.
+// Newest first, dropping anything unreadable, older than 30 days or beyond the newest 10, and keeping only the
+// first copy of a run, so a window saving runs another window already saved does not list them twice.
 function prune(runs: StoredRun[], now: number) {
-  return runs.filter(run => valid(run) && now - run.at < keptMs).sort((a, b) => b.at - a.at).slice(0, keptRuns);
+  const seen = new Set<string>();
+  return runs.filter(run => valid(run) && now - run.at < keptMs && !seen.has(run.id) && Boolean(seen.add(run.id))).sort((a, b) => b.at - a.at).slice(0, keptRuns);
 }
 
 export function readRuns(storage: Storage, now = Date.now()): StoredRun[] {

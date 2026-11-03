@@ -98,10 +98,13 @@ export async function runSseExecute(request: SseRequest, runId = ''): Promise<Ss
   const started = performance.now();
   const elapsed = () => Math.round(performance.now() - started);
   // Runs in flight on this page, by ID; a later injection reaches them through the global symbol registry.
-  const runs = ((globalThis as unknown as Record<symbol, Record<string, AbortController> | undefined>)[Symbol.for('unqlock.sse.runs')] ??= {});
+  // 'stopped' marks a run Stop reached before it started here.
+  const runs = ((globalThis as unknown as Record<symbol, Record<string, AbortController | 'stopped'> | undefined>)[Symbol.for('unqlock.sse.runs')] ??= {});
   const controller = new AbortController();
-  if (runId) runs[runId] = controller;
+  if (runs[runId] === 'stopped') controller.abort('stopped');
+  else if (runId) runs[runId] = controller;
   try {
+    controller.signal.throwIfAborted();
     if (location.href !== request.url) return { ok:false, ms:0, headers:{}, body:null, error:'The builder tab is on another page now. Choose Run module again.' };
     if (!/^[0-9a-f]{24}$/i.test(request.moduleId)) return { ok:false, ms:0, headers:{}, body:null, error:'That is not a module ID.' };
     // Unqork's getExpressOrigin: a Creator host drops -designer, any other gains an x before .unqork.io.
@@ -150,11 +153,15 @@ export async function runSseExecute(request: SseRequest, runId = ''): Promise<Ss
 }
 
 // Injected like readSseContext, so also self-contained: stops waiting for the run runSseExecute started under
-// `runId` on this page. False when there is no such run, as after the page moved or the run ended.
+// `runId` on this page. Stop can arrive while the run is still being checked, before runSseExecute is injected,
+// so a run not here yet is marked, and stops as it starts.
 export function stopSseExecute(runId: string): boolean {
-  const controller = (globalThis as unknown as Record<symbol, Record<string, AbortController> | undefined>)[Symbol.for('unqlock.sse.runs')]?.[runId];
-  controller?.abort('stopped');
-  return Boolean(controller);
+  if (!runId) return false;
+  const runs = ((globalThis as unknown as Record<symbol, Record<string, AbortController | 'stopped'> | undefined>)[Symbol.for('unqlock.sse.runs')] ??= {});
+  const run = runs[runId];
+  if (run && run !== 'stopped') run.abort('stopped');
+  else runs[runId] = 'stopped';
+  return true;
 }
 
 // The input JSON, which becomes the submission data the module runs with.

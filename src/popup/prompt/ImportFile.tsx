@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type DragEvent } from 'react';
-import { api } from '@/lib/api';
+import { send } from '@/lib/messages';
 import * as Transfer from '@/lib/settings-transfer';
 import { Toggle } from '../components/controls';
 import { importSections, origin, readFile } from '../transfer';
@@ -48,8 +48,7 @@ export function ImportFile({ onBusy }: { onBusy: (busy: boolean) => void }) {
     setError('');
     try {
       const result = await importSections(review.parsed, chosen, async replace => {
-        const response = await api.runtime.sendMessage({ type:'environment.save', replace });
-        if (!response?.ok) throw new Error(response?.error || 'Could not save environment settings.');
+        const response = await send({ type:'environment.save', replace }, 'Could not save environment settings.');
         return { missingOrigins:response.missingOrigins || [] };
       });
       setDone({ names:result.names, badges:chosen.includes('environments') && Boolean(result.missingOrigins?.length) });

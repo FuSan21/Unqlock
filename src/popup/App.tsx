@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { api } from '@/lib/api';
+import { send } from '@/lib/messages';
 import { DebugProvider } from './debug';
 import { EnvironmentProvider } from './environment';
 import { PagesProvider, usePages } from './pages';
@@ -46,8 +47,7 @@ export function App() {
   useEffect(() => {
     if (!embedded()) { setState({ status:'ready', closeOrigin:null }); return; }
     // Resolve the containing tab through the browser, never a page-supplied ID.
-    api.runtime.sendMessage({ type:'floating.target' }).then(result => {
-      if (!result?.ok) throw new Error('This page is not configured for Unqlock.');
+    send({ type:'floating.target' }, 'This page is not configured for Unqlock.').then(result => {
       document.body.classList.add('embedded');
       setState({ status:'ready', closeOrigin:new URL(result.tab.url).origin });
     }).catch(() => setState({ status:'error' }));

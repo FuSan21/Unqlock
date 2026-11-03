@@ -1,4 +1,4 @@
-import { cleanup, render, within } from '@testing-library/react';
+import { act, cleanup, render, within } from '@testing-library/react';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { historyKey, readRuns, writeRuns } from '@/lib/sse-history';
 import type { SseRequest } from '@/lib/sse-run';
@@ -378,6 +378,30 @@ test('a run too large to save in full is kept trimmed, listed, and can be rerun'
     click(within(query('.state.trimmed')).getByRole('button', { name:'Rerun' })); await settle();
     expect(runs[1].request).toMatchObject({ data:{ a:1 } });
     expect(mark('callService', 'wait')).toBeTruthy();
+  } finally { spy.mockRestore(); }
+});
+
+test('a run too large to save at all stays listed in its window after later runs and other windows’ saves', async () => {
+  // Storage that refuses any list holding this input, as a full quota would for an input too large to keep.
+  const setItem = Storage.prototype.setItem;
+  const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key: string, value: string) {
+    if (key === historyKey && value.includes('too-large')) throw new DOMException('Quota exceeded', 'QuotaExceededError');
+    setItem.call(this, key, value);
+  });
+  try {
+    const { api } = setup('chrome', { keepRuns:true });
+    await renderDebugger('chrome', api);
+    typeInto('sse-input', '{"pad":"too-large"}');
+    click(runButton()); await settle();
+    expect(query('.result').textContent).toMatch(/This run is too large to save, so it is gone once this window closes\./);
+    typeInto('sse-input', '{"a":1}');
+    click(runButton()); await settle();
+    expect(document.querySelectorAll('.runs li')).toHaveLength(2);
+    expect(readRuns(localStorage)).toHaveLength(1);
+    // Another window saves or clears; this window keeps the run it alone holds.
+    act(() => { window.dispatchEvent(new StorageEvent('storage', { key:historyKey })); });
+    await settle();
+    expect(document.querySelectorAll('.runs li')).toHaveLength(2);
   } finally { spy.mockRestore(); }
 });
 

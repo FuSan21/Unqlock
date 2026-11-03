@@ -146,10 +146,9 @@ const background = fs.readFileSync(path.join(__dirname, '../dist/chrome/backgrou
     assert.equal((await send({type:'debug.execute', request:{...request, url:'https://evil.test/'}}, embedded)).ok, false);
     assert.equal((await send({type:'debug.execute', request:{...request, action:'set'}}, embedded)).ok, false);
     assert.equal(await send({type:'debug.execute', request}, page), undefined);
-    const detached = { url:'extension://test/popup.html?targetTab=7', frameId:0, tab:{id:99} };
-    assert.equal((await send({type:'floating.target'}, detached)).tab.id, 7);
-    assert.equal(await send({type:'floating.target'}, {...detached, frameId:2}), undefined);
-    assert.equal(await send({type:'floating.target'}, {...detached, url:'extension://test/popup.html?targetTab=bad'}), undefined);
+    // A top-level popup page cannot name another tab: the old detached ?targetTab= address is refused.
+    assert.equal(await send({type:'floating.target'}, { url:'extension://test/popup.html?targetTab=7', frameId:0, tab:{id:99} }), undefined);
+    assert.equal(await send({type:'debug.execute', request}, { url:'extension://test/popup.html?targetTab=7', frameId:0, tab:{id:99} }), undefined);
     assert.equal(session['floating.source.7'], pageUrl);
     assert.equal(await send({ type:'floating.open' }, { ...page, frameId:2 }), undefined);
     assert.equal(await send({ type:'floating.open' }, { ...page, url:'about:blank' }), undefined);

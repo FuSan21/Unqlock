@@ -19,6 +19,13 @@ test('keeps the newest 10, newest first, and reads them back', () => {
   expect(readRuns(localStorage, now)).toEqual(runs.slice(0, 10));
 });
 
+test('keeps one copy of a run two windows both saved, the first one given', () => {
+  const held = { ...run('same', now - 1000), title:'Held here' };
+  const stored = writeRuns(localStorage, [held, run('other', now), run('same', now - 1000)], now);
+  expect(stored.map(each => each.id)).toEqual(['other', 'same']);
+  expect(stored[1].title).toBe('Held here');
+});
+
 test('drops runs older than 30 days when reading and writing', () => {
   writeRuns(localStorage, [run('new', now - day), run('old', now - 31 * day)], now);
   expect(readRuns(localStorage, now).map(each => each.id)).toEqual(['new']);

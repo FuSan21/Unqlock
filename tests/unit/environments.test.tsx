@@ -4,11 +4,13 @@ import { apiNames, byId, click, press, query, renderPopup, settle, type } from '
 
 test.each(apiNames)('production guard, saved-host switcher and group editing (%s)', async apiName => {
   let config: Environment.EnvironmentSettings | { hosts: Record<string, string> } = { hosts:{ production:'custom.test', qa:'qa.test' } };
-  let listener: (changes: object, area: string) => void = () => {};
+  // Every part of the popup that follows storage adds its own listener.
+  const listeners = new Set<(changes: object, area: string) => void>();
+  const listener = (changes: object, area: string) => listeners.forEach(each => each(changes, area));
   const calls: { args: { productionConfirmed?: boolean; production?: boolean }[] }[] = [];
   const settings = () => config as Environment.EnvironmentSettings;
   const api = {
-    storage:{ local:{ get:async () => ({ environment:config }), set:async (value: { environment: typeof config }) => { config = value.environment; } }, onChanged:{ addListener:(fn: typeof listener) => { listener = fn; }, removeListener:() => {} } },
+    storage:{ local:{ get:async () => ({ environment:config }), set:async (value: { environment: typeof config }) => { config = value.environment; } }, onChanged:{ addListener:(fn: typeof listener) => { listeners.add(fn); }, removeListener:(fn: typeof listener) => { listeners.delete(fn); } } },
     tabs:{ query:async () => [{ id:7, url:'https://custom.test/app?x=1#/dashboard' }] },
     runtime:{ getManifest:() => ({ version:'1.0.0' }), sendMessage:async (message: { type: string; group?: Environment.Group; deleteId?: string; preferences?: object }) => {
       config = Environment.settings(config);
