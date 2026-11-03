@@ -217,6 +217,26 @@ test('saving asks first and names the submission', async () => {
   expect(runs[0].request).toMatchObject({ save:true, submissionId:'abc123' });
 });
 
+test('opening a run puts its input and shape back in the rail without running it', async () => {
+  const { api, runs } = setup('chrome');
+  await renderDebugger('chrome', api);
+  const shapes = query('[role="group"][aria-label="Input goes in"]');
+  typeInto('sse-input', '{"a":1}');
+  click(runButton()); await settle();
+  click(within(shapes).getByRole('button', { name:'query' }));
+  typeInto('sse-input', '{"b":2}');
+  click(runButton()); await settle();
+  // The older run is second in the list.
+  click(document.querySelectorAll<HTMLButtonElement>('.run-entry')[1]); await settle();
+  expect(byId<HTMLTextAreaElement>('sse-input').value).toBe(JSON.stringify({ a:1 }, null, 2));
+  expect(within(shapes).getByRole('button', { name:'data' }).getAttribute('aria-pressed')).toBe('true');
+  expect([...document.querySelectorAll('.code-fixed')].map(each => each.textContent)).toEqual(['{\n  "data":', '}']);
+  click(document.querySelectorAll<HTMLButtonElement>('.run-entry')[0]); await settle();
+  expect(byId<HTMLTextAreaElement>('sse-input').value).toBe(JSON.stringify({ b:2 }, null, 2));
+  expect(within(shapes).getByRole('button', { name:'query' }).getAttribute('aria-pressed')).toBe('true');
+  expect(runs).toHaveLength(2);
+});
+
 test('the input shape changes the fixed wrapper and keeps the typed input, and Rerun restores it', async () => {
   const { api, runs } = setup('chrome');
   await renderDebugger('chrome', api);

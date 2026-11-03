@@ -197,10 +197,16 @@ export function Debugger() {
   // Rerun puts a past run's input and options back in the rail, then runs once they are in place, after the
   // effect above, so a confirmation it asks for is not withdrawn at once.
   useEffect(() => { if (rerun) execute(); }, [rerun]);
+  // A past run's input and the shape it went in, put back in the rail; opening a run does this, and Rerun
+  // also restores its options and runs it.
+  function restoreInput(request: SseRequest) {
+    setInput(Object.keys(request.data).length ? JSON.stringify(request.data, null, 2) : '');
+    setShape(inputShapes.some(each => each.id === request.shape) ? request.shape : 'data');
+    setNotice('');
+  }
   function runAgain(entry: Run) {
     const { request } = entry;
-    setInput(Object.keys(request.data).length ? JSON.stringify(request.data, null, 2) : '');
-    setShape(request.shape);
+    restoreInput(request);
     setSubmissionId(request.submissionId ?? '');
     setValidate(request.validate === true);
     setHydrate(request.hydrate === true);
@@ -436,7 +442,7 @@ export function Debugger() {
             <ol>
               {runs.map(entry => (
                 <li key={entry.id}>
-                  <button type="button" className="run-entry" aria-current={entry.id === current} onClick={() => { setCurrent(entry.id); setSelected(entry.trace.events.find(event => event.kind === 'fail')?.id); }}>
+                  <button type="button" className="run-entry" aria-current={entry.id === current} onClick={() => { setCurrent(entry.id); setSelected(entry.trace.events.find(event => event.kind === 'fail')?.id); restoreInput(entry.request); }}>
                     <span className="dot" aria-hidden="true" />
                     <span className="mono muted">{stamp(entry.at)}</span>
                     <span className="mono" data-state={entry.outcome.ok ? 'ok' : 'fail'}>{entry.response.status ?? '—'}</span>
