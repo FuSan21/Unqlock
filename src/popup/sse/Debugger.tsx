@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { api } from '@/lib/api';
-import { outcome as outcomeOf, parseInput, type IdentityMode, type Outcome, type SseContext, type SseRequest, type SseResponse } from '@/lib/sse-run';
+import { inputShapes, outcome as outcomeOf, parseInput, type IdentityMode, type InputShape, type Outcome, type SseContext, type SseRequest, type SseResponse } from '@/lib/sse-run';
 import { buildTrace, duration, slowAfter, type Trace, type TraceEvent } from '@/lib/sse-trace';
 import { params } from '../runtime';
 import { Steps, type StepsMode } from './Steps';
@@ -26,6 +26,9 @@ const railKey = 'unqlock.sse.rail';
 // The value search and setup switches, kept with the rail's width in this window's own storage.
 const valuesKey = 'unqlock.sse.values';
 const setupKey = 'unqlock.sse.hideSetup';
+// Where the input goes, kept the same way.
+const shapeKey = 'unqlock.sse.inputShape';
+const savedShape = (): InputShape => inputShapes.find(shape => shape.id === localStorage.getItem(shapeKey))?.id ?? 'data';
 const railDefault = 340;
 // Runs are kept in this window only, never in extension storage: they hold submission data.
 const kept = 10;
@@ -42,6 +45,7 @@ export function Debugger() {
   const [environment, setEnvironment] = useState<TabEnvironment>();
   const [unavailable, setUnavailable] = useState<string>();
   const [input, setInput] = useState('');
+  const [shape, setShape] = useState(savedShape);
   const [submissionId, setSubmissionId] = useState('');
   const [validate, setValidate] = useState(false);
   const [hydrate, setHydrate] = useState(false);
@@ -68,6 +72,11 @@ export function Debugger() {
   const runButton = useRef<HTMLButtonElement>(null);
 
   const parsed = useMemo(() => parseInput(input), [input]);
+  // The input is indented two spaces past the key it sits under.
+  const wrapper = useMemo(() => {
+    const chosen = inputShapes.find(each => each.id === shape)!;
+    return { ...chosen, indent:/^ */.exec(chosen.before.split('\n').pop()!)![0].length + 2 };
+  }, [shape]);
   const run = runs.find(entry => entry.id === current);
 
   // One navigation reports a new address and then a finished load, so loads can overlap; only the latest one
@@ -122,6 +131,7 @@ export function Debugger() {
   useEffect(() => { localStorage.setItem(railKey, String(rail)); }, [rail]);
   useEffect(() => { localStorage.setItem(valuesKey, String(values)); }, [values]);
   useEffect(() => { localStorage.setItem(setupKey, String(hideSetup)); }, [hideSetup]);
+  useEffect(() => { localStorage.setItem(shapeKey, shape); }, [shape]);
 
   // A confirmation approves only what it described: a new module, environment or save choice withdraws it.
   // A reload that finds the same module and environment leaves it be.
@@ -133,6 +143,7 @@ export function Debugger() {
   function runAgain(entry: Run) {
     const { request } = entry;
     setInput(Object.keys(request.data).length ? JSON.stringify(request.data, null, 2) : '');
+    setShape(request.shape);
     setSubmissionId(request.submissionId ?? '');
     setValidate(request.validate === true);
     setHydrate(request.hydrate === true);
@@ -170,7 +181,7 @@ export function Debugger() {
     setConfirm(undefined);
     setNotice('');
     setRunning(true);
-    const request: SseRequest = { url:context.url, moduleId:context.moduleId, data:parsed.data, submissionId:submissionId.trim() || undefined, validate, hydrate, save, mode, role:role.trim() };
+    const request: SseRequest = { url:context.url, moduleId:context.moduleId, data:parsed.data, shape, submissionId:submissionId.trim() || undefined, validate, hydrate, save, mode, role:role.trim() };
     const result = await runModule(tab, request, production && confirmed);
     const response: SseResponse = result.ok ? result.response : { ok:false, ms:0, headers:{}, body:null, error:result.error };
     const outcome = outcomeOf(response);
@@ -303,8 +314,17 @@ export function Debugger() {
               <button type="button" className="link" aria-pressed={expanded} onClick={() => setRail(expanded ? railDefault : clampRail(window.innerWidth * .5))}>{expanded ? 'Collapse' : 'Expand'}</button>
             </div>
           </div>
-          <textarea ref={inputField} id="sse-input" className="code-input" wrap="off" spellCheck={false} aria-invalid={!parsed.ok} aria-describedby="sse-input-meta"
-            placeholder={'{\n  "key": "value"\n}'} value={input} onChange={event => { setInput(event.target.value); setNotice(''); }} />
+          {/* The wrapper the input goes in is fixed and follows the shape; only its inside is edited, and it is kept across shapes. */}
+          <div className="input-shape" role="group" aria-label="Input goes in">
+            {inputShapes.map(each => <button key={each.id} type="button" aria-pressed={shape === each.id} onClick={() => setShape(each.id)}>{each.label}</button>)}
+          </div>
+          <div className="code-wrap" data-invalid={!parsed.ok || undefined}>
+            <code className="code-fixed" aria-hidden="true" title="Always sent around the input">{wrapper.before}</code>
+            <textarea ref={inputField} id="sse-input" className="code-input" wrap="off" spellCheck={false} aria-invalid={!parsed.ok} aria-describedby="sse-input-meta"
+              style={{ paddingLeft:`calc(10px + ${wrapper.indent}ch)` }}
+              placeholder={'{\n  "key": "value"\n}'} value={input} onChange={event => { setInput(event.target.value); setNotice(''); }} />
+            <code className="code-fixed" aria-hidden="true">{wrapper.after}</code>
+          </div>
           <p id="sse-input-meta" className="input-meta" data-state={parsed.ok ? 'ok' : 'error'}>
             {parsed.ok
               ? <><span>{input.trim() ? 'Valid JSON' : 'Empty: runs with no data'}</span><span>{parsed.fields} {parsed.fields === 1 ? 'field' : 'fields'}</span></>

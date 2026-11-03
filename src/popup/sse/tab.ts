@@ -1,7 +1,7 @@
 import { api } from '@/lib/api';
 import * as DevOverlay from '@/lib/dev-overlay';
 import * as Environment from '@/lib/environment';
-import { readSseContext, runSseExecute, type SseContext, type SseRequest, type SseResponse } from '@/lib/sse-run';
+import { inputShapes, readSseContext, runSseExecute, type SseContext, type SseRequest, type SseResponse } from '@/lib/sse-run';
 
 // The debugger window reads and runs its builder tab itself, through the extension APIs every extension page
 // has, rather than through the background: a Manifest V3 background stops when idle (Chrome's service worker,
@@ -48,7 +48,7 @@ export async function readContext(tabId: number, knownHost?: string): Promise<Co
 export async function run(tabId: number, request: SseRequest, productionConfirmed: boolean): Promise<RunResult> {
   try {
     if (!request || typeof request.url !== 'string' || typeof request.moduleId !== 'string' || !request.data || typeof request.data !== 'object' || Array.isArray(request.data)
-      || !['designer', 'express'].includes(request.mode) || typeof request.role !== 'string' || request.role.length > 200) return { ok:false, error:'That run request is not valid.' };
+      || !inputShapes.some(shape => shape.id === request.shape) || !['designer', 'express'].includes(request.mode) || typeof request.role !== 'string' || request.role.length > 200) return { ok:false, error:'That run request is not valid.' };
     let target: URL;
     try { target = new URL(request.url); } catch { return { ok:false, error:'That run request is not valid.' }; }
     if (target.protocol !== 'https:' || !target.hostname.endsWith('.unqork.io')) return { ok:false, error:'That run request is not valid.' };

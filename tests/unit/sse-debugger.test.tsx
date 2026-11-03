@@ -88,7 +88,7 @@ test.each(apiNames)('runs the module and shows its steps, changes, output and ra
   expect(byId('sse-input-meta').textContent).toBe('Valid JSON1 field');
   click(runButton()); await settle();
   expect(runs).toHaveLength(1);
-  expect(runs[0].request).toEqual({ url:context.url, moduleId:context.moduleId, data:{ applicationId:'APP-1' }, submissionId:undefined, validate:false, hydrate:false, save:false, mode:'designer', role:'Viewer' });
+  expect(runs[0].request).toEqual({ url:context.url, moduleId:context.moduleId, data:{ applicationId:'APP-1' }, shape:'data', submissionId:undefined, validate:false, hydrate:false, save:false, mode:'designer', role:'Viewer' });
   // Both read and run the window's own tab, in its MAIN world.
   expect(injections.map(injection => [injection.target.tabId, injection.world, injection.func.name])).toEqual([[7, 'MAIN', 'readSseContext'], [7, 'MAIN', 'runSseExecute']]);
 
@@ -214,6 +214,26 @@ test('saving asks first and names the submission', async () => {
   expect(query('.confirm').textContent).toMatch(/saved to submission abc123, replacing its data/);
   document.body.dispatchEvent(new KeyboardEvent('keydown', { key:'Enter', ctrlKey:true, bubbles:true })); await settle();
   expect(runs[0].request).toMatchObject({ save:true, submissionId:'abc123' });
+});
+
+test('the input shape changes the fixed wrapper and keeps the typed input, and Rerun restores it', async () => {
+  const { api, runs } = setup('chrome');
+  await renderDebugger('chrome', api);
+  const shapes = query('[role="group"][aria-label="Input goes in"]');
+  const fixed = () => [...document.querySelectorAll('.code-fixed')].map(each => each.textContent);
+  expect(within(shapes).getByRole('button', { name:'data' }).getAttribute('aria-pressed')).toBe('true');
+  expect(fixed()).toEqual(['{\n  "data":', '}']);
+  typeInto('sse-input', '{"id":"7"}');
+  click(within(shapes).getByRole('button', { name:'query' }));
+  expect(fixed()).toEqual(['{\n  "data": {\n    "_request": {\n      "query":', '    }\n  }\n}']);
+  expect(byId<HTMLTextAreaElement>('sse-input').value).toBe('{"id":"7"}');
+  click(runButton()); await settle();
+  expect(runs[0].request).toMatchObject({ data:{ id:'7' }, shape:'query' });
+  expect(localStorage.getItem('unqlock.sse.inputShape')).toBe('query');
+  click(within(shapes).getByRole('button', { name:'body' }));
+  click(query('.runs .rerun')); await settle();
+  expect(runs[1].request).toMatchObject({ data:{ id:'7' }, shape:'query' });
+  expect(within(shapes).getByRole('button', { name:'query' }).getAttribute('aria-pressed')).toBe('true');
 });
 
 test.each(apiNames)('Rerun puts a past run’s input and options back and runs it again (%s)', async apiName => {

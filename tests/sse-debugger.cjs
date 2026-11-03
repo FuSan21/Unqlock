@@ -94,7 +94,7 @@ const log = [
     assert.equal(executed[0].headers['x-xsrf'], '', 'The CSRF header is present and empty');
     assert.equal(executed[0].headers['x-assume-role'], role);
     assert.equal(executed[0].headers['x-quill-preview'], 'true');
-    assert.deepEqual(executed[0].body, { moduleId, data:{ applicationId:'APP-1' }, verbose:true });
+    assert.deepEqual(executed[0].body, { moduleId, data:{ data:{ applicationId:'APP-1' } }, verbose:true });
     assert.match(await debuggerWindow.locator('.outcome').textContent(), /^200Ran as Viewer · \d+ ms · 3 steps · 3 values set · 1 slow$/);
     assert.equal(await debuggerWindow.locator('.lane').count(), 5);
     assert.equal(await debuggerWindow.locator('.lane[data-key="callService"] .slow').textContent(), 'Slow');
@@ -120,7 +120,7 @@ const log = [
     await debuggerWindow.locator('.runs li').nth(1).getByRole('button', { name:/^Run again/ }).click();
     await debuggerWindow.locator('.outcome .status', { hasText:'200' }).waitFor({ timeout:10000 });
     assert.equal(executed.length, 3);
-    assert.deepEqual(executed[2].body.data, { applicationId:'APP-1' });
+    assert.deepEqual(executed[2].body.data, { data:{ applicationId:'APP-1' } });
     await debuggerWindow.getByRole('button', { name:'In values' }).click();
     await debuggerWindow.locator('input[type="search"]').fill('staging');
     assert.deepEqual(await debuggerWindow.locator('.lane').evaluateAll(lanes => lanes.map(lane => lane.dataset.key)), ['env']);

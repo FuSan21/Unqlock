@@ -16,11 +16,24 @@ export interface SseContext {
   roles?: string[];
 }
 
+// Where the input goes in the submission data: as it is, or as an API module's _request, its query or its body.
+export type InputShape = 'data' | 'request' | 'query' | 'body';
+
+// Each shape's label and the fixed JSON drawn before and after the input, matching what runSseExecute sends.
+export const inputShapes: { id: InputShape; label: string; before: string; after: string }[] = [
+  { id:'data', label:'data', before:'{\n  "data":', after:'}' },
+  { id:'request', label:'_request', before:'{\n  "data": {\n    "_request":', after:'  }\n}' },
+  { id:'query', label:'query', before:'{\n  "data": {\n    "_request": {\n      "query":', after:'    }\n  }\n}' },
+  { id:'body', label:'body', before:'{\n  "data": {\n    "_request": {\n      "body":', after:'    }\n  }\n}' }
+];
+
 export interface SseRequest {
   // The builder page the run was started for; a run against another page is refused.
   url: string;
   moduleId: string;
+  // The input as typed; `shape` says where runSseExecute places it.
   data: Record<string, unknown>;
+  shape: InputShape;
   submissionId?: string;
   validate?: boolean;
   hydrate?: boolean;
@@ -98,7 +111,13 @@ export async function runSseExecute(request: SseRequest): Promise<SseResponse> {
     const headers: Record<string, string> = { 'Content-Type':'application/json', 'x-xsrf':'' };
     if (request.role) headers['x-assume-role'] = request.role;
     if (request.mode === 'designer') headers['x-quill-preview'] = 'true';
-    const body: Record<string, unknown> = { moduleId:request.moduleId, data:request.data, verbose:true };
+    // Unqork reads the submission's values from data.data, so the input always goes inside that wrapper, and
+    // under _request, its query or its body for an API module. Kept in step with inputShapes.
+    const values = request.shape === 'request' ? { _request:request.data }
+      : request.shape === 'query' ? { _request:{ query:request.data } }
+      : request.shape === 'body' ? { _request:{ body:request.data } }
+      : request.data;
+    const body: Record<string, unknown> = { moduleId:request.moduleId, data:{ data:values }, verbose:true };
     if (request.submissionId) body.submissionId = request.submissionId;
     if (request.save) body.save = true;
     if (request.validate) body.validate = true;

@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import type { SseRequest } from '@/lib/sse-run';
+import { runSseExecute, type InputShape, type SseRequest } from '@/lib/sse-run';
 import { apiNames, type ApiName } from './harness';
 
 // The debugger window reads and runs its builder tab itself (src/popup/sse/tab.ts), with the checks the
@@ -9,7 +9,7 @@ afterEach(() => { vi.resetModules(); });
 
 const builder = 'https://acme-staging.unqork.io/ide/builder/workspaces/w/modules/646125c9ce236b1c9e80986d';
 const production = builder.replace('acme-staging', 'acme-prod');
-const request: SseRequest = { url:builder, moduleId:'646125c9ce236b1c9e80986d', data:{ a:1 }, mode:'designer', role:'Administrator' };
+const request: SseRequest = { url:builder, moduleId:'646125c9ce236b1c9e80986d', data:{ a:1 }, shape:'data', mode:'designer', role:'Administrator' };
 
 interface State { url?: string; closed?: boolean; granted?: boolean; blocked?: boolean; context?: object; fails?: boolean }
 
@@ -59,7 +59,7 @@ test.each(apiNames)('refuses a tab that has left Unqork, closed, or lost its acc
 
 test('refuses a malformed request, and production runs follow Environments', async () => {
   const { tab, injected } = await load('chrome');
-  for (const invalid of [{ ...request, mode:'root' }, { ...request, url:'https://evil.test/ide/' }, { ...request, data:[1] }, { ...request, role:'x'.repeat(201) }, { ...request, url:'not a url' }]) {
+  for (const invalid of [{ ...request, mode:'root' }, { ...request, shape:'_request' }, { ...request, url:'https://evil.test/ide/' }, { ...request, data:[1] }, { ...request, role:'x'.repeat(201) }, { ...request, url:'not a url' }]) {
     expect(await tab.run(7, invalid as SseRequest, false)).toEqual({ ok:false, error:'That run request is not valid.' });
   }
   const onProduction = { ...request, url:production };
@@ -82,4 +82,20 @@ test('a page error, a host the script reports off Unqork, and a tab that goes aw
   loaded = await load('browser', { fails:true });
   expect(await loaded.tab.readContext(7)).toEqual({ ok:false, error:'Frame with ID 0 was removed.' });
   expect(await loaded.tab.run(7, request, false)).toEqual({ ok:false, error:'Frame with ID 0 was removed.' });
+});
+
+test.each<[InputShape, unknown]>([
+  ['data', { a:1 }],
+  ['request', { _request:{ a:1 } }],
+  ['query', { _request:{ query:{ a:1 } } }],
+  ['body', { _request:{ body:{ a:1 } } }]
+])('the %s shape places the input inside data.data', async (shape, values) => {
+  const sent: { url: string; init: RequestInit }[] = [];
+  vi.stubGlobal('fetch', async (url: string, init: RequestInit) => { sent.push({ url, init }); return new Response('{}', { status:200 }); });
+  try {
+    const response = await runSseExecute({ ...request, url:location.href, shape });
+    expect(response.ok).toBe(true);
+    expect(JSON.parse(sent[0].init.body as string)).toEqual({ moduleId:request.moduleId, data:{ data:values }, verbose:true });
+    expect(response.sent?.body).toEqual({ moduleId:request.moduleId, data:{ data:values }, verbose:true });
+  } finally { vi.unstubAllGlobals(); }
 });
