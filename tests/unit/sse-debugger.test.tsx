@@ -257,6 +257,40 @@ test('the input shape changes the fixed wrapper and keeps the typed input, and R
   expect(within(shapes).getByRole('button', { name:'query' }).getAttribute('aria-pressed')).toBe('true');
 });
 
+test('Include metadata adds the metadata beside data in every shape, and a run puts it back', async () => {
+  const { api, runs } = setup('chrome');
+  await renderDebugger('chrome', api);
+  const shapes = query('[role="group"][aria-label="Input goes in"]');
+  const fixed = () => [...document.querySelectorAll('.code-fixed')].map(each => each.textContent);
+  expect(document.getElementById('sse-metadata')).toBeNull();
+  typeInto('sse-input', '{"id":"7"}');
+  click(within(shapes).getByRole('button', { name:'query' }));
+  click(byId('sse-metadata-include'));
+  expect(localStorage.getItem('unqlock.sse.includeMetadata')).toBe('true');
+  expect(fixed()).toEqual(['{\n  "data": {\n    "_request": {\n      "query":', '    }\n  },\n  "metadata":', '}']);
+  // Invalid metadata stops the run and says why.
+  typeInto('sse-metadata', '{"source":');
+  click(runButton()); await settle();
+  expect(runs).toHaveLength(0);
+  expect(query('.notice').textContent).toMatch(/Fix the metadata first/);
+  typeInto('sse-metadata', '{"source":"test"}');
+  click(runButton()); await settle();
+  expect(runs[0].request).toMatchObject({ data:{ id:'7' }, shape:'query', metadata:{ source:'test' } });
+  click(within(shapes).getByRole('button', { name:'data' }));
+  expect(fixed()).toEqual(['{\n  "data":', ',\n  "metadata":', '}']);
+  // Turned off, the wrapper is as before and no metadata is sent.
+  click(byId('sse-metadata-include'));
+  expect(fixed()).toEqual(['{\n  "data":', '}']);
+  click(runButton()); await settle();
+  expect(runs[1].request.metadata).toBeUndefined();
+  // Opening the first run turns it back on with its metadata; opening the second turns it off again.
+  click(document.querySelectorAll<HTMLButtonElement>('.run-entry')[1]); await settle();
+  expect(byId<HTMLInputElement>('sse-metadata-include').checked).toBe(true);
+  expect(byId<HTMLTextAreaElement>('sse-metadata').value).toBe(JSON.stringify({ source:'test' }, null, 2));
+  click(document.querySelectorAll<HTMLButtonElement>('.run-entry')[0]); await settle();
+  expect(byId<HTMLInputElement>('sse-metadata-include').checked).toBe(false);
+});
+
 test('without Keep past runs, runs stay in the window, and turning it on and off saves and deletes them', async () => {
   const day = 24 * 60 * 60 * 1000;
   writeRuns(localStorage, [{ id:'stale', at:Date.now() - day, title:context.title, moduleId:context.moduleId,

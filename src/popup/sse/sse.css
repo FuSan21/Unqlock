@@ -73,6 +73,8 @@ kbd { font:11px var(--mono); padding:0 4px; border:1px solid currentColor; borde
 .input-shape { display:flex; margin:0 0 8px; border:1px solid var(--line); border-radius:6px; overflow:hidden; }
 .input-shape button { flex:1; padding:3px 10px; border:0; background:none; font:12px var(--mono); color:var(--muted); }
 .input-shape button[aria-pressed="true"] { background:var(--lane); color:var(--ink); font-weight:600; }
+.include-metadata { display:flex; align-items:center; gap:8px; margin:-2px 0 8px; font-size:12.5px; cursor:pointer; }
+.include-metadata input { width:15px; height:15px; margin:0; accent-color:var(--accent); }
 .code-fixed { flex:none; display:block; padding:4px 10px; white-space:pre; font:12px/1.6 var(--mono); color:var(--muted); background:var(--tint); user-select:none; cursor:default; }
 .code-input { flex:none; width:100%; min-height:calc(3 * 1.6em + 12px); padding:6px 10px 6px 22px; resize:none; overflow:auto hidden; white-space:pre; tab-size:2; border:0; background:transparent; font:12px/1.6 var(--mono); }
 .code-input:focus-visible { outline:none; }

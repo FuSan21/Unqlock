@@ -49,7 +49,8 @@ export async function readContext(tabId: number, knownHost?: string): Promise<Co
 export async function run(tabId: number, request: SseRequest, productionConfirmed: boolean, runId = ''): Promise<RunResult> {
   try {
     if (!request || typeof request.url !== 'string' || typeof request.moduleId !== 'string' || !request.data || typeof request.data !== 'object' || Array.isArray(request.data)
-      || !inputShapes.some(shape => shape.id === request.shape) || !['designer', 'express'].includes(request.mode) || typeof request.role !== 'string' || request.role.length > 200) return { ok:false, error:'That run request is not valid.' };
+      || !inputShapes.some(shape => shape.id === request.shape) || (request.metadata !== undefined && (!request.metadata || typeof request.metadata !== 'object' || Array.isArray(request.metadata)))
+      || !['designer', 'express'].includes(request.mode) || typeof request.role !== 'string' || request.role.length > 200) return { ok:false, error:'That run request is not valid.' };
     let target: URL;
     try { target = new URL(request.url); } catch { return { ok:false, error:'That run request is not valid.' }; }
     if (target.protocol !== 'https:' || !target.hostname.endsWith('.unqork.io')) return { ok:false, error:'That run request is not valid.' };

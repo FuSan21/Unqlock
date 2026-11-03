@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { api } from '@/lib/api';
 import { keptDays, keptRuns } from '@/lib/sse-history';
-import { inputShapes, outcome as outcomeOf, parseInput, type IdentityMode, type InputShape, type SseContext, type SseRequest, type SseResponse } from '@/lib/sse-run';
+import { inputShapes, inputWrapper, outcome as outcomeOf, parseInput, type IdentityMode, type InputShape, type SseContext, type SseRequest, type SseResponse } from '@/lib/sse-run';
 import { buildTrace, duration } from '@/lib/sse-trace';
 import { params } from '../runtime';
 import { CopyId, RunResult, views, type ViewId } from './Result';
@@ -18,6 +18,7 @@ const valuesKey = 'unqlock.sse.values';
 const setupKey = 'unqlock.sse.hideSetup';
 // Where the input goes, kept the same way.
 const shapeKey = 'unqlock.sse.inputShape';
+const metadataKey = 'unqlock.sse.includeMetadata';
 const railDefault = 340;
 
 const typing = (target: EventTarget | null) => target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
@@ -31,6 +32,9 @@ export function Debugger() {
   const [unavailable, setUnavailable] = useState<string>();
   const [input, setInput] = useState('');
   const [shape, setShape] = useLocalState<InputShape>(shapeKey, stored => inputShapes.find(each => each.id === stored)?.id ?? 'data', value => value);
+  // Include metadata adds the body's metadata beside data, typed in its own field.
+  const [withMetadata, setWithMetadata] = useLocalState(metadataKey, stored => stored === 'true');
+  const [metadata, setMetadata] = useState('');
   const [submissionId, setSubmissionId] = useState('');
   const [validate, setValidate] = useState(false);
   const [hydrate, setHydrate] = useState(false);
@@ -57,15 +61,19 @@ export function Debugger() {
   const [rail, setRail] = useLocalState(railKey, stored => clampRail(Number(stored) || railDefault));
   const [railOpen, setRailOpen] = useState(false);
   const inputField = useRef<HTMLTextAreaElement>(null);
+  const metadataField = useRef<HTMLTextAreaElement>(null);
   const filterField = useRef<HTMLInputElement>(null);
   const runButton = useRef<HTMLButtonElement>(null);
 
   const parsed = useMemo(() => parseInput(input), [input]);
-  // The input is indented two spaces past the key it sits under.
+  const parsedMetadata = useMemo(() => parseInput(metadata), [metadata]);
+  const inputValid = parsed.ok && (!withMetadata || parsedMetadata.ok);
+  // The input and the metadata are each indented two spaces past the key they sit under.
   const wrapper = useMemo(() => {
-    const chosen = inputShapes.find(each => each.id === shape)!;
-    return { ...chosen, indent:/^ */.exec(chosen.before.split('\n').pop()!)![0].length + 2 };
-  }, [shape]);
+    const fixed = inputWrapper(shape, withMetadata);
+    const indent = (text: string) => /^ */.exec(text.split('\n').pop()!)![0].length + 2;
+    return { ...fixed, indent:indent(fixed.before), metadataIndent:indent(fixed.between ?? '') };
+  }, [shape, withMetadata]);
   const run = runs.find(entry => entry.id === current);
 
   // One navigation reports a new address and then a finished load, so loads can overlap; only the latest one
@@ -120,11 +128,12 @@ export function Debugger() {
   // The input is as tall as its text, plus a horizontal scrollbar when a long line needs one, so the fixed
   // closing lines sit right under its last line rather than at the bottom of the box.
   useLayoutEffect(() => {
-    const field = inputField.current;
-    if (!field) return;
-    field.style.height = '0';
-    field.style.height = field.scrollHeight + (field.offsetHeight - field.clientHeight) + 'px';
-  }, [input, wrapper, rail, railOpen]);
+    for (const field of [inputField.current, metadataField.current]) {
+      if (!field) continue;
+      field.style.height = '0';
+      field.style.height = field.scrollHeight + (field.offsetHeight - field.clientHeight) + 'px';
+    }
+  }, [input, metadata, wrapper, rail, railOpen]);
   // A narrower window keeps the rail within its share, and Expand and Collapse follow the new width.
   useEffect(() => {
     const resized = () => setRail(width => clampRail(width));
@@ -138,11 +147,15 @@ export function Debugger() {
   // Rerun puts a past run's input and options back in the rail, then runs once they are in place, after the
   // effect above, so a confirmation it asks for is not withdrawn at once.
   useEffect(() => { if (rerun) execute(); }, [rerun]);
-  // A past run's input and the shape it went in, put back in the rail; opening a run does this, and Rerun
-  // also restores its options and runs it.
+  // A past run's input, the shape it went in and its metadata, put back in the rail; opening a run does this,
+  // and Rerun also restores its options and runs it. A run sent without metadata leaves the metadata typed here.
   function restoreInput(request: SseRequest) {
-    setInput(Object.keys(request.data).length ? JSON.stringify(request.data, null, 2) : '');
+    const text = (value: Record<string, unknown>) => Object.keys(value).length ? JSON.stringify(value, null, 2) : '';
+    setInput(text(request.data));
     setShape(inputShapes.some(each => each.id === request.shape) ? request.shape : 'data');
+    const sent = request.metadata && typeof request.metadata === 'object' && !Array.isArray(request.metadata) ? request.metadata : undefined;
+    setWithMetadata(Boolean(sent));
+    if (sent) setMetadata(text(sent));
     setNotice('');
   }
   function runAgain(entry: Run) {
@@ -170,6 +183,12 @@ export function Debugger() {
       inputField.current?.focus();
       return;
     }
+    if (withMetadata && !parsedMetadata.ok) {
+      setNotice(`Fix the metadata first: ${parsedMetadata.message}${parsedMetadata.line ? ` (line ${parsedMetadata.line})` : ''}.`);
+      setRailOpen(true);
+      metadataField.current?.focus();
+      return;
+    }
     if (blockReason) { setNotice(blockReason); return; }
     if (!confirmed && (production || save)) {
       const target = submissionId.trim();
@@ -185,7 +204,7 @@ export function Debugger() {
     setConfirm(undefined);
     setNotice('');
     setRunning(true);
-    const request: SseRequest = { url:context.url, moduleId:context.moduleId, data:parsed.data, shape, submissionId:submissionId.trim() || undefined, validate, hydrate, save, mode, role:role.trim() };
+    const request: SseRequest = { url:context.url, moduleId:context.moduleId, data:parsed.data, shape, ...(withMetadata && parsedMetadata.ok ? { metadata:parsedMetadata.data } : {}), submissionId:submissionId.trim() || undefined, validate, hydrate, save, mode, role:role.trim() };
     const id = crypto.randomUUID();
     active.current = id;
     const result = await runModule(tab, request, production && confirmed, id);
@@ -260,10 +279,12 @@ export function Debugger() {
     return () => document.removeEventListener('keydown', listener);
   });
 
+  // Formats the input, and the metadata while it is included, leaving one that is empty or invalid as it is.
   function format() {
-    if (!parsed.ok || !input.trim()) return;
-    setInput(JSON.stringify(parsed.data, null, 2));
+    if (parsed.ok && input.trim()) setInput(JSON.stringify(parsed.data, null, 2));
+    if (withMetadata && parsedMetadata.ok && metadata.trim()) setMetadata(JSON.stringify(parsedMetadata.data, null, 2));
   }
+  const formattable = (parsed.ok && input.trim() !== '') || (withMetadata && parsedMetadata.ok && metadata.trim() !== '');
 
   // The rail's edge: drag it, or arrow keys while it has focus.
   function resizeStart(event: React.PointerEvent<HTMLDivElement>) {
@@ -293,7 +314,7 @@ export function Debugger() {
           {environment && <span className="env" data-kind={environment.kind}>{environment.kind === 'production' ? 'Production' : environment.label}</span>}
         </div>
         <button type="button" className="input-toggle" aria-expanded={railOpen} aria-controls="request-rail" onClick={() => setRailOpen(!railOpen)}>
-          Input{parsed.ok ? ` · ${parsed.fields} ${parsed.fields === 1 ? 'field' : 'fields'}` : ' · invalid'}
+          Input{inputValid ? ` · ${parsed.fields} ${parsed.fields === 1 ? 'field' : 'fields'}` : ' · invalid'}
         </button>
         {document.fullscreenEnabled && <button type="button" id="sse-fullscreen" className="native" aria-pressed={fullscreen} onClick={toggleFullscreen}>{fullscreen ? 'Exit full screen' : 'Full screen'}</button>}
         <fieldset className="runas">
@@ -333,7 +354,7 @@ export function Debugger() {
           <div className="rail-head">
             <h2><label htmlFor="sse-input">Input</label></h2>
             <div className="rail-actions">
-              <button type="button" className="link" disabled={!parsed.ok || !input.trim()} onClick={format}>Format</button>
+              <button type="button" className="link" disabled={!formattable} onClick={format}>Format</button>
               <button type="button" className="link" aria-pressed={expanded} onClick={() => setRail(expanded ? railDefault : clampRail(window.innerWidth * .5))}>{expanded ? 'Collapse' : 'Expand'}</button>
             </div>
           </div>
@@ -341,11 +362,18 @@ export function Debugger() {
           <div className="input-shape" role="group" aria-label="Input goes in">
             {inputShapes.map(each => <button key={each.id} type="button" aria-pressed={shape === each.id} onClick={() => setShape(each.id)}>{each.label}</button>)}
           </div>
-          <div className="code-wrap" data-invalid={!parsed.ok || undefined} onClick={event => { if (event.target === event.currentTarget) inputField.current?.focus(); }}>
+          <label className="include-metadata"><input id="sse-metadata-include" type="checkbox" checked={withMetadata} onChange={event => setWithMetadata(event.target.checked)} /> Include metadata</label>
+          <div className="code-wrap" data-invalid={!inputValid || undefined} onClick={event => { if (event.target === event.currentTarget) inputField.current?.focus(); }}>
             <code className="code-fixed" aria-hidden="true" title="Always sent around the input">{wrapper.before}</code>
             <textarea ref={inputField} id="sse-input" className="code-input" wrap="off" spellCheck={false} aria-invalid={!parsed.ok} aria-describedby="sse-input-meta"
               style={{ paddingLeft:`calc(10px + ${wrapper.indent}ch)` }}
               placeholder={'{\n  "key": "value"\n}'} value={input} onChange={event => { setInput(event.target.value); setNotice(''); }} />
+            {wrapper.between !== undefined && <>
+              <code className="code-fixed" aria-hidden="true">{wrapper.between}</code>
+              <textarea ref={metadataField} id="sse-metadata" className="code-input" wrap="off" spellCheck={false} aria-label="Metadata" aria-invalid={!parsedMetadata.ok} aria-describedby="sse-metadata-meta"
+                style={{ paddingLeft:`calc(10px + ${wrapper.metadataIndent}ch)` }}
+                placeholder={'{\n  "key": "value"\n}'} value={metadata} onChange={event => { setMetadata(event.target.value); setNotice(''); }} />
+            </>}
             <code className="code-fixed" aria-hidden="true">{wrapper.after}</code>
           </div>
           <p id="sse-input-meta" className="input-meta" data-state={parsed.ok ? 'ok' : 'error'}>
@@ -353,6 +381,13 @@ export function Debugger() {
               ? <><span>{input.trim() ? 'Valid JSON' : 'Empty: runs with no data'}</span><span>{parsed.fields} {parsed.fields === 1 ? 'field' : 'fields'}</span></>
               : <span>{parsed.message}{parsed.line ? ` · line ${parsed.line}` : ''}</span>}
           </p>
+          {withMetadata && (
+            <p id="sse-metadata-meta" className="input-meta" data-state={parsedMetadata.ok ? 'ok' : 'error'}>
+              {parsedMetadata.ok
+                ? <><span>{metadata.trim() ? 'Metadata: valid JSON' : 'Metadata: empty, sent as {}'}</span><span>{parsedMetadata.fields} {parsedMetadata.fields === 1 ? 'field' : 'fields'}</span></>
+                : <span>Metadata: {parsedMetadata.message}{parsedMetadata.line ? ` · line ${parsedMetadata.line}` : ''}</span>}
+            </p>
+          )}
           <label className="field">Submission ID <input id="sse-submission" className="mono" placeholder="None: runs without a submission" spellCheck={false} value={submissionId} onChange={event => setSubmissionId(event.target.value)} /></label>
           <fieldset className="options">
             <legend className="visually-hidden">Execute options</legend>

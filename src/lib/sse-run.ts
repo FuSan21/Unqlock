@@ -19,13 +19,21 @@ export interface SseContext {
 // Where the input goes in the submission data: as it is, or as an API module's _request, its query or its body.
 export type InputShape = 'data' | 'request' | 'query' | 'body';
 
-// Each shape's label and the fixed JSON drawn before and after the input, matching what runSseExecute sends.
-export const inputShapes: { id: InputShape; label: string; before: string; after: string }[] = [
-  { id:'data', label:'data', before:'{\n  "data":', after:'}' },
-  { id:'request', label:'_request', before:'{\n  "data": {\n    "_request":', after:'  }\n}' },
-  { id:'query', label:'query', before:'{\n  "data": {\n    "_request": {\n      "query":', after:'    }\n  }\n}' },
-  { id:'body', label:'body', before:'{\n  "data": {\n    "_request": {\n      "body":', after:'    }\n  }\n}' }
+// Each shape's label, the fixed JSON drawn before the input and the lines after it that close the shape's own
+// keys inside data, matching what runSseExecute sends.
+export const inputShapes: { id: InputShape; label: string; before: string; close: string }[] = [
+  { id:'data', label:'data', before:'{\n  "data":', close:'' },
+  { id:'request', label:'_request', before:'{\n  "data": {\n    "_request":', close:'  }' },
+  { id:'query', label:'query', before:'{\n  "data": {\n    "_request": {\n      "query":', close:'    }\n  }' },
+  { id:'body', label:'body', before:'{\n  "data": {\n    "_request": {\n      "body":', close:'    }\n  }' }
 ];
+
+// The fixed JSON around the input: `before` and `after` it, or with metadata, `between` the input and the
+// metadata, which goes beside data in the body, and `after` the metadata.
+export function inputWrapper(shape: InputShape, metadata: boolean): { before: string; between?: string; after: string } {
+  const { before, close } = inputShapes.find(each => each.id === shape) ?? inputShapes[0];
+  return metadata ? { before, between:close + ',\n  "metadata":', after:'}' } : { before, after:(close ? close + '\n' : '') + '}' };
+}
 
 export interface SseRequest {
   // The builder page the run was started for; a run against another page is refused.
@@ -34,6 +42,8 @@ export interface SseRequest {
   // The input as typed; `shape` says where runSseExecute places it.
   data: Record<string, unknown>;
   shape: InputShape;
+  // The body's metadata, beside data; absent unless Include metadata is on.
+  metadata?: Record<string, unknown>;
   submissionId?: string;
   validate?: boolean;
   hydrate?: boolean;
@@ -125,6 +135,7 @@ export async function runSseExecute(request: SseRequest, runId = ''): Promise<Ss
       : request.shape === 'body' ? { _request:{ body:request.data } }
       : request.data;
     const body: Record<string, unknown> = { moduleId:request.moduleId, data:values, verbose:true };
+    if (request.metadata) body.metadata = request.metadata;
     if (request.submissionId) body.submissionId = request.submissionId;
     if (request.save) body.save = true;
     if (request.validate) body.validate = true;

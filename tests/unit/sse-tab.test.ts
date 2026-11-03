@@ -85,7 +85,7 @@ test.each(apiNames)('refuses a tab that has left Unqork, closed, or lost its acc
 
 test('refuses a malformed request, and production runs follow Environments', async () => {
   const { tab, injected } = await load('chrome');
-  for (const invalid of [{ ...request, mode:'root' }, { ...request, shape:'_request' }, { ...request, url:'https://evil.test/ide/' }, { ...request, data:[1] }, { ...request, role:'x'.repeat(201) }, { ...request, url:'not a url' }]) {
+  for (const invalid of [{ ...request, mode:'root' }, { ...request, shape:'_request' }, { ...request, url:'https://evil.test/ide/' }, { ...request, data:[1] }, { ...request, metadata:[1] }, { ...request, metadata:null }, { ...request, role:'x'.repeat(201) }, { ...request, url:'not a url' }]) {
     expect(await tab.run(7, invalid as SseRequest, false)).toEqual({ ok:false, error:'That run request is not valid.' });
   }
   const onProduction = { ...request, url:production };
@@ -123,5 +123,8 @@ test.each<[InputShape, unknown]>([
     expect(response.ok).toBe(true);
     expect(JSON.parse(sent[0].init.body as string)).toEqual({ moduleId:request.moduleId, data:values, verbose:true });
     expect(response.sent?.body).toEqual({ moduleId:request.moduleId, data:values, verbose:true });
+    // Metadata goes beside data, whatever the shape.
+    await runSseExecute({ ...request, url:location.href, shape, metadata:{ source:'test' } });
+    expect(JSON.parse(sent[1].init.body as string)).toEqual({ moduleId:request.moduleId, data:values, metadata:{ source:'test' }, verbose:true });
   } finally { vi.unstubAllGlobals(); }
 });
