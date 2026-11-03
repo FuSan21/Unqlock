@@ -1,9 +1,7 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
 import { whenIde } from '@/lib/builder-route';
-
-// React fibers are not a typed public API.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Fiber = any;
+import { frameScheduler } from '@/lib/frame';
+import { ancestors } from '@/lib/react-fiber';
 
 export default defineContentScript({
   // Every unqork.io page, since Unqork's module search reaches the builder without a page load.
@@ -22,20 +20,18 @@ export default defineContentScript({
       const labelAttribute = 'data-unqlock-label';
       const legacyAttribute = 'data-unqlock-legacy';
       const disabledAttribute = 'data-unqlock-disabled';
-      let scheduled = false;
-
-      const fiberOf = (element: Element): Fiber => {
-        const key = Object.keys(element).find(name => name.startsWith('__reactFiber$'));
-        return key ? (element as unknown as Record<string, Fiber>)[key] : null;
-      };
+      const scheduler = frameScheduler(render);
+      const { schedule } = scheduler;
       // The row is the node's own element or sits a few levels inside it; a container's header is nine
       // levels down. Matching the key keeps a row from taking a parent container's definition.
       function definition(row: Element) {
         const key = row.getAttribute('data-component-key');
-        let fiber = fiberOf(row);
-        for (let depth = 0; fiber && depth < 12; depth++, fiber = fiber.return) {
+        for (const fiber of ancestors(row, 12)) {
           const component = fiber.memoizedProps?.component;
-          if (component && component.key === key && typeof component.type === 'string') return { ...component, legacy:fiber.memoizedProps.renderPreview === true } as { type: string; label?: unknown; title?: unknown; disabled?: unknown; legacy: boolean };
+          // Only what the row is marked with; a pass runs every second and on every keystroke.
+          if (component && component.key === key && typeof component.type === 'string') {
+            return { type:component.type as string, label:component.label as unknown, title:component.title as unknown, disabled:component.disabled as unknown, legacy:fiber.memoizedProps.renderPreview === true };
+          }
         }
         return null;
       }
@@ -48,7 +44,6 @@ export default defineContentScript({
       };
 
       function render() {
-        scheduled = false;
         for (const row of document.querySelectorAll(rowSelector)) {
           const component = definition(row);
           write(row, typeAttribute, component ? component.type : null);
@@ -57,17 +52,11 @@ export default defineContentScript({
           write(row, disabledAttribute, component?.disabled === true ? '' : null);
         }
       }
-      function schedule() {
-        if (!scheduled) {
-          scheduled = true;
-          requestAnimationFrame(render);
-        }
-      }
       // Only rows coming, going or changing key need a pass; most of the builder, such as Build
       // Agent replies, changes on nearly every frame.
       const touchesRow = (node: Node) => node.nodeType === 1 && ((node as Element).matches(rowSelector) || (node as Element).querySelector(rowSelector) !== null);
       const observer = new MutationObserver(records => {
-        if (scheduled) return;
+        if (scheduler.pending) return;
         if (records.some(record => record.type === 'attributes' || [...record.addedNodes].some(touchesRow))) schedule();
       });
       const start = () => {

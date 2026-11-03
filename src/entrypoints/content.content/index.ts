@@ -1,11 +1,13 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
-import { whenIde } from '@/lib/builder-route';
-import { api, type Stored } from '@/lib/api';
+import { inBuilder, whenIde } from '@/lib/builder-route';
+import { type Stored } from '@/lib/api';
 import { appearanceDefaults as defaults, appearanceSettings, containerKeys as containers, type Appearance } from '@/lib/appearance';
 import { components, type CatalogEntry } from '@/lib/catalog';
 import * as Colors from '@/lib/component-colors';
 import * as Labels from '@/lib/label-settings';
 import * as RowLayout from '@/lib/row-layout';
+import { frameScheduler } from '@/lib/frame';
+import { watchLocal } from '@/lib/watch-storage';
 import './style.css';
 
 export default defineContentScript({
@@ -79,7 +81,8 @@ export default defineContentScript({
       let labels = Labels.mode(undefined);
       type Marks = Map<Element, Record<string, string>>;
       let decorated: Marks = new Map();
-      let scheduled = false;
+      const scheduler = frameScheduler(render);
+      const { schedule } = scheduler;
       const contentSelector = '[data-slot="collapsible-content"]';
 
       function reconcile(next: Marks) {
@@ -139,7 +142,6 @@ export default defineContentScript({
       }
 
       function render() {
-        scheduled = false;
         const next: Marks = new Map();
         const clipping = new Map<Element, boolean>();
         const mark = (element: Element | null | undefined, attributes: Record<string, string>) => {
@@ -149,7 +151,7 @@ export default defineContentScript({
         // type line and take component labels, but keep Unqork's look, selection and search rings included.
         const styled = settings.compact || settings.icons || settings.tiles || settings.trayLabels || settings.labels || settings.accents || settings.backgrounds || settings.borders || layout.enabled || containers.some(key => settings[key]);
         const hasEffects = styled || settings.canvas || labels !== "native";
-        if (settings.enabled && hasEffects && location.pathname.startsWith("/ide/builder/")) {
+        if (settings.enabled && hasEffects && inBuilder()) {
           for (const card of document.querySelectorAll(selector)) {
             const isTray = card.hasAttribute("data-tray-type");
             if (!(isTray ? settings.tray : settings.canvas)) continue;
@@ -252,7 +254,7 @@ export default defineContentScript({
             }
             if (!component || !styled) continue;
             mark(card, { "data-uq-family": component.family, "data-uq-surface": isTray ? "tray" : "canvas" });
-            if (settings.icons && icon) mark(icon, { "data-uq-icon": "", ...(settings.symbols ? { "data-uq-symbol": component.type } : {}) });
+            if (settings.icons && icon) mark(icon, { "data-uq-icon": "", ...(settings.symbols && Object.hasOwn(symbols, component.type) ? { "data-uq-symbol": component.type } : {}) });
             if (settings.tiles && icon) {
               if (isTray) mark(icon, { "data-uq-icon-background": "" });
               else if (icon.parentElement !== card) mark(icon.parentElement, { "data-uq-tile": "" });
@@ -280,13 +282,6 @@ export default defineContentScript({
         reconcile(next);
       }
 
-      function schedule() {
-        if (!scheduled) {
-          scheduled = true;
-          requestAnimationFrame(render);
-        }
-      }
-
       function applySettings(value?: Stored) {
         settings = appearanceSettings(value);
         schedule();
@@ -306,7 +301,7 @@ export default defineContentScript({
       // pushState fires no event, so a changed route also counts, to clear marks outside the builder.
       let route = location.pathname;
       const observer = new MutationObserver(records => {
-        if (scheduled) return;
+        if (scheduler.pending) return;
         if (route !== location.pathname || records.some(relevant)) {
           route = location.pathname;
           schedule();
@@ -314,19 +309,13 @@ export default defineContentScript({
       });
       observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["data-tray-type", "data-component-key", "data-unqlock-type", "data-unqlock-label", "data-unqlock-legacy", "data-unqlock-disabled", "class"] });
       window.addEventListener("popstate", schedule);
-      function applyLayout(value?: Stored) {
-        layout = RowLayout.settings(value);
-        schedule();
-      }
-
-      api.storage.onChanged.addListener((changes, area) => {
-        if (area !== "local") return;
-        if (changes.rowLayout) applyLayout(changes.rowLayout.newValue);
-        if (changes[Labels.key]) { labels = Labels.mode(changes[Labels.key].newValue); schedule(); }
-        if (changes.appearance) applySettings(changes.appearance.newValue);
-        if (changes.componentColors) applyColors(changes.componentColors.newValue);
-      });
-      api.storage.local.get(["appearance", "rowLayout", Labels.key, "componentColors"]).then(result => { layout = RowLayout.settings(result.rowLayout); labels = Labels.mode(result[Labels.key]); applyColors(result.componentColors); applySettings(result.appearance); }).catch(() => applySettings(defaults));
+      watchLocal(["appearance", "rowLayout", Labels.key, "componentColors"], values => {
+        if ("rowLayout" in values) layout = RowLayout.settings(values.rowLayout);
+        if (Labels.key in values) labels = Labels.mode(values[Labels.key]);
+        if ("componentColors" in values) applyColors(values.componentColors);
+        if ("appearance" in values) applySettings(values.appearance);
+        else schedule();
+      }, () => applySettings(defaults));
     });
   }
 });

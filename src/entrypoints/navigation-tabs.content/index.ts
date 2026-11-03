@@ -1,6 +1,7 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
 import { whenIde } from '@/lib/builder-route';
-import { api } from '@/lib/api';
+import { frameScheduler } from '@/lib/frame';
+import { watchLocal } from '@/lib/watch-storage';
 import * as Panels from '@/lib/panel-settings';
 import './style.css';
 
@@ -19,11 +20,11 @@ export default defineContentScript({
       // Collapsed until the header is hovered; Hidden has no bar to collapse, so it keeps the preference unused.
       let collapsePreference = false;
       const collapsed = () => collapsePreference && mode !== 'hidden';
-      let scheduled = false;
       let stopped = false;
       let route = location.pathname;
       // Clicks per tab or group since the last route or settings change.
       let attempts = new Map<string, number>();
+      const { schedule } = frameScheduler(render);
       // Only a hidden or wrapped bar needs to watch the page; Unqork's default costs nothing.
       const observer = new MutationObserver(schedule);
 
@@ -97,7 +98,6 @@ export default defineContentScript({
       // Keeps only the current tab, through Unqork's own close buttons, so its store and saved
       // workspace tabs shrink the same way they would for a user closing them.
       function render() {
-        scheduled = false;
         if (route !== location.pathname) {
           route = location.pathname;
           stopped = false;
@@ -123,12 +123,6 @@ export default defineContentScript({
         }
       }
 
-      function schedule() {
-        if (!scheduled) {
-          scheduled = true;
-          requestAnimationFrame(render);
-        }
-      }
 
       // Takes the stored values that changed; a key left out keeps its current value.
       function apply(values: Record<string, unknown>) {
@@ -148,13 +142,8 @@ export default defineContentScript({
         }
       }
 
-      const keys = [Panels.tabsKey, Panels.tabsCollapsedKey];
-      api.storage.onChanged.addListener((changes, area) => {
-        const changed = keys.filter(key => changes[key]);
-        if (area === 'local' && changed.length) apply(Object.fromEntries(changed.map(key => [key, changes[key].newValue])));
-      });
       // Without storage, the defaults apply.
-      api.storage.local.get(keys).then(apply).catch(() => apply({}));
+      watchLocal([Panels.tabsKey, Panels.tabsCollapsedKey], apply);
     });
   }
 });

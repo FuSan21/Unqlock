@@ -21,6 +21,7 @@ for (const [target, manifest] of [['chrome', chromeManifest], ['firefox', firefo
   const builder = script('content.js');
   assert.deepEqual(builder.matches, ['https://*.unqork.io/*']);
   assert(builder.js.includes('content-scripts/builder-panels.js') && builder.js.includes('content-scripts/canvas-toolbar.js'));
+  assert(builder.css.includes('content-scripts/canvas-toolbar.css'), 'The sort switches bring their own stylesheet');
   const tabs = script('navigation-tabs.js');
   assert.deepEqual(tabs.matches, ['https://*.unqork.io/*']);
   assert(tabs.css.includes('content-scripts/navigation-tabs.css'));

@@ -35,7 +35,7 @@ async function run(firefoxMode) {
       await page.getByRole('button', { name:'Undo', exact:true }).waitFor();
       if (firefoxMode) {
         await page.addScriptTag({ content:source('canvas-toolbar-bridge.js') });
-        await page.addStyleTag({ content:source('content.css') });
+        await page.addStyleTag({ content:source('canvas-toolbar.css') });
         await page.addScriptTag({ content:source('canvas-toolbar.js') });
       }
       await frames();

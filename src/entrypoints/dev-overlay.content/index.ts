@@ -4,6 +4,8 @@ import { detachedName, inIde, isDetached, whenIde } from '@/lib/builder-route';
 import * as DevOverlay from '@/lib/dev-overlay';
 import type { Message } from '@/lib/messages';
 import * as SseDebugger from '@/lib/sse-debugger';
+import { frameScheduler } from '@/lib/frame';
+import { watchLocal } from '@/lib/watch-storage';
 import './style.css';
 
 const overlaySelector = '[data-testid="dev-overlay"]';
@@ -69,17 +71,17 @@ export default defineContentScript({
     // Turning the option on also injects this into open builder tabs, which may already have it.
     if (root.hasAttribute(stateAttribute)) return;
     root.setAttribute(stateAttribute, isDetached() ? 'detached' : 'attached');
-    let scheduled = false;
-    const observer = new MutationObserver(schedule);
     let render = () => {};
+    const { schedule } = frameScheduler(() => render());
+    // Only changes in or around Unqork's drawer need a pass; the rest of the builder, such as streaming Build
+    // Agent replies, changes on nearly every frame.
+    const holdsOverlay = (node: Node) => node.nodeType === 1 && ((node as Element).matches(overlaySelector) || (node as Element).querySelector(overlaySelector) !== null);
+    const observer = new MutationObserver(records => {
+      if (records.some(record => (record.target.nodeType === 1 ? record.target as Element : record.target.parentElement)?.closest(overlaySelector)
+        || [...record.addedNodes].some(holdsOverlay))) schedule();
+    });
     // Set once the script stands down. A watch that starts later, when the route first reaches /ide/, does nothing.
     let stopped = false;
-    function schedule() {
-      if (!scheduled) {
-        scheduled = true;
-        requestAnimationFrame(() => { scheduled = false; render(); });
-      }
-    }
     const watch = (step: () => void, options: MutationObserverInit) => {
       if (stopped) return;
       render = step;
@@ -114,24 +116,17 @@ export default defineContentScript({
       stopped = true;
       observer.disconnect();
       render = () => {};
-      api.storage.onChanged.removeListener?.(changed);
+      stopWatching();
       window.removeEventListener('click', serverSideExecute, true);
       root.removeAttribute(stateAttribute);
     }
-    function changed(changes: Record<string, { newValue?: unknown }>, area: string) {
-      if (area !== 'local' || (!changes[DevOverlay.key] && !changes[SseDebugger.key] && !changes[SseDebugger.replaceKey])) return;
-      if (changes[DevOverlay.key]) options.detach = DevOverlay.enabled(changes[DevOverlay.key].newValue);
-      if (changes[SseDebugger.key]) options.debugger = SseDebugger.enabled(changes[SseDebugger.key].newValue);
-      if (changes[SseDebugger.replaceKey]) options.replace = SseDebugger.enabled(changes[SseDebugger.replaceKey].newValue);
+    // Without storage the script waits, as it was injected or registered for an option that is on.
+    const stopWatching = watchLocal([DevOverlay.key, SseDebugger.key, SseDebugger.replaceKey], values => {
+      if (DevOverlay.key in values) options.detach = DevOverlay.enabled(values[DevOverlay.key]);
+      if (SseDebugger.key in values) options.debugger = SseDebugger.enabled(values[SseDebugger.key]);
+      if (SseDebugger.replaceKey in values) options.replace = SseDebugger.enabled(values[SseDebugger.replaceKey]);
       apply();
-    }
-    api.storage.onChanged.addListener(changed);
-    api.storage.local.get([DevOverlay.key, SseDebugger.key, SseDebugger.replaceKey]).then(stored => {
-      options.detach = DevOverlay.enabled(stored[DevOverlay.key]);
-      options.debugger = SseDebugger.enabled(stored[SseDebugger.key]);
-      options.replace = SseDebugger.enabled(stored[SseDebugger.replaceKey]);
-      apply();
-    }).catch(() => {});
+    }, () => {});
 
     // The popup is a full copy of the builder showing only the overlay, so dropdowns, editors and
     // Execute keep working as Unqork wrote them. Its debugger state is its own.

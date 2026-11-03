@@ -1,6 +1,9 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
-import { whenIde } from '@/lib/builder-route';
-import { api, type Stored } from '@/lib/api';
+import { inBuilder, whenIde } from '@/lib/builder-route';
+import { type Stored } from '@/lib/api';
+import { frameScheduler } from '@/lib/frame';
+import { watchLocal } from '@/lib/watch-storage';
+import './style.css';
 import * as Toolbar from '@/lib/toolbar-settings';
 
 export default defineContentScript({
@@ -12,12 +15,11 @@ export default defineContentScript({
   main() {
     whenIde(() => {
       const toolbarSelector = '[role="toolbar"][aria-label="Editing toolbar"]';
-      const builder = () => location.pathname.startsWith("/ide/builder/");
       let settings = Toolbar.settings();
-      let scheduled = false;
       let clicks: number[] = [];
       let stopped = false;
       let route = location.pathname;
+      const { schedule } = frameScheduler(render);
       // Only an always-visible search needs to watch the page; Unqork's default costs nothing.
       const observer = new MutationObserver(schedule);
 
@@ -28,7 +30,7 @@ export default defineContentScript({
         input.dispatchEvent(new Event("input", { bubbles:true }));
       }
       function alwaysSearch(target: Element) {
-        return settings.search === "always" && !stopped && builder() && target.closest?.(toolbarSelector);
+        return settings.search === "always" && !stopped && inBuilder() && target.closest?.(toolbarSelector);
       }
       // Capture on window runs before React's listeners on its root, so Unqork never sees the close.
       window.addEventListener("click", event => {
@@ -74,25 +76,18 @@ export default defineContentScript({
       }
 
       function render() {
-        scheduled = false;
         if (route !== location.pathname) {
           route = location.pathname;
           stopped = false;
           clicks = [];
         }
-        if (!builder() || settings.search !== "always" || stopped) return;
+        if (!inBuilder() || settings.search !== "always" || stopped) return;
         for (const toolbar of document.querySelectorAll(toolbarSelector)) {
           const button = toolbar.querySelector<HTMLButtonElement>('button[aria-label="Search configuration"]');
           if (button) openSearch(toolbar, button);
         }
       }
 
-      function schedule() {
-        if (!scheduled) {
-          scheduled = true;
-          requestAnimationFrame(render);
-        }
-      }
 
       function apply(value?: Stored) {
         settings = Toolbar.settings(value);
@@ -105,10 +100,7 @@ export default defineContentScript({
         schedule();
       }
 
-      api.storage.onChanged.addListener((changes, area) => {
-        if (area === "local" && changes.canvasToolbar) apply(changes.canvasToolbar.newValue);
-      });
-      api.storage.local.get("canvasToolbar").then(result => apply(result.canvasToolbar)).catch(() => apply());
+      watchLocal(["canvasToolbar"], values => apply(values.canvasToolbar));
     });
   }
 });

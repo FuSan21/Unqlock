@@ -228,7 +228,10 @@ const middle = { enabled:true, icon:'left', name:'left', type:'middle', chip:'mi
   dom.window.document.body.append(extras);
   await settle();
   assert.deepEqual([...extras.children].map(element => element.dataset.uqFamily || null), ['grids', null, 'custom', 'custom', 'custom', 'custom']);
-  assert.equal(query('[data-component-key="customComponent"] svg').dataset.uqSymbol, 'custom');
+  // The canvas row is recognized as custom, and its icon gets no shape, which only some types have.
+  const customIcon = query('[data-component-key="customComponent"] svg');
+  assert.equal(customIcon.closest('[data-uq-family]')?.dataset.uqFamily, 'custom');
+  assert(customIcon.hasAttribute('data-uq-icon') && !customIcon.hasAttribute('data-uq-symbol'));
   extras.remove();
   await settle();
   // With full backgrounds the dependency chip takes the row's colors instead of Unqork's brand tint.

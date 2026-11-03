@@ -2,6 +2,7 @@ import { defineContentScript } from 'wxt/utils/define-content-script';
 import { api, type Stored } from '@/lib/api';
 import * as Environment from '@/lib/environment';
 import { send, type Message } from '@/lib/messages';
+import { watchLocal } from '@/lib/watch-storage';
 
 export default defineContentScript({
   matches: ['https://*.unqork.io/*'],
@@ -218,17 +219,11 @@ export default defineContentScript({
     host.addEventListener('keydown', event => {
       if (event.key === 'Escape' && frame) { event.preventDefault(); closeMenu(); }
     });
-    api.storage.onChanged.addListener((changes, area) => {
-      if (area !== 'local') return;
-      if (changes.environment) environmentValue = changes.environment.newValue;
-      if (changes.floating) floatingValue = changes.floating.newValue;
-      if (changes.environment || changes.floating) render();
-    });
-    api.storage.local.get(['environment', 'floating']).then(result => {
-      environmentValue = result.environment;
-      floatingValue = result.floating;
+    watchLocal(['environment', 'floating'], values => {
+      if ('environment' in values) environmentValue = values.environment;
+      if ('floating' in values) floatingValue = values.floating;
       render();
-    }).catch(() => {});
+    }, () => {});
     api.runtime.sendMessage({ type:'environment.observe' } satisfies Message<'environment.observe'>).catch(() => {});
   }
 });

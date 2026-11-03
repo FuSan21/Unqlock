@@ -1,5 +1,5 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
-import { whenIde } from '@/lib/builder-route';
+import { moduleRoute, whenIde } from '@/lib/builder-route';
 import { api, type Stored } from '@/lib/api';
 import * as model from '@/lib/panel-settings';
 import './style.css';
@@ -42,7 +42,6 @@ export default defineContentScript({
       const groups = new Set<Element>();
       const groupObserver = new ResizeObserver(schedule);
       let tooltip: HTMLElement | null = null;
-      const moduleRoute = () => location.pathname.match(/^\/ide\/builder\/workspaces\/[^/]+\/modules\/[^/]+/)?.[0] || '';
       function find(id: PanelId): Item | null {
         const meta = model.panels[id];
         // A collapsed panel may keep its content mounted but hidden, including its own toggle; only rendered toggles count.
@@ -141,20 +140,25 @@ export default defineContentScript({
       document.addEventListener('focusout', hideTooltip);
       document.addEventListener('keydown', event => { if (event.key === 'Escape') hideTooltip(); });
       const frame = () => new Promise<number>(resolve => requestAnimationFrame(resolve));
+      // Asks the MAIN-world bridge (panel-resize-bridge.content.ts) and resolves with its answer, or false when it
+      // does not answer in time, as when the builder's panels changed shape.
+      function askBridge(type: string, replyType: string, payload: Record<string, unknown>) {
+        const request = crypto.randomUUID();
+        return new Promise<boolean>(resolve => {
+          const finish = (ok: boolean) => { clearTimeout(timer); window.removeEventListener('message', listener); resolve(ok); };
+          const listener = (event: MessageEvent) => {
+            if (event.source === window && event.origin === location.origin && event.data?.type === replyType && event.data.request === request) finish(event.data.ok === true);
+          };
+          const timer = setTimeout(() => finish(false), 800);
+          window.addEventListener('message', listener);
+          window.postMessage({ type, request, ...payload }, location.origin);
+        });
+      }
       async function syncNativeLocks() {
         const items = moduleRoute() ? model.panelIds.filter(id => config[id].visibility === 'always').map(find).filter(item => item !== null) : [];
         const signature = moduleRoute() + ':' + items.map(item => item.panel.id).join(',');
         if (signature === nativeLockSignature && items.every(item => !item.close && item.panel.getAttribute('data-unqlock-native-locked') === 'true')) return;
-        const request = crypto.randomUUID();
-        const ok = await new Promise<boolean>(resolve => {
-          const finish = (ok: boolean) => { clearTimeout(timer); window.removeEventListener('message', listener); resolve(ok); };
-          const listener = (event: MessageEvent) => {
-            if (event.source === window && event.origin === location.origin && event.data?.type === 'unqlock.panel.locked' && event.data.request === request) finish(event.data.ok === true);
-          };
-          const timer = setTimeout(() => finish(false), 800);
-          window.addEventListener('message', listener);
-          window.postMessage({type:'unqlock.panel.locks', request, panels:items.map(item => item.panel.id)}, location.origin);
-        });
+        const ok = await askBridge('unqlock.panel.locks', 'unqlock.panel.locked', { panels:items.map(item => item.panel.id) });
         if (ok) nativeLockSignature = signature;
       }
       // Keep native layout state, ARIA values and future drags in agreement.
@@ -167,16 +171,7 @@ export default defineContentScript({
           // Native constraints decide the final size; reserve the canvas at each nesting level.
           const bounded = Math.max(120, Math.min(target, item.group.getBoundingClientRect().width - 320));
           if (token !== generation || userResize || !item.panel.isConnected) return;
-          const request = crypto.randomUUID();
-          const ok = await new Promise<boolean>(resolve => {
-            const finish = (ok: boolean) => { clearTimeout(timer); window.removeEventListener('message', listener); resolve(ok); };
-            const listener = (event: MessageEvent) => {
-              if (event.source === window && event.origin === location.origin && event.data?.type === 'unqlock.panel.resized' && event.data.request === request) finish(event.data.ok === true);
-            };
-            const timer = setTimeout(() => finish(false), 800);
-            window.addEventListener('message', listener);
-            window.postMessage({type:'unqlock.panel.resize', request, panelId:item.panel.id, width:bounded}, location.origin);
-          });
+          const ok = await askBridge('unqlock.panel.resize', 'unqlock.panel.resized', { panelId:item.panel.id, width:bounded });
           resizeErrors[item.id] = ok ? '' : 'Default sizing is unavailable in this builder version. Native dragging still works.';
           await frame();
           await frame();

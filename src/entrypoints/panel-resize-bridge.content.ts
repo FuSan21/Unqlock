@@ -1,5 +1,6 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
-import { whenIde } from '@/lib/builder-route';
+import { moduleRoute, whenIde } from '@/lib/builder-route';
+import { ancestors } from '@/lib/react-fiber';
 
 // React's fiber tree and the panel library's imperative handle are not typed public APIs.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -16,11 +17,8 @@ export default defineContentScript({
     whenIde(() => {
       // Only bounded panel resizing and collapse policy cross this MAIN-world bridge.
       const locked = new Map<string, Lock>();
-      const moduleRoute = () => location.pathname.match(/^\/ide\/builder\/workspaces\/[^/]+\/modules\/[^/]+/)?.[0] || '';
       function panelRef(panel: HTMLElement): Internal {
-        const key = Object.keys(panel).find(key => key.startsWith('__reactFiber$'));
-        let fiber = key && (panel as Internal)[key];
-        for (let depth = 0; fiber && depth < 12; depth++, fiber = fiber.return) {
+        for (const fiber of ancestors(panel, 12)) {
           const props = fiber.memoizedProps;
           if (props?.['data-slot'] === 'resizable-panel-group') break;
           const ref = props?.panelRef?.current;

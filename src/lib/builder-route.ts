@@ -3,6 +3,11 @@
 // scripts are therefore declared for every unqork.io page and start here the first time the
 // route reaches /ide/; until then they only compare the path.
 export const inIde = () => location.pathname.startsWith('/ide/');
+// The builder itself, where canvas and toolbar features apply.
+export const inBuilder = () => location.pathname.startsWith('/ide/builder/');
+// The module open in the builder, as its path, or '' elsewhere. The panel content script and its MAIN-world
+// bridge both key panel state by it, so they read it from here.
+export const moduleRoute = () => location.pathname.match(/^\/ide\/builder\/workspaces\/[^/]+\/modules\/[^/]+/)?.[0] || '';
 
 // A detached dev overlay is a second copy of the builder in a popup opened under this window name,
 // which survives its reloads. Only the overlay is shown there, so the builder scripts stand down.

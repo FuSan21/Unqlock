@@ -1,9 +1,7 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
-import { whenIde } from '@/lib/builder-route';
-
-// React fibers are not a typed public API.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Fiber = any;
+import { inBuilder, whenIde } from '@/lib/builder-route';
+import { frameScheduler } from '@/lib/frame';
+import { currentFiber, fiberOf, type Fiber } from '@/lib/react-fiber';
 interface SortOption { value: string | number; label: string }
 interface SortProps { options: SortOption[]; selectedValue: unknown; onSelect: (value: SortOption['value']) => void }
 
@@ -22,59 +20,14 @@ export default defineContentScript({
       const funnel = 'M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z';
       // Each group remembers the trigger and options it was built for.
       const built = new WeakMap<Element, { signature: string; trigger: Element }>();
-      let scheduled = false;
+      const { schedule } = frameScheduler(sync);
 
-      const reactKey = (node: object, prefix: string) => Object.keys(node).find(key => key.startsWith(prefix));
-      const indexOf = (parent: Fiber, a: Fiber, b: Fiber) => {
-        for (let child = parent.child; child; child = child.sibling) {
-          if (child === a) return 'a';
-          if (child === b) return 'b';
-        }
-        return '';
-      };
-      // React keeps two versions of each fiber, and a memoized subtree keeps return pointers to
-      // stale ancestors. This mirrors React's findCurrentFiberUsingSlowPath: pair the two
-      // versions' ancestors up to the root, which knows its current version.
-      function currentFiber(fiber: Fiber): Fiber {
-        const alternate = fiber.alternate;
-        if (!alternate) return fiber;
-        let a = fiber;
-        let b = alternate;
-        for (let depth = 0; depth < 2000; depth++) {
-          const parentA = a.return;
-          if (!parentA) break;
-          const parentB = parentA.alternate;
-          if (!parentB) {
-            if (!parentA.return) break;
-            a = b = parentA.return;
-            continue;
-          }
-          if (parentA.child === parentB.child) {
-            const found = indexOf(parentA, a, b);
-            return found === 'a' ? fiber : found === 'b' ? alternate : null;
-          }
-          if (a.return !== b.return) {
-            a = parentA;
-            b = parentB;
-            continue;
-          }
-          const inA = indexOf(parentA, a, b);
-          const inB = inA ? '' : indexOf(parentB, a, b);
-          if (inA === 'a' || inB === 'b') { a = parentA; b = parentB; }
-          else if (inA === 'b' || inB === 'a') { a = parentB; b = parentA; }
-          else return null;
-        }
-        // a is now the root fiber, whose container records the current version.
-        if (a.tag !== 3 || !a.stateNode) return null;
-        return a.stateNode.current === a ? fiber : alternate;
-      }
       const validOption = (option: Fiber) => option && typeof option === 'object' && ['string', 'number'].includes(typeof option.value) && typeof option.label === 'string' && option.label.length <= 60;
       const valid = (props: Fiber): props is SortProps => props && Array.isArray(props.options) && props.options.length >= 2 && props.options.length <= 8
         && props.options.every(validOption) && typeof props.onSelect === 'function' && Object.hasOwn(props, 'selectedValue');
 
       function sortProps(trigger: Element): SortProps | null {
-        const key = reactKey(trigger, '__reactFiber$');
-        let fiber = key && (trigger as Fiber)[key];
+        let fiber = fiberOf(trigger);
         // Either version of an ancestor identifies the dropdown; only the current one has its latest props.
         for (let depth = 0; fiber && depth < 40; depth++, fiber = fiber.return) {
           if (valid(fiber.memoizedProps) || valid(fiber.alternate?.memoizedProps)) {
@@ -147,8 +100,7 @@ export default defineContentScript({
       }
 
       function sync() {
-        scheduled = false;
-        const enabled = document.documentElement.getAttribute('data-unqlock-sort-mode') === 'always' && location.pathname.startsWith('/ide/builder/');
+        const enabled = document.documentElement.getAttribute('data-unqlock-sort-mode') === 'always' && inBuilder();
         for (const trigger of document.querySelectorAll(triggerSelector)) {
           const existing = trigger.nextElementSibling?.hasAttribute(groupAttribute) ? trigger.nextElementSibling : null;
           let props: SortProps | null = null;
@@ -169,15 +121,16 @@ export default defineContentScript({
         }
       }
 
-      function schedule() {
-        if (!scheduled) {
-          scheduled = true;
-          requestAnimationFrame(sync);
-        }
-      }
-
-      // Only the mode attribute is watched until the switches are on; Unqork's default costs nothing.
-      const pageObserver = new MutationObserver(schedule);
+      // Only the mode attribute is watched until the switches are on; Unqork's default costs nothing. Once they are,
+      // only changes in or around the editing toolbar need a pass, since the rest of the builder changes on nearly
+      // every frame; a pass walks the trigger's fibers. Values React commits without touching the DOM are caught
+      // by the timers select sets.
+      const toolbarSelector = '[role="toolbar"][aria-label="Editing toolbar"]';
+      const holdsToolbar = (node: Node) => node.nodeType === 1 && ((node as Element).matches(toolbarSelector) || (node as Element).querySelector(toolbarSelector) !== null);
+      const pageObserver = new MutationObserver(records => {
+        if (records.some(record => (record.target.nodeType === 1 ? record.target as Element : record.target.parentElement)?.closest(toolbarSelector)
+          || [...record.addedNodes].some(holdsToolbar) || [...record.removedNodes].some(holdsToolbar))) schedule();
+      });
       function watch() {
         pageObserver.disconnect();
         if (document.documentElement.getAttribute('data-unqlock-sort-mode') === 'always') pageObserver.observe(document.documentElement, { childList:true, subtree:true });
