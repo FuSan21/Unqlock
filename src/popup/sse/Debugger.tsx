@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { api } from '@/lib/api';
 import * as SseDebugger from '@/lib/sse-debugger';
 import { clearRuns, historyKey, keptDays, keptRuns, readRuns, writeRuns, type StoredRun } from '@/lib/sse-history';
@@ -141,6 +141,14 @@ export function Debugger() {
   };
 
   useEffect(() => { document.title = (context ? context.title + ' · ' : '') + 'Unqlock debugger'; }, [context]);
+  // The input is as tall as its text, plus a horizontal scrollbar when a long line needs one, so the fixed
+  // closing lines sit right under its last line rather than at the bottom of the box.
+  useLayoutEffect(() => {
+    const field = inputField.current;
+    if (!field) return;
+    field.style.height = '0';
+    field.style.height = field.scrollHeight + (field.offsetHeight - field.clientHeight) + 'px';
+  }, [input, wrapper, rail, railOpen]);
   useEffect(() => { localStorage.setItem(railKey, String(rail)); }, [rail]);
   useEffect(() => { localStorage.setItem(valuesKey, String(values)); }, [values]);
   useEffect(() => { localStorage.setItem(setupKey, String(hideSetup)); }, [hideSetup]);
@@ -357,7 +365,7 @@ export function Debugger() {
           <div className="input-shape" role="group" aria-label="Input goes in">
             {inputShapes.map(each => <button key={each.id} type="button" aria-pressed={shape === each.id} onClick={() => setShape(each.id)}>{each.label}</button>)}
           </div>
-          <div className="code-wrap" data-invalid={!parsed.ok || undefined}>
+          <div className="code-wrap" data-invalid={!parsed.ok || undefined} onClick={event => { if (event.target === event.currentTarget) inputField.current?.focus(); }}>
             <code className="code-fixed" aria-hidden="true" title="Always sent around the input">{wrapper.before}</code>
             <textarea ref={inputField} id="sse-input" className="code-input" wrap="off" spellCheck={false} aria-invalid={!parsed.ok} aria-describedby="sse-input-meta"
               style={{ paddingLeft:`calc(10px + ${wrapper.indent}ch)` }}
