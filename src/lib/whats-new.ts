@@ -18,6 +18,10 @@ export interface Release {
 }
 
 export const releases: Release[] = [
+  { version:'1.7.3', items:[
+    { title:'Input sent as shown', text:"the SSE debugger now sends the input as the request's *data* exactly as the fixed lines around **Input** show it, for **data**, **_request**, **query** and **body**. 1.7.2 put every shape inside an extra *data* object, so the module did not receive the input.", page:'quick-page' },
+    { title:'Large runs stay in Runs', text:"with **Keep past runs** on, a run whose steps and response are too large for the browser's storage is no longer left out. It stays in **Runs** with its input, options and result, and **Rerun** runs it again to show the rest.", page:'quick-page' }
+  ] },
   { version:'1.7.2', date:'2026-11-03', items:[
     { title:'Input shapes in the SSE debugger', text:"the input now reaches the module: it is sent as the submission's values, which Unqork reads from *data.data*, where before the module ran without it. A switch above **Input** places it as **data**, or for an API module under **_request**, its **query** or its **body**, and shows that wrapper as fixed lines around what you type, which changing the switch keeps. The window remembers the choice, and **Rerun** restores it.", page:'quick-page' },
     { title:'Keep past runs', text:"a new option under Unqlock SSE debugger in Debug tools, off by default, saves the debugger's last 10 runs in this browser for 30 days, so they are still there when you open the window again. **Clear** removes them, and turning the option off deletes them.", page:'quick-page' }
