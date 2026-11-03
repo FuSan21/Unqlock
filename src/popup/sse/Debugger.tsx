@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { api } from '@/lib/api';
+import * as SseDebugger from '@/lib/sse-debugger';
+import { clearRuns, historyKey, keptDays, keptRuns, readRuns, writeRuns, type StoredRun } from '@/lib/sse-history';
 import { inputShapes, outcome as outcomeOf, parseInput, type IdentityMode, type InputShape, type Outcome, type SseContext, type SseRequest, type SseResponse } from '@/lib/sse-run';
 import { buildTrace, duration, slowAfter, type Trace, type TraceEvent } from '@/lib/sse-trace';
 import { params } from '../runtime';
@@ -8,7 +10,7 @@ import { readContext, run as runModule, type TabEnvironment } from './tab';
 import { Changes, Empty, Output, Raw } from './views';
 
 export interface Run {
-  id: number;
+  id: string;
   at: Date;
   title: string;
   moduleId: string;
@@ -30,11 +32,20 @@ const setupKey = 'unqlock.sse.hideSetup';
 const shapeKey = 'unqlock.sse.inputShape';
 const savedShape = (): InputShape => inputShapes.find(shape => shape.id === localStorage.getItem(shapeKey))?.id ?? 'data';
 const railDefault = 340;
-// Runs are kept in this window only, never in extension storage: they hold submission data.
-const kept = 10;
-let runCount = 0;
+
+// With Keep past runs on, past runs are kept in this page's localStorage (src/lib/sse-history.ts), never in
+// extension storage: they hold submission data. The outcome and trace are worked out again from the stored response.
+function restore(stored: StoredRun): Run {
+  const outcome = outcomeOf(stored.response);
+  return { id:stored.id, at:new Date(stored.at), title:stored.title, moduleId:stored.moduleId, request:stored.request, response:stored.response, outcome, trace:buildTrace(stored.response.body?.eventLog, outcome.problem) };
+}
+const store = (run: Run): StoredRun => ({ id:run.id, at:run.at.getTime(), title:run.title, moduleId:run.moduleId, request:run.request, response:run.response });
+// The stored list as runs, reusing those already worked out.
+const synced = (list: Run[], stored: StoredRun[]) => stored.map(each => list.find(run => run.id === each.id) ?? restore(each));
 
 const time = (date: Date) => date.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false });
+// A run from an earlier day also names its date.
+const stamp = (date: Date) => date.toDateString() === new Date().toDateString() ? time(date) : date.toLocaleDateString([], { month:'short', day:'numeric' }) + ' ' + time(date);
 const typing = (target: EventTarget | null) => target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 // The environment's roles, keeping a chosen role the list lacks at the top, as Unqork's menu does.
 const roleOptions = (roles: string[], current: string) => current && !roles.includes(current) ? [current, ...roles] : roles;
@@ -54,7 +65,9 @@ export function Debugger() {
   const [role, setRole] = useState('');
   const identityChosen = useRef(false);
   const [runs, setRuns] = useState<Run[]>([]);
-  const [current, setCurrent] = useState<number>();
+  const keep = useRef(false);
+  const [keeping, setKeeping] = useState(false);
+  const [current, setCurrent] = useState<string>();
   const [running, setRunning] = useState(false);
   const [confirm, setConfirm] = useState<{ text: ReactNode; action: string }>();
   const [notice, setNotice] = useState('');
@@ -132,6 +145,27 @@ export function Debugger() {
   useEffect(() => { localStorage.setItem(valuesKey, String(values)); }, [values]);
   useEffect(() => { localStorage.setItem(setupKey, String(hideSetup)); }, [hideSetup]);
   useEffect(() => { localStorage.setItem(shapeKey, shape); }, [shape]);
+  // Keep past runs, under the debugger in Debug tools, decides whether runs outlast the window. While it is on,
+  // opening a window or turning it on drops runs past 30 days and saves the ones this window holds, and the
+  // list follows runs and Clear in other debugger windows. Turning it off deletes them, as the popup also does.
+  useEffect(() => {
+    const apply = (on: boolean) => {
+      keep.current = on;
+      setKeeping(on);
+      if (!on) { clearRuns(localStorage); return; }
+      setRuns(list => {
+        const stored = writeRuns(localStorage, [...list.map(store), ...readRuns(localStorage)]);
+        // A run too large to store stays in this window.
+        return [...synced(list, stored), ...list.filter(run => !stored.some(each => each.id === run.id))].sort((a, b) => b.at.getTime() - a.at.getTime()).slice(0, keptRuns);
+      });
+    };
+    api.storage?.local?.get(SseDebugger.keepRunsKey).then(stored => apply(SseDebugger.enabled(stored?.[SseDebugger.keepRunsKey])), () => apply(false));
+    const option = (changes: Record<string, { newValue?: unknown }>, area: string) => { if (area === 'local' && changes[SseDebugger.keepRunsKey]) apply(SseDebugger.enabled(changes[SseDebugger.keepRunsKey].newValue)); };
+    const changed = (event: StorageEvent) => { if (keep.current && (event.key === historyKey || event.key === null)) setRuns(list => synced(list, readRuns(localStorage))); };
+    api.storage?.onChanged?.addListener(option);
+    window.addEventListener('storage', changed);
+    return () => { api.storage?.onChanged?.removeListener(option); window.removeEventListener('storage', changed); };
+  }, []);
 
   // A confirmation approves only what it described: a new module, environment or save choice withdraws it.
   // A reload that finds the same module and environment leaves it be.
@@ -186,8 +220,13 @@ export function Debugger() {
     const response: SseResponse = result.ok ? result.response : { ok:false, ms:0, headers:{}, body:null, error:result.error };
     const outcome = outcomeOf(response);
     const trace = buildTrace(response.body?.eventLog, outcome.problem);
-    const entry: Run = { id:++runCount, at:new Date(), title:context.title, moduleId:context.moduleId, request, response, outcome, trace };
-    setRuns(list => [entry, ...list].slice(0, kept));
+    const entry: Run = { id:crypto.randomUUID(), at:new Date(), title:context.title, moduleId:context.moduleId, request, response, outcome, trace };
+    if (keep.current) {
+      // Read again before writing, so a run another window saved meanwhile is kept.
+      const stored = writeRuns(localStorage, [store(entry), ...readRuns(localStorage)]);
+      if (!stored.some(each => each.id === entry.id)) setNotice('This run is too large to keep after the window closes, so it stays only while the window is open.');
+      setRuns(list => [entry, ...synced(list, stored).filter(run => run.id !== entry.id)].slice(0, keptRuns));
+    } else setRuns(list => [entry, ...list].slice(0, keptRuns));
     setCurrent(entry.id);
     setSelected(trace.events.find(event => event.kind === 'fail')?.id);
     setRunning(false);
@@ -339,24 +378,24 @@ export function Debugger() {
           </fieldset>
         </section>
         <section className="runs" aria-labelledby="runs-title">
-          <div className="rail-head"><h2 id="runs-title">Runs</h2>{runs.length > 0 && <button type="button" className="link" onClick={() => { setRuns([]); setCurrent(undefined); setSelected(undefined); }}>Clear</button>}</div>
+          <div className="rail-head"><h2 id="runs-title">Runs</h2>{runs.length > 0 && <button type="button" className="link" title={keeping ? 'Remove every saved run' : undefined} onClick={() => { clearRuns(localStorage); setRuns([]); setCurrent(undefined); setSelected(undefined); }}>Clear</button>}</div>
           {runs.length ? (
             <ol>
               {runs.map(entry => (
                 <li key={entry.id}>
                   <button type="button" className="run-entry" aria-current={entry.id === current} onClick={() => { setCurrent(entry.id); setSelected(entry.trace.events.find(event => event.kind === 'fail')?.id); }}>
                     <span className="dot" aria-hidden="true" />
-                    <span className="mono muted">{time(entry.at)}</span>
+                    <span className="mono muted">{stamp(entry.at)}</span>
                     <span className="mono" data-state={entry.outcome.ok ? 'ok' : 'fail'}>{entry.response.status ?? '—'}</span>
                     <span className="mono muted">{duration(entry.response.ms)}</span>
                     {entry.moduleId !== context?.moduleId && <span className="other">{entry.title}</span>}
                   </button>
                   <button type="button" className="link rerun" disabled={!context || running || Boolean(unavailable) || Boolean(blockReason)}
-                    aria-label={`Run again with the input from ${time(entry.at)}`} title="Run again with this run’s input and options" onClick={() => runAgain(entry)}>Rerun</button>
+                    aria-label={`Run again with the input from ${stamp(entry.at)}`} title="Run again with this run’s input and options" onClick={() => runAgain(entry)}>Rerun</button>
                 </li>
               ))}
             </ol>
-          ) : <p className="muted">Runs from this window appear here. They are kept only while it is open.</p>}
+          ) : <p className="muted">{keeping ? `Your last ${keptRuns} runs appear here, kept for ${keptDays} days or until you clear them.` : 'Runs from this window appear here. They are kept only while it is open.'}</p>}
         </section>
       </aside>
 

@@ -1,5 +1,6 @@
 import { cleanup, render, within } from '@testing-library/react';
 import { beforeEach, expect, test, vi } from 'vitest';
+import { historyKey, readRuns, writeRuns } from '@/lib/sse-history';
 import type { SseRequest } from '@/lib/sse-run';
 import { apiNames, byId, click, press, query, settle, type ApiName, type as typeInto } from './harness';
 import { entry, log } from './sse-fixture';
@@ -27,7 +28,7 @@ const failure = () => ({
   body:{ executionError:{ component:'callService', message:'Request failed with status code 500', code:500 }, eventLog:log.slice(0, -1) }
 });
 
-interface State { kind?: string; blocked?: boolean; roles?: string[]; responses?: ((request: SseRequest) => object)[] }
+interface State { kind?: string; blocked?: boolean; keepRuns?: boolean; roles?: string[]; responses?: ((request: SseRequest) => object)[] }
 
 // The browser's side, which the window uses directly: its builder tab, the unqork.io grant, saved
 // environments, and the two functions it injects into the tab's MAIN world.
@@ -44,7 +45,7 @@ function setup(apiName: ApiName, state: State = {}) {
     },
     permissions:{ contains:async () => true },
     storage:{
-      local:{ get:async () => ({ environment:{ blockProduction:state.blocked === true } }) },
+      local:{ get:async () => ({ environment:{ blockProduction:state.blocked === true }, sseDebuggerKeepRuns:state.keepRuns === true }) },
       onChanged:{ addListener:(fn: typeof listeners.stored[number]) => listeners.stored.push(fn), removeListener:() => {} }
     },
     scripting:{ executeScript:async (options: typeof injections[number]) => {
@@ -234,6 +235,76 @@ test('the input shape changes the fixed wrapper and keeps the typed input, and R
   click(query('.runs .rerun')); await settle();
   expect(runs[1].request).toMatchObject({ data:{ id:'7' }, shape:'query' });
   expect(within(shapes).getByRole('button', { name:'query' }).getAttribute('aria-pressed')).toBe('true');
+});
+
+test('without Keep past runs, runs stay in the window, and turning it on and off saves and deletes them', async () => {
+  const day = 24 * 60 * 60 * 1000;
+  writeRuns(localStorage, [{ id:'stale', at:Date.now() - day, title:context.title, moduleId:context.moduleId,
+    request:{ url:context.url, moduleId:context.moduleId, data:{}, shape:'data', mode:'designer', role:'Viewer' }, response:failure() }]);
+  const { api, listeners } = setup('chrome');
+  await renderDebugger('chrome', api);
+  // Off, a window shows no saved runs and deletes any left behind.
+  expect(localStorage.getItem(historyKey)).toBeNull();
+  expect(query('.runs').textContent).toMatch(/Runs from this window appear here\. They are kept only while it is open\./);
+  typeInto('sse-input', '{"a":1}');
+  click(runButton()); await settle();
+  expect(document.querySelectorAll('.runs li')).toHaveLength(1);
+  expect(localStorage.getItem(historyKey)).toBeNull();
+
+  // Turned on in Debug tools, the window saves the run it already has.
+  listeners.stored.forEach(fn => fn({ sseDebuggerKeepRuns:{ newValue:true } }, 'local')); await settle();
+  expect(readRuns(localStorage).map(each => each.request.data)).toEqual([{ a:1 }]);
+  expect(document.querySelectorAll('.runs li')).toHaveLength(1);
+  // Turned off, the saved runs are deleted and this window keeps its own.
+  listeners.stored.forEach(fn => fn({ sseDebuggerKeepRuns:{ newValue:false } }, 'local')); await settle();
+  expect(localStorage.getItem(historyKey)).toBeNull();
+  expect(document.querySelectorAll('.runs li')).toHaveLength(1);
+});
+
+test('with Keep past runs, past runs outlast the window, follow other windows, and Clear removes them', async () => {
+  const { api, runs } = setup('chrome', { keepRuns:true });
+  await renderDebugger('chrome', api);
+  typeInto('sse-input', '{"a":1}');
+  click(runButton()); await settle();
+  typeInto('sse-input', '{"b":2}');
+  click(runButton()); await settle();
+  expect(readRuns(localStorage).map(each => each.request.data)).toEqual([{ b:2 }, { a:1 }]);
+
+  // A new window lists them, shows a stored run's result worked out again, and reruns it.
+  cleanup();
+  await renderDebugger('chrome', api);
+  expect(document.querySelectorAll('.runs li')).toHaveLength(2);
+  click(document.querySelectorAll<HTMLButtonElement>('.run-entry')[1]); await settle();
+  expect(query('.outcome .status').textContent).toBe('200');
+  expect(mark('callService', 'wait')).toBeTruthy();
+  click(document.querySelectorAll<HTMLButtonElement>('.runs .rerun')[1]); await settle();
+  expect(runs[2].request).toMatchObject({ data:{ a:1 } });
+  expect(readRuns(localStorage)).toHaveLength(3);
+
+  // A run another window saved, from an earlier day, appears with its date.
+  const stored = readRuns(localStorage);
+  const yesterday = { ...stored[0], id:'other-window', at:Date.now() - 24 * 60 * 60 * 1000 };
+  writeRuns(localStorage, [...stored, yesterday]);
+  window.dispatchEvent(new StorageEvent('storage', { key:historyKey }));
+  await settle();
+  expect(document.querySelectorAll('.runs li')).toHaveLength(4);
+  expect(document.querySelectorAll('.run-entry')[3].textContent).toMatch(/^[A-Z][a-z]{2} \d{1,2} \d{2}:\d{2}:\d{2}/);
+
+  click(within(query('.runs')).getByRole('button', { name:'Clear' })); await settle();
+  expect(localStorage.getItem(historyKey)).toBeNull();
+  expect(query('.runs').textContent).toMatch(/Your last 10 runs appear here, kept for 30 days or until you clear them/);
+});
+
+test('a window drops stored runs older than 30 days when it opens', async () => {
+  const { api } = setup('chrome', { keepRuns:true });
+  const day = 24 * 60 * 60 * 1000;
+  const stored = (id: string, at: number) => ({ id, at, title:context.title, moduleId:context.moduleId,
+    request:{ url:context.url, moduleId:context.moduleId, data:{}, shape:'data' as const, mode:'designer' as const, role:'Viewer' }, response:failure() });
+  localStorage.setItem(historyKey, JSON.stringify([stored('recent', Date.now() - 29 * day), stored('stale', Date.now() - 31 * day)]));
+  await renderDebugger('chrome', api);
+  expect(document.querySelectorAll('.runs li')).toHaveLength(1);
+  expect(readRuns(localStorage).map(each => each.id)).toEqual(['recent']);
+  expect(JSON.parse(localStorage.getItem(historyKey)!).map((each: { id: string }) => each.id)).toEqual(['recent']);
 });
 
 test.each(apiNames)('Rerun puts a past run’s input and options back and runs it again (%s)', async apiName => {

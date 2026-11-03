@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import * as DevOverlay from '@/lib/dev-overlay';
 import * as SseDebugger from '@/lib/sse-debugger';
+import { clearRuns } from '@/lib/sse-history';
 import { Segmented, Select, TextField, Toggle } from '../components/controls';
 import { Tabs } from '../components/Tabs';
 import { Unavailable } from '../components/Unavailable';
@@ -42,19 +43,20 @@ const overlayOptions = {
   }
 } as const;
 
-// Under the Unqlock SSE debugger: hide Unqork's dev overlay and open Unqlock's debugger from Server-Side
-// Execute instead. A plain preference, since the debugger already holds the access it needs.
-function ReplaceOption() {
+// Plain preferences under the Unqlock SSE debugger, which already holds the access they need: hide Unqork's
+// dev overlay and open Unqlock's debugger from Server-Side Execute instead, and keep past runs.
+function DebuggerPreference({ storageKey, name, label, onOff }: { storageKey: string; name: string; label: string; onOff?: () => void }) {
   const [on, setOn] = useState(false);
-  const load = () => { api.storage.local.get(SseDebugger.replaceKey).then(stored => setOn(SseDebugger.enabled(stored[SseDebugger.replaceKey])), () => {}); };
+  const load = () => { api.storage.local.get(storageKey).then(stored => setOn(SseDebugger.enabled(stored[storageKey])), () => {}); };
   usePageOpen('quick-page', load);
   useEffect(load, []);
   const change = (value: boolean) => {
     setOn(value);
-    api.storage.local.set({ [SseDebugger.replaceKey]:value }).catch(() => setOn(!value));
+    if (!value) onOff?.();
+    api.storage.local.set({ [storageKey]:value }).catch(() => setOn(!value));
   };
   return (
-    <Toggle name="sse-debugger-replace" label="Use instead of Unqork’s debugger" checked={on} aria-describedby="dev-overlay-help" onChange={change} />
+    <Toggle name={name} label={label} checked={on} aria-describedby="dev-overlay-help" onChange={change} />
   );
 }
 
@@ -109,7 +111,11 @@ function OverlayOption({ option }: { option: keyof typeof overlayOptions }) {
     <>
       <Toggle name={settings.name} label={settings.label} checked={on} disabled={pending} aria-describedby="dev-overlay-help" onChange={change} />
       <Status id={settings.id + '-status'}>{status}</Status>
-      {option === 'debugger' && on && <ReplaceOption />}
+      {option === 'debugger' && on && <>
+        <DebuggerPreference storageKey={SseDebugger.replaceKey} name="sse-debugger-replace" label="Use instead of Unqork’s debugger" />
+        {/* The debugger window shares this page's origin, so its saved runs are deleted from here. */}
+        <DebuggerPreference storageKey={SseDebugger.keepRunsKey} name="sse-debugger-keep-runs" label="Keep past runs" onOff={() => clearRuns(localStorage)} />
+      </>}
     </>
   );
 }
@@ -120,7 +126,7 @@ function DevOverlayOptions() {
       <SettingsHeading>Unqork dev overlay</SettingsHeading>
       <OverlayOption option="detach" />
       <OverlayOption option="debugger" />
-      <Note id="dev-overlay-help">Detach opens Unqork’s debugger in its own window. Unqlock SSE debugger runs a module and shows each step. Using it instead hides Unqork’s dev overlay, Shortcuts manager included, and Server-Side Execute opens Unqlock’s. Both need access to unqork.io sites.</Note>
+      <Note id="dev-overlay-help">Detach opens Unqork’s debugger in its own window. Unqlock SSE debugger runs a module and shows each step. Using it instead hides Unqork’s dev overlay, Shortcuts manager included, and Server-Side Execute opens Unqlock’s. Keep past runs saves its last 10 runs, submission data included, in this browser for 30 days; turning it off deletes them. Both need access to unqork.io sites.</Note>
     </>
   );
 }

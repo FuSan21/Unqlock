@@ -4,6 +4,9 @@
 export const key = 'sseDebugger';
 // While the debugger is on: hide Unqork's dev overlay and open Unqlock's debugger from Server-Side Execute.
 export const replaceKey = 'sseDebuggerReplace';
+// While the debugger is on: keep its past runs after the window closes (src/lib/sse-history.ts). Off by
+// default, since they hold submission data; turning it off deletes them.
+export const keepRunsKey = 'sseDebuggerKeepRuns';
 export const enabled = (value: unknown) => value === true;
 export const page = '/sse.html';
 // The window opens maximized; this is its size only where a browser refuses that and the screen is unknown.

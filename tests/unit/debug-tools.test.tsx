@@ -277,12 +277,24 @@ test.each(apiNames)('Unqlock SSE debugger turns on and off on its own, beside De
   expect(local.sseDebuggerReplace).toBe(true);
   expect(replace.checked).toBe(true);
   expect(messages.filter(message => message.type === 'devOverlay.set')).toEqual([{ type:'devOverlay.set', on:true, option:'debugger' }]);
+  // Keep past runs is off by default; turning it off deletes the runs the debugger window saved, since that
+  // window shares this page's localStorage.
+  const keep = query<HTMLInputElement>('input[name="sse-debugger-keep-runs"]');
+  expect(keep.checked).toBe(false);
+  expect(byId('dev-overlay-help').textContent).toMatch(/Keep past runs saves its last 10 runs, submission data included, in this browser for 30 days; turning it off deletes them\./);
+  click(keep); await settle();
+  expect([keep.checked, local.sseDebuggerKeepRuns]).toEqual([true, true]);
+  localStorage.setItem('unqlock.sse.runs', '[]');
+  click(keep); await settle();
+  expect([keep.checked, local.sseDebuggerKeepRuns]).toEqual([false, false]);
+  expect(localStorage.getItem('unqlock.sse.runs')).toBeNull();
 
   click(option); await settle();
   expect([detach.checked, option.checked]).toEqual([true, false]);
   expect(stored.sseDebugger).toBe(false);
   // Off hides the choice but keeps it for next time.
   expect(document.querySelector('input[name="sse-debugger-replace"]')).toBeNull();
+  expect(document.querySelector('input[name="sse-debugger-keep-runs"]')).toBeNull();
   expect(local.sseDebuggerReplace).toBe(true);
   // Detach's own messages name no option, as before.
   expect(messages.filter(message => message.type === 'devOverlay.state' && !message.option)).not.toHaveLength(0);
