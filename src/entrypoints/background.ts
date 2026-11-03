@@ -147,6 +147,9 @@ export default defineBackground(() => {
     if (tabId !== undefined) await api.tabs.sendMessage(tabId, { type:'access.changed', kind }, { frameId:0 }).catch(() => {});
   }
   api.tabs.onRemoved.addListener(tabId => api.storage.session.remove(sourceKey(tabId)).catch(() => {}));
+  // A tab that loads another page no longer holds the page its badge reported, so a site it moves on to cannot
+  // frame the menu as if it were that page. The badge reports again when the menu next opens there.
+  api.tabs.onUpdated?.addListener((tabId, change) => { if (change.status === 'loading') api.storage.session.remove(sourceKey(tabId)).catch(() => {}); });
   // One debugger window per builder tab: a second click focuses it. Window IDs by tab live in session storage.
   const debuggerWindows = 'sse.windows';
   // It opens maximized. A browser that refuses a maximized popup gets the screen's work area the page reported.

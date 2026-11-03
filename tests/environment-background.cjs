@@ -82,7 +82,8 @@ const background = fs.readFileSync(path.join(__dirname, '../dist/chrome/backgrou
           if (!pageUrl) throw new Error('Receiving end does not exist.');
           return { ok:true, url:pageUrl };
         },
-        onRemoved:event('removed-tab')
+        onRemoved:event('removed-tab'),
+        onUpdated:event('updated-tab')
       },
       action:{ openPopup:async options => { popupCalls.push(options); } },
       windows:{
@@ -154,6 +155,13 @@ const background = fs.readFileSync(path.join(__dirname, '../dist/chrome/backgrou
     assert.equal(await send({ type:'floating.open' }, { ...page, url:'about:blank' }), undefined);
     assert.equal(await send({ type:'floating.open' }, { url:pageUrl, frameId:0 }), undefined);
     pageUrl = '';
+    assert.equal((await send({type:'floating.target'}, embedded)).tab.url, 'https://first-prod.unqork.io/app');
+    // Loading another page in the tab forgets the reported page, so a site it moves to cannot use it.
+    events['updated-tab'](7, { status:'loading' });
+    await Promise.resolve();
+    assert.equal('floating.source.7' in session, false);
+    assert.equal((await send({type:'floating.target'}, embedded)).ok, false);
+    await send({ type:'floating.open' }, page);
     assert.equal((await send({type:'floating.target'}, embedded)).tab.url, 'https://first-prod.unqork.io/app');
     events['removed-tab'](7);
     assert.equal('floating.source.7' in session, false);
