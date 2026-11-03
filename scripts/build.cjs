@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { zipSync } = require('fflate');
+const { zip } = require('./zip.cjs');
 const project = path.resolve(__dirname, '..');
 const dist = path.join(project, 'dist');
 const artifacts = path.join(project, 'artifacts');
@@ -14,7 +14,7 @@ function refuseLinks(folder) {
 }
 function collect(folder, prefix = '') {
   const entries = {};
-  for (const entry of fs.readdirSync(folder, { withFileTypes:true }).sort((left, right) => left.name.localeCompare(right.name))) {
+  for (const entry of fs.readdirSync(folder, { withFileTypes:true })) {
     if (entry.isSymbolicLink()) throw new Error('Symbolic links are not allowed in build output');
     const relative = prefix + entry.name;
     if (entry.isDirectory()) Object.assign(entries, collect(path.join(folder, entry.name), relative + '/'));
@@ -34,7 +34,6 @@ for (const target of ['chrome', 'firefox']) {
   if (build.status !== 0) { process.stdout.write(build.stdout || ''); throw new Error(`WXT build for ${target} failed`); }
   const entries = collect(destination);
   if (JSON.parse(entries['manifest.json']).version !== version) throw new Error(`The ${target} manifest version must match package.json`);
-  const archive = Object.fromEntries(Object.entries(entries).map(([name, data]) => [name, [data, { mtime:new Date('2020-01-01T00:00:00Z') }]]));
-  fs.writeFileSync(path.join(artifacts, `unqlock-${target}.zip`), zipSync(archive, { level:9 }));
+  fs.writeFileSync(path.join(artifacts, `unqlock-${target}.zip`), zip(entries));
   console.log(`Built ${target} ${version}: dist/${target} and artifacts/unqlock-${target}.zip`);
 }
