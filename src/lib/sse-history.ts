@@ -16,6 +16,10 @@ export interface StoredRun {
   moduleId: string;
   request: SseRequest;
   response: SseResponse;
+  // What the result line counts, kept so a trimmed run can still show it.
+  summary?: { steps: number; sets: number };
+  // Saved without its event log and response body, which the storage quota could not hold.
+  trimmed?: true;
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -38,16 +42,36 @@ export function readRuns(storage: Storage, now = Date.now()): StoredRun[] {
   return Array.isArray(stored) ? prune(stored, now) : [];
 }
 
-// Writes the runs that are still kept and returns them. When the browser's quota refuses the list, the oldest
-// runs go first; a newest run too large to store even alone is left out instead, keeping the older ones.
+// A run without its event log and response body: its input, options and result, with only what the outcome
+// reads (the execution error and validation errors) left in the body.
+export function trim(run: StoredRun): StoredRun {
+  const { ok, status, ms, headers, error, body } = run.response;
+  const kept: Record<string, unknown> = {};
+  if (body && typeof body === 'object') for (const key of ['executionError', 'validationErrors']) if (body[key] !== undefined) kept[key] = body[key];
+  return { ...run, trimmed:true, response:{ ok, status, ms, headers, body:kept, ...(error ? { error } : {}) } };
+}
+
+// Writes the runs that are still kept and returns them. When the browser's quota refuses the list, the largest
+// runs are trimmed one at a time, then the oldest go; a run whose input alone is too large is left out.
 export function writeRuns(storage: Storage, runs: StoredRun[], now = Date.now()): StoredRun[] {
-  const kept = prune(runs, now);
-  for (const list of [kept, kept.slice(1)]) {
-    for (let count = list.length; count > 0; count--) {
-      try {
-        storage.setItem(historyKey, JSON.stringify(list.slice(0, count)));
-        return list.slice(0, count);
-      } catch {}
+  let list = prune(runs, now);
+  if (!list.length) { storage.removeItem(historyKey); return []; }
+  const save = () => {
+    try { storage.setItem(historyKey, JSON.stringify(list)); return true; } catch { return false; }
+  };
+  if (save()) return list;
+  const largest = list.map((run, index) => ({ index, size:JSON.stringify(run).length })).sort((a, b) => b.size - a.size);
+  for (const { index } of largest) {
+    if (list[index].trimmed) continue;
+    list = list.map((run, at) => at === index ? trim(run) : run);
+    if (save()) return list;
+  }
+  const trimmed = list;
+  for (let rest of [trimmed.slice(0, -1), trimmed.slice(1)]) {
+    while (rest.length) {
+      list = rest;
+      if (save()) return list;
+      rest = rest.slice(0, -1);
     }
   }
   storage.removeItem(historyKey);

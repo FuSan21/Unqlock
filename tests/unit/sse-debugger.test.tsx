@@ -295,6 +295,37 @@ test('with Keep past runs, past runs outlast the window, follow other windows, a
   expect(query('.runs').textContent).toMatch(/Your last 10 runs appear here, kept for 30 days or until you clear them/);
 });
 
+test('a run too large to save in full is kept trimmed, listed, and can be rerun', async () => {
+  // Storage that refuses any list holding an event log, as a full quota would for a big module.
+  const setItem = Storage.prototype.setItem;
+  const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key: string, value: string) {
+    if (key === historyKey && value.includes('eventLog')) throw new DOMException('Quota exceeded', 'QuotaExceededError');
+    setItem.call(this, key, value);
+  });
+  try {
+    const { api, runs } = setup('chrome', { keepRuns:true });
+    await renderDebugger('chrome', api);
+    typeInto('sse-input', '{"a":1}');
+    click(runButton()); await settle();
+    // This window still has everything, and says only part of it is kept.
+    expect(mark('callService', 'wait')).toBeTruthy();
+    expect(query('.result').textContent).toMatch(/This run is too large to save in full\. Once this window closes, only its input, options and result are kept\./);
+    const outcome = query('.outcome').textContent;
+    expect(readRuns(localStorage)[0]).toMatchObject({ trimmed:true, request:{ data:{ a:1 } } });
+
+    // A new window lists it with the same result line, explains what is missing, and reruns it.
+    cleanup();
+    await renderDebugger('chrome', api);
+    click(query('.run-entry')); await settle();
+    expect(query('.outcome').textContent).toBe(outcome);
+    expect(query('.state.trimmed').textContent).toMatch(/^Steps, changes, output and the raw response weren’t saved for this run\. They were too large for the browser’s storage, so only its input, options and result were kept\. Rerun it to see them again\./);
+    expect(document.querySelector('[role="tablist"]')).toBeNull();
+    click(within(query('.state.trimmed')).getByRole('button', { name:'Rerun' })); await settle();
+    expect(runs[1].request).toMatchObject({ data:{ a:1 } });
+    expect(mark('callService', 'wait')).toBeTruthy();
+  } finally { spy.mockRestore(); }
+});
+
 test('a window drops stored runs older than 30 days when it opens', async () => {
   const { api } = setup('chrome', { keepRuns:true });
   const day = 24 * 60 * 60 * 1000;

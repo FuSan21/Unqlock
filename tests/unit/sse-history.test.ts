@@ -36,17 +36,25 @@ test('ignores stored text that is not a list of runs, and Clear removes it', () 
   expect(localStorage.getItem(historyKey)).toBeNull();
 });
 
-test('a full quota drops the oldest runs first, and a run too large alone is left out', () => {
-  // A stand-in storage that refuses anything over 2,000 characters, as a quota would.
+test('a full quota trims the largest runs first, then drops the oldest, and leaves out a run whose input is too large', () => {
+  // A stand-in storage that refuses anything over 3,000 characters, as a quota would.
   const items = new Map<string, string>();
   const storage = {
     getItem:(key: string) => items.get(key) ?? null,
-    setItem:(key: string, value: string) => { if (value.length > 2000) throw new DOMException('Quota exceeded', 'QuotaExceededError'); items.set(key, value); },
+    setItem:(key: string, value: string) => { if (value.length > 3000) throw new DOMException('Quota exceeded', 'QuotaExceededError'); items.set(key, value); },
     removeItem:(key: string) => { items.delete(key); }
   } as Storage;
-  const older = [run('a', now - 3000, 500), run('b', now - 2000, 500), run('c', now - 1000, 500)];
-  expect(writeRuns(storage, older, now).map(each => each.id)).toEqual(['c', 'b']);
-  expect(writeRuns(storage, [run('d', now, 500), ...readRuns(storage, now)], now).map(each => each.id)).toEqual(['d', 'c']);
-  expect(writeRuns(storage, [run('huge', now + 1, 5000), ...readRuns(storage, now)], now).map(each => each.id)).toEqual(['d', 'c']);
-  expect(readRuns(storage, now).map(each => each.id)).toEqual(['d', 'c']);
+  // A run with a large event log and a failure the outcome still needs.
+  const logged = (id: string, at: number) => ({ ...run(id, at), summary:{ steps:3, sets:2 }, response:{ ok:false, status:412, ms:9, headers:{},
+    body:{ eventLog:'x'.repeat(1200), executionError:{ component:'callService', message:'Request failed' }, validationErrors:[] } } });
+  const kept = writeRuns(storage, [logged('a', now - 2000), logged('b', now - 1000), run('c', now)], now);
+  expect(kept.map(each => [each.id, each.trimmed === true])).toEqual([['c', false], ['b', true], ['a', false]]);
+  expect(kept[1].response).toEqual({ ok:false, status:412, ms:9, headers:{}, body:{ executionError:{ component:'callService', message:'Request failed' }, validationErrors:[] } });
+  expect(kept[1].summary).toEqual({ steps:3, sets:2 });
+  expect(readRuns(storage, now)).toEqual(kept);
+
+  // Once every large run is trimmed, the oldest go.
+  expect(writeRuns(storage, [run('d', now + 1, 2200), ...readRuns(storage, now)], now).map(each => each.id)).toEqual(['d', 'c']);
+  // An input too large to store even trimmed is left out, keeping the others.
+  expect(writeRuns(storage, [run('huge', now + 2, 5000), ...readRuns(storage, now)], now).map(each => each.id)).toEqual(['d', 'c']);
 });

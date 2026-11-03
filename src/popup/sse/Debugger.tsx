@@ -18,6 +18,11 @@ export interface Run {
   response: SseResponse;
   outcome: Outcome;
   trace: Trace;
+  // Restored without its event log and response body, with the counts the result line shows.
+  trimmed?: boolean;
+  summary?: { steps: number; sets: number };
+  // A run this window holds in full that storage keeps only trimmed, or not at all.
+  saved?: 'trimmed' | 'none';
 }
 
 type ViewId = 'steps' | 'changes' | 'output' | 'raw';
@@ -37,11 +42,18 @@ const railDefault = 340;
 // extension storage: they hold submission data. The outcome and trace are worked out again from the stored response.
 function restore(stored: StoredRun): Run {
   const outcome = outcomeOf(stored.response);
-  return { id:stored.id, at:new Date(stored.at), title:stored.title, moduleId:stored.moduleId, request:stored.request, response:stored.response, outcome, trace:buildTrace(stored.response.body?.eventLog, outcome.problem) };
+  return { id:stored.id, at:new Date(stored.at), title:stored.title, moduleId:stored.moduleId, request:stored.request, response:stored.response, outcome,
+    trace:buildTrace(stored.response.body?.eventLog, outcome.problem), ...(stored.trimmed ? { trimmed:true, summary:stored.summary } : {}) };
 }
-const store = (run: Run): StoredRun => ({ id:run.id, at:run.at.getTime(), title:run.title, moduleId:run.moduleId, request:run.request, response:run.response });
-// The stored list as runs, reusing those already worked out.
-const synced = (list: Run[], stored: StoredRun[]) => stored.map(each => list.find(run => run.id === each.id) ?? restore(each));
+const store = (run: Run): StoredRun => ({ id:run.id, at:run.at.getTime(), title:run.title, moduleId:run.moduleId, request:run.request, response:run.response,
+  summary:run.summary ?? { steps:run.trace.steps.length, sets:run.trace.events.filter(event => event.kind === 'set').length }, ...(run.trimmed ? { trimmed:true as const } : {}) });
+// The stored list as runs, reusing those already worked out; a run held in full notes when storage trimmed it.
+const synced = (list: Run[], stored: StoredRun[]) => stored.map((each): Run => {
+  const held = list.find(run => run.id === each.id);
+  if (!held) return restore(each);
+  const saved = each.trimmed && !held.trimmed ? 'trimmed' as const : undefined;
+  return held.saved === saved ? held : { ...held, saved };
+});
 
 const time = (date: Date) => date.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false });
 // A run from an earlier day also names its date.
@@ -232,8 +244,9 @@ export function Debugger() {
     if (keep.current) {
       // Read again before writing, so a run another window saved meanwhile is kept.
       const stored = writeRuns(localStorage, [store(entry), ...readRuns(localStorage)]);
-      if (!stored.some(each => each.id === entry.id)) setNotice('This run is too large to keep after the window closes, so it stays only while the window is open.');
-      setRuns(list => [entry, ...synced(list, stored).filter(run => run.id !== entry.id)].slice(0, keptRuns));
+      const own = stored.find(each => each.id === entry.id);
+      const held: Run = { ...entry, saved:!own ? 'none' : own.trimmed ? 'trimmed' : undefined };
+      setRuns(list => [held, ...synced(list, stored).filter(run => run.id !== entry.id)].slice(0, keptRuns));
     } else setRuns(list => [entry, ...list].slice(0, keptRuns));
     setCurrent(entry.id);
     setSelected(trace.events.find(event => event.kind === 'fail')?.id);
@@ -425,7 +438,8 @@ export function Debugger() {
         {notice && <p className="notice" role="alert">{notice}</p>}
         {!unavailable && (run ? <RunResult run={run} view={view} setView={setView} tabKeys={tabKeys} stepsMode={stepsMode} setStepsMode={setStepsMode}
           filter={filter} setFilter={setFilter} values={values} setValues={setValues} hideSetup={hideSetup} setHideSetup={setHideSetup} filterField={filterField} selected={selected} setSelected={setSelected} changes={changes}
-          showKey={showKey} showEvent={showEvent} current={context?.moduleId} /> : context && !confirm && (
+          showKey={showKey} showEvent={showEvent} current={context?.moduleId}
+          onRerun={!context || running || unavailable || blockReason ? undefined : () => runAgain(run)} /> : context && !confirm && (
           <div className="state">
             <p>Run <b>{context.title}</b> on the server to see each step. {parsed.ok && !parsed.fields ? 'The input is empty, so it runs with no data.' : 'It runs with the input on the left.'}</p>
             <button type="button" className="run" disabled={running || Boolean(blockReason)} onClick={() => execute()}>{save ? 'Run and save' : 'Run module'}</button>
@@ -468,9 +482,11 @@ interface ResultProps {
   showKey: (key: string) => void;
   showEvent: (id: string) => void;
   current?: string;
+  // Absent while a run cannot start.
+  onRerun?: () => void;
 }
 
-function RunResult({ run, view, setView, tabKeys, stepsMode, setStepsMode, filter, setFilter, values, setValues, hideSetup, setHideSetup, filterField, selected, setSelected, changes, showKey, showEvent, current }: ResultProps) {
+function RunResult({ run, view, setView, tabKeys, stepsMode, setStepsMode, filter, setFilter, values, setValues, hideSetup, setHideSetup, filterField, selected, setSelected, changes, showKey, showEvent, current, onRerun }: ResultProps) {
   const { outcome, response, trace } = run;
   const failure = trace.events.find(event => event.kind === 'fail');
   const setupLanes = trace.lanes.filter(lane => lane.setup).length;
@@ -497,6 +513,14 @@ function RunResult({ run, view, setView, tabKeys, stepsMode, setStepsMode, filte
             : outcome.validation.length > 0 && <button type="button" className="link" onClick={() => setView('output')}>Show in output</button>}
         </div>
       )}
+      {run.saved === 'trimmed' && <p className="notice">This run is too large to save in full. Once this window closes, only its input, options and result are kept.</p>}
+      {run.saved === 'none' && <p className="notice">This run is too large to save, so it is gone once this window closes.</p>}
+      {run.trimmed ? (
+        <div className="state trimmed">
+          <p><b>Steps, changes, output and the raw response weren’t saved for this run.</b> They were too large for the browser’s storage, so only its input, options and result were kept. Rerun it to see them again.</p>
+          <button type="button" className="run" disabled={!onRerun} onClick={onRerun}>Rerun</button>
+        </div>
+      ) : <>
       <div className="viewbar">
         <div className="tabs" role="tablist" aria-label="Run views" onKeyDown={tabKeys}>
           {views.map(([id, name], index) => (
@@ -536,6 +560,7 @@ function RunResult({ run, view, setView, tabKeys, stepsMode, setStepsMode, filte
       </div>
       {view === 'steps' && stepsMode === 'lanes' && trace.events.length > 0 && <Legend />}
       {response.status === undefined && !trace.events.length && <Empty>No response came back, so there is nothing to show.</Empty>}
+      </>}
     </>
   );
 }
@@ -546,14 +571,15 @@ const slowest = (events: TraceEvent[]) => events.filter(event => event.slow).sor
 function OutcomeLine({ run, onShow }: { run: Run; onShow: (id: string) => void }) {
   const { outcome, response, trace } = run;
   const failure = trace.events.find(event => event.kind === 'fail');
-  const sets = trace.events.filter(event => event.kind === 'set').length;
+  const steps = run.summary?.steps ?? trace.steps.length;
+  const sets = run.summary?.sets ?? trace.events.filter(event => event.kind === 'set').length;
   const parts: ReactNode[] = [];
   if (outcome.problem?.component) parts.push(<>Stopped at <b className="mono">{outcome.problem.component}</b></>);
   else if (outcome.validation.length) parts.push(`${outcome.validation.length} validation ${outcome.validation.length === 1 ? 'error' : 'errors'}`);
   else if (!outcome.ok) parts.push(outcome.problem?.message.split('. ')[0] || 'Failed');
   if (outcome.ranAs) parts.push(<>{parts.length ? 'ran' : 'Ran'} as <b>{outcome.ranAs}</b></>);
   if (response.status !== undefined) parts.push(duration(response.ms));
-  if (trace.steps.length) parts.push(failure ? `step ${failure.step} of ${trace.steps.length}` : `${trace.steps.length} ${trace.steps.length === 1 ? 'step' : 'steps'}`);
+  if (steps) parts.push(failure ? `step ${failure.step} of ${steps}` : `${steps} ${steps === 1 ? 'step' : 'steps'}`);
   if (outcome.ok) parts.push(`${sets} ${sets === 1 ? 'value' : 'values'} set`);
   if (outcome.ok && !outcome.ranAs) parts.unshift('Ran');
   const slow = slowest(trace.events);
