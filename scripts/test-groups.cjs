@@ -32,6 +32,10 @@ const groups = {
     ['Canvas toolbar (Chrome)', test('canvas-toolbar.cjs')],
     ['Canvas toolbar (Firefox)', test('canvas-toolbar.cjs'), ['--firefox']]
   ] },
+  search:{ title:'Canvas search results', browsers:['chromium', 'firefox'], tests:[
+    ['Canvas search results (Chrome)', test('canvas-search.cjs')],
+    ['Canvas search results (Firefox)', test('canvas-search.cjs'), ['--firefox']]
+  ] },
   tabs:{ title:'Navigation tabs', browsers:['chromium', 'firefox'], tests:[
     ['Navigation tabs (Chrome)', test('navigation-tabs.cjs')],
     ['Navigation tabs (Firefox)', test('navigation-tabs.cjs'), ['--firefox']]

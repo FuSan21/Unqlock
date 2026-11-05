@@ -34,7 +34,7 @@ for (const [target, manifest] of [['chrome', chromeManifest], ['firefox', firefo
   assert.equal(bridge.world, 'MAIN');
   assert.equal(bridge.run_at, 'document_start');
   assert.deepEqual(bridge.matches, ['https://*.unqork.io/*']);
-  assert(bridge.js.includes('content-scripts/canvas-toolbar-bridge.js') && bridge.js.includes('content-scripts/canvas-components-bridge.js') && bridge.js.includes('content-scripts/history-bridge.js'));
+  assert(bridge.js.includes('content-scripts/canvas-toolbar-bridge.js') && bridge.js.includes('content-scripts/canvas-components-bridge.js') && bridge.js.includes('content-scripts/history-bridge.js') && bridge.js.includes('content-scripts/canvas-search-bridge.js'));
   // Detach dev overlay's scripts are registered by the background only while the option is on.
   assert(!script('dev-overlay.js') && !script('dev-overlay-guard.js'), 'Dev overlay scripts are not in the manifest');
   for (const file of ['dev-overlay.js', 'dev-overlay.css', 'dev-overlay-guard.js']) assert(archives[target]['content-scripts/' + file], `Missing ${file}`);

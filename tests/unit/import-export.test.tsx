@@ -68,7 +68,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   expect(exported.settings.appearance.compact).toBe(true);
   expect(exported.settings.appearance.tray).toBe(true);
   expect(exported.settings.rowLayout.type).toBe('middle');
-  expect(exported.settings.canvasToolbar).toEqual({ search:'always', sort:'native' });
+  expect(exported.settings.canvasToolbar).toEqual({ search:'always', sort:'native', results:'always' });
   expect(exported.settings.componentColors).toEqual({ grids:{ light:{ ink:'#0EA5E9' }, dark:{ tint:'#0C4A6E' } } });
   expect(exported.settings.builderPanels.agent.visibility).toBe('always');
   expect(exported.settings.builderPanels.tray.visibility).toBe('native');
@@ -182,7 +182,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   expect((store.appearance as Record<string, boolean>).containerGuides).toBe(false);
   expect((store.appearance as Record<string, boolean>).icons).toBe(true);
   expect((store.rowLayout as { enabled: boolean }).enabled).toBe(false);
-  expect(store.canvasToolbar).toEqual({ search:'native', sort:'always' });
+  expect(store.canvasToolbar).toEqual({ search:'native', sort:'always', results:'always' });
   expect(store.componentColors).toEqual({ logic:{ dark:{ ink:'#7C3AED' } } });
   expect(query<HTMLInputElement>('input[data-toolbar="sort"]:checked').value).toBe('always');
   expect((store.builderPanels as { agent: { visibility: string } }).agent.visibility).toBe('start');

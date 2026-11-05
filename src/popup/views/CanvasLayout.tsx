@@ -44,7 +44,7 @@ function ToolbarSettings() {
   const { canvasToolbar, save } = useSettings();
   return (
     <div id="toolbar-controls">
-      {(Object.entries(Toolbar.controls) as [Toolbar.ToolbarControl, typeof Toolbar.controls.search][]).map(([id, control]) => (
+      {(Object.entries(Toolbar.controls) as [Toolbar.ToolbarControl, (typeof Toolbar.controls)[Toolbar.ToolbarControl]][]).map(([id, control]) => (
         <Segmented key={id} name={'toolbar-' + id} legend={control.label} label={control.label} describedBy="toolbar-help"
           options={[['native', 'Default'], ['always', control.always]] as const} value={canvasToolbar[id]} inputProps={() => ({ 'data-toolbar':id })}
           onChange={mode => save({ canvasToolbar:{ ...canvasToolbar, [id]:mode } })} />
@@ -76,7 +76,7 @@ export function CanvasLayout() {
         <AppearanceToggle setting="containerEnd" label="Mark where containers end" />
         <SettingsHeading>Toolbar</SettingsHeading>
         <ToolbarSettings />
-        <Note id="toolbar-help">Keep the canvas search field open, and show the sort modes as switches instead of a dropdown. These work even when Component styling is off.</Note>
+        <Note id="toolbar-help">Keep the canvas search field open, list its matches under it, including components in collapsed containers, and show the sort modes as switches instead of a dropdown. Picking a match opens its containers, scrolls to it and selects it. These work even when Component styling is off.</Note>
       </fieldset>
       <PageFooter resetId="reset-layout" resetText="Reset layout" statusId="layout-status" status={status} busy={busy}
         onReset={() => save({ appearance:{ ...appearance, ...defaultsOf(layoutKeys) }, rowLayout:RowLayout.settings(), canvasToolbar:Toolbar.settings(), canvasLabels:Labels.mode(undefined) })} />

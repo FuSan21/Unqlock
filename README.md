@@ -93,12 +93,13 @@ Choices between a few options, such as the row layout positions, toolbar modes a
 
 Header effects still apply while a container is collapsed. The options follow the canvas switch.
 
-**Toolbar** controls two buttons on the canvas toolbar. Each one either uses Unqork's **Default** or stays open:
+**Toolbar** controls the canvas toolbar's search and sort. Each option either uses Unqork's **Default** or changes it:
 
 - **Search bar → Always visible** keeps the configuration search field open instead of the search button. It opens without taking focus from what you are editing. The close button and Escape clear the search instead of closing the field; Escape on an empty field moves focus out of it.
+- **Search results → Dropdown**, on by default, lists everything the search matches in a dropdown under the field, in canvas order, with each component's property ID, label and type. Unqork's search also finds components inside collapsed containers but cannot highlight them; the list includes them and names the collapsed container they are in. Click a match, or choose one with the arrow keys and press Enter, to open the containers above it, scroll to it and select it, which opens its Properties. Enter without a chosen match, and Escape once the list is closed, work as they do in Unqork.
 - **Sort mode → Switches** replaces the sort dropdown with Default, By Type and Alphabetical side by side, with the current mode highlighted. The switches use Unqork's own sort control and support the arrow keys. Unqork resets the sort mode when the page reloads.
 
-These two options work whether or not Component styling is on. If the builder's sort control is not recognized, Unqork's dropdown stays in place. Reset layout restores the defaults of everything on this page.
+These options work whether or not Component styling is on. If the builder's sort control is not recognized, Unqork's dropdown stays in place. Reset layout restores the defaults of everything on this page.
 
 ## Component style
 

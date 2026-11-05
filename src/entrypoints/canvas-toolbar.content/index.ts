@@ -95,6 +95,8 @@ export default defineContentScript({
         clicks = [];
         // canvas-toolbar-bridge.js runs in MAIN and reads this attribute to show the sort switches.
         document.documentElement.setAttribute("data-unqlock-sort-mode", settings.sort);
+        // canvas-search-bridge.js, also in MAIN, lists the search's matches while this attribute is on.
+        document.documentElement.toggleAttribute("data-unqlock-search-results", settings.results === "always");
         observer.disconnect();
         if (settings.search === "always") observer.observe(document.body, { childList:true, subtree:true });
         schedule();
