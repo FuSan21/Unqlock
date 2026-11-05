@@ -1,6 +1,6 @@
-## New in 1.8.1
+## New in 1.9.0
 
-- **Metadata in the SSE debugger:** **Include metadata**, under the switch above **Input**, adds a second JSON field that is sent as the request's *metadata*, beside *data*, for every input shape. The window remembers the choice, and opening a past run or **Rerun** restores it with that run's metadata.
+- **Promoted saves in History:** a save in a module's **History** that was promoted to another environment now shows a green rocket after its name. Hover it to see where it went, who promoted it and when. **Promotion badges**, under the new **History** card in **Builder panels**, is on by default.
 
 ## Package notes
 

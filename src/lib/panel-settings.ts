@@ -43,3 +43,6 @@ export const tabsMode = oneOf(tabsModes, 'native');
 // bar to show, so it ignores this.
 export const tabsCollapsedKey = 'navigationTabsCollapsed';
 export const tabsCollapsed = flag;
+// A badge on each save in the builder's History that was promoted to another environment. On unless turned off.
+export const promotionsKey = 'historyPromotions';
+export const promotions = (value: unknown) => value !== false;

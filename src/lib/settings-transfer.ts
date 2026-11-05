@@ -32,7 +32,7 @@ function panelWidths(stored: Stored) {
 }
 
 // The storage keys an export reads and an import may replace.
-export const storedKeys = ['appearance', 'rowLayout', 'canvasToolbar', Labels.key, 'componentColors', 'builderPanels', Panels.tabsKey, Panels.tabsCollapsedKey, 'environment', 'floating', ...Panels.panelIds.map(Panels.rememberedKey)];
+export const storedKeys = ['appearance', 'rowLayout', 'canvasToolbar', Labels.key, 'componentColors', 'builderPanels', Panels.tabsKey, Panels.tabsCollapsedKey, Panels.promotionsKey, 'environment', 'floating', ...Panels.panelIds.map(Panels.rememberedKey)];
 
 export function create(stored: Stored, { version, now = new Date() }: { version: string; now?: Date }) {
   return {
@@ -49,6 +49,7 @@ export function create(stored: Stored, { version, now = new Date() }: { version:
       panelWidths: panelWidths(stored),
       navigationTabs: Panels.tabsMode(stored[Panels.tabsKey]),
       navigationTabsCollapsed: Panels.tabsCollapsed(stored[Panels.tabsCollapsedKey]),
+      historyPromotions: Panels.promotions(stored[Panels.promotionsKey]),
       environment: Environment.settings(stored.environment),
       floating: Environment.floatingSettings(stored.floating)
     }
@@ -73,14 +74,16 @@ export function parse(text: unknown): Parsed {
   }
   if (Object.hasOwn(settings, Panels.tabsKey) && !(Panels.tabsModes as readonly unknown[]).includes(settings[Panels.tabsKey])) throw new Error('The navigationTabs value must be ' + choices(Panels.tabsModes) + '.');
   if (Object.hasOwn(settings, Labels.key) && Labels.mode(settings[Labels.key]) !== settings[Labels.key]) throw new Error('The canvasLabels value must be ' + choices(Labels.modes.map(([id]) => id)) + '.');
-  if (Object.hasOwn(settings, Panels.tabsCollapsedKey) && typeof settings[Panels.tabsCollapsedKey] !== 'boolean') throw new Error('The navigationTabsCollapsed value must be true or false.');
+  for (const key of [Panels.tabsCollapsedKey, Panels.promotionsKey]) {
+    if (Object.hasOwn(settings, key) && typeof settings[key] !== 'boolean') throw new Error('The ' + key + ' value must be true or false.');
+  }
   const appearance = settings.appearance || {};
   const isLayoutKey = (key: string) => (layoutKeys as string[]).includes(key);
   const present: Record<SectionId, boolean> = {
     // The home switch travels in every export but is not part of Component style.
     style: Object.keys(appearance).some(key => key !== 'enabled' && !isLayoutKey(key)) || Boolean(settings.componentColors),
     layout: Object.keys(appearance).some(isLayoutKey) || Boolean(settings.rowLayout || settings.canvasToolbar) || Object.hasOwn(settings, Labels.key),
-    panels: Boolean(settings.builderPanels || settings.panelWidths) || [Panels.tabsKey, Panels.tabsCollapsedKey].some(key => Object.hasOwn(settings, key)),
+    panels: Boolean(settings.builderPanels || settings.panelWidths) || [Panels.tabsKey, Panels.tabsCollapsedKey, Panels.promotionsKey].some(key => Object.hasOwn(settings, key)),
     environments: Boolean(settings.environment) && ['groups', 'blockProduction', 'autoDiscover'].some(key => Object.hasOwn(settings.environment as object, key)),
     launcher: Boolean(settings.floating) || Object.hasOwn(settings.environment || {}, 'badge')
   };
@@ -126,6 +129,7 @@ export function apply(parsed: Parsed, chosen: SectionId[], stored: Stored) {
     for (const id of Panels.panelIds) update[Panels.rememberedKey(id)] = Panels.width(settings.panelWidths?.[id]);
     update[Panels.tabsKey] = Panels.tabsMode(settings[Panels.tabsKey]);
     update[Panels.tabsCollapsedKey] = Panels.tabsCollapsed(settings[Panels.tabsCollapsedKey]);
+    update[Panels.promotionsKey] = Panels.promotions(settings[Panels.promotionsKey]);
   }
   if (selected('launcher') && settings.floating) update.floating = Environment.floatingSettings(settings.floating);
   let environment: Environment.EnvironmentSettings | null = null;

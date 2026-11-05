@@ -1,0 +1,50 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>History fixture</title>
+<!-- The builder's History list as captured from a live builder (Unqork 9.0.8): each save is an li whose row holds a
+     full-size button labelled with the save's name, a dot, the name line (name, Current badge, star) and the author
+     line. React keeps the save's record as the `revision` prop two levels above the button; a stand-in fiber holds
+     it here. The save-type filter re-renders rows in place, so `filter` relabels them, and `more` adds a row as
+     opening a month group does. -->
+<style>
+  .group { position:relative; display:flex; align-items:flex-start; gap:12px; width:280px; padding:12px; border:1px solid #ccc; }
+  .group > button { position:absolute; inset:0; z-index:0; background:none; border:0; }
+  .flex-1 { flex:1; min-width:0; }
+  .flex-1 > div:first-child { display:flex; align-items:center; gap:6px; }
+  .truncate { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+</style>
+<ul id="history"></ul>
+<script>
+  const saves = [
+    { _id:'current', name:'Release notes', author:'Ada', isCurrent:true },
+    { _id:'promoted', name:'10/14/2026, 8:12 AM', author:'Ada', promotions:{ out:[
+      { targetEnv:'org-qa-qa', user:'eric@example.com', timestamp:'2026-10-21T21:29:35.208Z' },
+      { targetEnv:'org-qa-qa', user:'eric@example.com', timestamp:'2026-10-21T21:29:35.208Z' }
+    ] } },
+    { _id:'plain', name:'10/14/2026, 8:00 AM', author:'Ada', promotions:{} },
+    { _id:'twice', name:'7/1/2026, 7:20 PM', author:'Nikola', promotions:{ out:[
+      { targetEnv:'org-qa-qa', user:'clara', timestamp:'2026-07-06T19:53:23.000Z' },
+      { targetEnv:'org-uat', user:'uq64ac12c6fad64a4df2557e6d', timestamp:'2026-07-08T10:00:00.000Z' }
+    ] } }
+  ];
+  const list = document.getElementById('history');
+  function row(save) {
+    const item = document.createElement('li');
+    item.innerHTML = '<div class="group relative isolate flex w-full"><button type="button"></button><div class="flex shrink-0 pt-0.5"><div class="size-3 rounded-full"></div></div>'
+      + '<div class="flex-1 min-w-0"><div class="flex items-center gap-1.5"><span class="text-sm font-medium truncate"></span></div><div class="mt-0.5 text-xs"><span class="truncate"></span></div></div></div>';
+    list.append(item);
+    show(item, save);
+    return item;
+  }
+  // Writes a save into a row, as React does when it reuses the row for another save.
+  function show(item, save) {
+    const button = item.querySelector('button');
+    button.setAttribute('aria-label', save.name);
+    item.querySelector('.text-sm').textContent = save.name;
+    item.querySelector('.mt-0\\.5 .truncate').textContent = save.author;
+    button.__reactFiber$fixture = { memoizedProps:{ type:'button' }, return:{ memoizedProps:{ className:'group' }, return:{ memoizedProps:{ revision:save, isSelected:false } } } };
+  }
+  saves.forEach(row);
+  window.filter = ids => [...list.children].forEach((item, index) => ids[index] ? (item.hidden = false, show(item, saves.find(save => save._id === ids[index]))) : item.hidden = true);
+  window.more = () => row({ _id:'later', name:'5/13/2026, 3:29 AM', author:'Clara', promotions:{ out:[{ targetEnv:'org-qa-qa', user:'clara', timestamp:'2026-05-13T19:58:37.382Z' }] } });
+</script>

@@ -18,6 +18,9 @@ export interface Release {
 }
 
 export const releases: Release[] = [
+  { version:'1.9.0', items:[
+    { title:'Promoted saves in History', text:"a save in a module's **History** that was promoted to another environment now shows a green rocket after its name. Hover it to see where it went, who promoted it and when. **Promotion badges**, under the new **History** card in **Builder panels**, is on by default.", page:'panels-page' }
+  ] },
   { version:'1.8.1', date:'2026-11-03', items:[
     { title:'Metadata in the SSE debugger', text:"**Include metadata**, under the switch above **Input**, adds a second JSON field that is sent as the request's *metadata*, beside *data*, for every input shape. The window remembers the choice, and opening a past run or **Rerun** restores it with that run's metadata.", page:'quick-page' }
   ] },

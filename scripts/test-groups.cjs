@@ -36,6 +36,10 @@ const groups = {
     ['Navigation tabs (Chrome)', test('navigation-tabs.cjs')],
     ['Navigation tabs (Firefox)', test('navigation-tabs.cjs'), ['--firefox']]
   ] },
+  history:{ title:'History promotion badges', browsers:['chromium', 'firefox'], tests:[
+    ['History promotion badges (Chrome)', test('history.cjs')],
+    ['History promotion badges (Firefox)', test('history.cjs'), ['--firefox']]
+  ] },
   panels:{ title:'Builder panels', browsers:['chromium', 'firefox'], tests:[
     ['Builder panels (Chrome)', test('builder-panels.cjs')],
     ['Builder panels (Firefox)', test('builder-panels.cjs'), ['--firefox']],

@@ -25,13 +25,16 @@ for (const [target, manifest] of [['chrome', chromeManifest], ['firefox', firefo
   const tabs = script('navigation-tabs.js');
   assert.deepEqual(tabs.matches, ['https://*.unqork.io/*']);
   assert(tabs.css.includes('content-scripts/navigation-tabs.css'));
+  const history = script('history.js');
+  assert.deepEqual(history.matches, ['https://*.unqork.io/*']);
+  assert(history.css.includes('content-scripts/history.css'));
   const badge = script('environment-badge.js');
   assert.deepEqual(badge.matches, ['https://*.unqork.io/*']);
   const bridge = script('panel-resize-bridge.js');
   assert.equal(bridge.world, 'MAIN');
   assert.equal(bridge.run_at, 'document_start');
   assert.deepEqual(bridge.matches, ['https://*.unqork.io/*']);
-  assert(bridge.js.includes('content-scripts/canvas-toolbar-bridge.js') && bridge.js.includes('content-scripts/canvas-components-bridge.js'));
+  assert(bridge.js.includes('content-scripts/canvas-toolbar-bridge.js') && bridge.js.includes('content-scripts/canvas-components-bridge.js') && bridge.js.includes('content-scripts/history-bridge.js'));
   // Detach dev overlay's scripts are registered by the background only while the option is on.
   assert(!script('dev-overlay.js') && !script('dev-overlay-guard.js'), 'Dev overlay scripts are not in the manifest');
   for (const file of ['dev-overlay.js', 'dev-overlay.css', 'dev-overlay-guard.js']) assert(archives[target]['content-scripts/' + file], `Missing ${file}`);

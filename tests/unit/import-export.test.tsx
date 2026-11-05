@@ -16,6 +16,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
     navigationTabs:'hidden',
     canvasLabels:'always',
     navigationTabsCollapsed:true,
+    historyPromotions:false,
     floating:{ enabled:true, mode:'draggable', corner:'top-right' },
     environment:{ badge:true, blockProduction:true, autoDiscover:false, groups:[{ id:'org', name:'Org', domains:[{ hostname:'org-prod.unqork.io', environment:'production' }] }] }
   };
@@ -75,6 +76,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   expect(exported.settings.navigationTabs).toBe('hidden');
   expect(exported.settings.canvasLabels).toBe('always');
   expect(exported.settings.navigationTabsCollapsed).toBe(true);
+  expect(exported.settings.historyPromotions).toBe(false);
   expect(exported.settings.floating).toEqual({ enabled:true, mode:'draggable', corner:'top-right' });
   expect(exported.settings.environment).toEqual(original.environment);
   click('export-download'); await settle();
@@ -90,7 +92,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
 
   // Invalid input is rejected before anything is written.
   const paste = (text: string) => { type('import-text', text); click('import-review'); };
-  for (const [text, message] of [['', /Paste exported settings/], ['{', /not valid JSON/], ['{"a":1}', /not an Unqlock settings export/], ['{"unqlock":2,"settings":{}}', /newer version/], ['{"unqlock":1,"settings":{}}', /no settings/], ['{"unqlock":1,"settings":{"floating":[]}}', /floating value must be an object/], ['{"unqlock":1,"settings":{"canvasLabels":"off"}}', /canvasLabels value must be/], ['{"unqlock":1,"settings":{"navigationTabsCollapsed":"yes"}}', /navigationTabsCollapsed value must be true or false/], ['{"unqlock":1,"settings":{"navigationTabs":true}}', /navigationTabs value must be/]] as const) {
+  for (const [text, message] of [['', /Paste exported settings/], ['{', /not valid JSON/], ['{"a":1}', /not an Unqlock settings export/], ['{"unqlock":2,"settings":{}}', /newer version/], ['{"unqlock":1,"settings":{}}', /no settings/], ['{"unqlock":1,"settings":{"floating":[]}}', /floating value must be an object/], ['{"unqlock":1,"settings":{"canvasLabels":"off"}}', /canvasLabels value must be/], ['{"unqlock":1,"settings":{"navigationTabsCollapsed":"yes"}}', /navigationTabsCollapsed value must be true or false/], ['{"unqlock":1,"settings":{"navigationTabs":true}}', /navigationTabs value must be/], ['{"unqlock":1,"settings":{"historyPromotions":1}}', /historyPromotions value must be true or false/]] as const) {
     paste(text);
     expect(importStatus()).toMatch(message);
     expect(byId('import-preview').hidden).toBe(true);
@@ -112,6 +114,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   incoming.settings.navigationTabs = 'native';
   incoming.settings.canvasLabels = 'different';
   incoming.settings.navigationTabsCollapsed = false;
+  incoming.settings.historyPromotions = true;
   // An export from before Fixed and Draggable has no mode and names the corner position.
   incoming.settings.floating = { enabled:true, position:'bottom-right' };
   incoming.settings.environment = { badge:false, blockProduction:false, autoDiscover:true, groups:[{ id:'team', name:'Team', domains:[{ hostname:'team.example.test', environment:'qa' }] }] };
@@ -151,6 +154,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   expect(store.navigationTabs).toBe('hidden');
   expect(store.canvasLabels).toBe('always');
   expect(store.navigationTabsCollapsed).toBe(true);
+  expect(store.historyPromotions).toBe(false);
   expect(store.floating).toEqual({ enabled:true, mode:'fixed', corner:'bottom-right' });
   expect(store.environment).toEqual(incoming.settings.environment);
   expect(messages.filter(message => message.replace)).toHaveLength(1);
@@ -186,6 +190,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   expect(store.navigationTabs).toBe('native');
   expect(store.canvasLabels).toBe('different');
   expect(store.navigationTabsCollapsed).toBe(false);
+  expect(store.historyPromotions).toBe(true);
   expect(messages.filter(message => message.replace)).toHaveLength(1);
   pick({ name:'huge.json', size:2 * 1024 * 1024, text:async () => '' }); await settle();
   expect(importStatus()).toMatch(/larger than 1 MB/);
