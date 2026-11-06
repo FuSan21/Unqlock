@@ -41,9 +41,11 @@ export default defineContentScript({
       const glyph = (markup: string, color: string) => 'url("data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="' + color + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + markup + '</svg>') + '")';
       // Colors reach content.css as variables on the root element. Setting them through the CSSOM
       // works under the builder's content security policy, which an injected stylesheet might not.
-      function applyColors(value?: Stored) {
+      let picked: Stored | undefined;
+      let theme: unknown;
+      function applyColors() {
         const root = document.documentElement.style;
-        const palette = Colors.palette(value);
+        const palette = Colors.palette(picked, theme);
         for (const family of palette) {
           for (const [prefix, [ink, tint]] of [["--uq-" + family.id, family.light], ["--uq-" + family.id + "-dark", family.dark]] as const) {
             root.setProperty(prefix + "-ink", ink);
@@ -309,10 +311,12 @@ export default defineContentScript({
       });
       observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["data-tray-type", "data-component-key", "data-unqlock-type", "data-unqlock-label", "data-unqlock-legacy", "data-unqlock-disabled", "class"] });
       window.addEventListener("popstate", schedule);
-      watchLocal(["appearance", "rowLayout", Labels.key, "componentColors"], values => {
+      watchLocal(["appearance", "rowLayout", Labels.key, "componentColors", Colors.themeKey], values => {
         if ("rowLayout" in values) layout = RowLayout.settings(values.rowLayout);
         if (Labels.key in values) labels = Labels.mode(values[Labels.key]);
-        if ("componentColors" in values) applyColors(values.componentColors);
+        if ("componentColors" in values) picked = values.componentColors;
+        if (Colors.themeKey in values) theme = values[Colors.themeKey];
+        if ("componentColors" in values || Colors.themeKey in values) applyColors();
         if ("appearance" in values) applySettings(values.appearance);
         else schedule();
       }, () => applySettings(defaults));

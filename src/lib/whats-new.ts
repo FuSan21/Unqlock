@@ -18,6 +18,9 @@ export interface Release {
 }
 
 export const releases: Release[] = [
+  { version:'1.10.0', items:[
+    { title:'Color themes', text:"a **Theme** choice above the color swatches in **Component style** swaps every group's colors at once: **Calm**, with quieter backgrounds, **High contrast**, and two themes for color vision deficiency, **Red-green safe** for protanopia and deuteranopia and **Blue-yellow safe** for tritanopia, which keep groups apart that the default colors make look alike. Colors you pick still apply on top.", page:'style-page' }
+  ] },
   { version:'1.9.0', date:'2026-11-05', items:[
     { title:'Search results on the canvas', text:"the canvas search now lists every match in a dropdown under the field, with each component's property ID, label and type, including components inside collapsed containers that Unqork's search cannot highlight. Click one, or choose it with the arrow keys and press Enter, to open its containers, scroll to it and select it. **Search results**, under **Toolbar** in **Canvas layout**, is on by default.", page:'layout-page' },
     { title:'Promoted saves in History', text:"a save in a module's **History** that was promoted to another environment now shows a green rocket after its name. Hover it to see where it went, who promoted it and when. **Promotion badges**, under the new **History** card in **Builder panels**, is on by default.", page:'panels-page' }

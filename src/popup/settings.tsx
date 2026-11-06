@@ -14,9 +14,10 @@ interface StoredSettings {
   canvasToolbar: Toolbar.ToolbarSettings;
   canvasLabels: Labels.LabelMode;
   componentColors: Colors.ColorSettings;
+  componentTheme: Colors.ThemeId;
 }
 export type SettingsUpdate = { [Key in keyof StoredSettings]?: unknown };
-const keys = ['appearance', 'rowLayout', 'canvasToolbar', Labels.key, 'componentColors'] as const;
+const keys = ['appearance', 'rowLayout', 'canvasToolbar', Labels.key, 'componentColors', Colors.themeKey] as const;
 
 interface Settings extends StoredSettings {
   // True while loading or saving; the style and layout controls wait meanwhile.
@@ -41,13 +42,14 @@ function normalize(items: SettingsUpdate, previous: StoredSettings): StoredSetti
     rowLayout: 'rowLayout' in items ? RowLayout.settings(items.rowLayout) : previous.rowLayout,
     canvasToolbar: 'canvasToolbar' in items ? Toolbar.settings(items.canvasToolbar) : previous.canvasToolbar,
     canvasLabels: 'canvasLabels' in items ? Labels.mode(items.canvasLabels) : previous.canvasLabels,
-    componentColors: 'componentColors' in items ? Colors.settings(items.componentColors) : previous.componentColors
+    componentColors: 'componentColors' in items ? Colors.settings(items.componentColors) : previous.componentColors,
+    componentTheme: 'componentTheme' in items ? Colors.theme(items.componentTheme) : previous.componentTheme
   };
 }
 
 // Component style, Canvas layout and the home switches share these stored values and one save.
 export function SettingsProvider({ children }: { children: ReactNode }) {
-  const [values, setValues] = useState<StoredSettings>(() => normalize({ appearance:undefined, rowLayout:undefined, canvasToolbar:undefined, canvasLabels:undefined, componentColors:undefined }, {} as StoredSettings));
+  const [values, setValues] = useState<StoredSettings>(() => normalize({ appearance:undefined, rowLayout:undefined, canvasToolbar:undefined, canvasLabels:undefined, componentColors:undefined, componentTheme:undefined }, {} as StoredSettings));
   const [busy, setBusy] = useState(true);
   const [status, setStatus] = useState('Loading…');
 

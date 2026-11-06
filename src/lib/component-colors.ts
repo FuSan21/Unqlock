@@ -22,6 +22,68 @@ export const families: Family[] = [
   { id:'charts', name:'Charts & maps', light:['#86198F', '#F5D0FE'], dark:['#F0ABFC', '#701A75'] },
   { id:'custom', name:'Custom components', light:['#3F6212', '#D9F99D'], dark:['#BEF264', '#365314'] }
 ];
+
+// Preset themes replace the defaults above; colors the user picks still apply on top. Each was searched in
+// OKLCH for the largest gap between its two closest groups, keeping every foreground at 4.5:1 or better
+// against its background, the builder's white and its near-black. Red-green safe and Blue-yellow safe
+// measure that gap under simulated protanopia and deuteranopia, or tritanopia (Machado et al. 2009), and
+// take their hues from Okabe-Ito and Paul Tol's color-blind-safe sets, so lightness does most of the
+// separating. High contrast keeps 7:1 within each pair.
+type ThemeColors = Record<string, [light: [string, string], dark: [string, string]]>;
+export const themeKey = 'componentTheme';
+export const themes = [
+  { id:'unqlock', name:'Unqlock' },
+  { id:'calm', name:'Calm', colors:{
+    inputs:[['#46698D', '#DBECFD'], ['#A8CCF2', '#1D3043']],
+    layout:[['#5C518D', '#DDDBEF'], ['#B9B4DC', '#302B47']],
+    grids:[['#01585E', '#C4EAEE'], ['#77CAD3', '#083A3E']],
+    content:[['#59483D', '#E7DCD5'], ['#C7B3A6', '#362E28']],
+    actions:[['#264C34', '#CAE6D2'], ['#A3C6AE', '#2B3930']],
+    logic:[['#60361C', '#FFDFCD'], ['#F7C4A7', '#412616']],
+    data:[['#036346', '#D5F2E4'], ['#AFDBC7', '#163528']],
+    integrations:[['#7B3E4C', '#FAD3D9'], ['#FEC4CF', '#452E32']],
+    charts:[['#7B4C81', '#F1E2F3'], ['#DABFDD', '#422C44']],
+    custom:[['#6A633A', '#F2EDCE'], ['#CCC495', '#39351B']]
+  } },
+  { id:'contrast', name:'High contrast', colors:{
+    inputs:[['#122992', '#CADAFF'], ['#C9DAFF', '#22366E']],
+    layout:[['#5A3D6A', '#F4E3FF'], ['#E6C1FB', '#3B2049']],
+    grids:[['#024052', '#D0F1FE'], ['#CBF0FF', '#004255']],
+    content:[['#473A2C', '#DED6CD'], ['#FEEFE0', '#352E27']],
+    actions:[['#284101', '#C6E3AB'], ['#B0E17B', '#37412F']],
+    logic:[['#452501', '#FFD4AD'], ['#FECC9F', '#543516']],
+    data:[['#00392A', '#B9EEDA'], ['#B4D5C8', '#013C2D']],
+    integrations:[['#730029', '#FEC8CE'], ['#FEC4CA', '#52272E']],
+    charts:[['#71037E', '#F3C8F8'], ['#FAE4FD', '#4E3151']],
+    custom:[['#4C4F01', '#EAECD6'], ['#D3D8A5', '#333502']]
+  } },
+  { id:'redgreen', name:'Red-green safe', colors:{
+    inputs:[['#014894', '#A2C3EE'], ['#DEECFE', '#203E65']],
+    layout:[['#5F5292', '#D6D1F8'], ['#A691FC', '#2E2055']],
+    grids:[['#025E74', '#B4EBFE'], ['#7CDFFE', '#00566A']],
+    content:[['#67594A', '#DCD4CB'], ['#E5D4C3', '#534C45']],
+    actions:[['#174E0A', '#9CCF92'], ['#7FD36F', '#1D3E16']],
+    logic:[['#715701', '#F2D58A'], ['#FFE092', '#443D2C']],
+    data:[['#01302D', '#C6FFF9'], ['#33BBB2', '#003532']],
+    integrations:[['#812604', '#F4B7A4'], ['#FEB39C', '#713D2C']],
+    charts:[['#733257', '#F4AED2'], ['#F0B7D4', '#563848']],
+    custom:[['#332B00', '#F2EAC5'], ['#B9AF84', '#352C00']]
+  } },
+  { id:'blueyellow', name:'Blue-yellow safe', colors:{
+    inputs:[['#524599', '#D0CEFC'], ['#BBB6FE', '#3B385B']],
+    layout:[['#563C69', '#F0E0FE'], ['#B299C5', '#382048']],
+    grids:[['#00364C', '#9CD8F9'], ['#5CBAEA', '#024662']],
+    content:[['#483C2D', '#C4BCB4'], ['#EBDBC9', '#453E37']],
+    actions:[['#003124', '#8AD1B6'], ['#AAE1CB', '#325346']],
+    logic:[['#4C2401', '#FFDEC8'], ['#FFB582', '#634632']],
+    data:[['#024A32', '#B7F7D8'], ['#7AB79B', '#00452E']],
+    integrations:[['#9A1830', '#E5CBCB'], ['#FEC1C2', '#6E2D32']],
+    charts:[['#7B3D75', '#F7B9F0'], ['#FEE6FB', '#5B2D56']],
+    custom:[['#4A5303', '#ECF7C2'], ['#C4CDA1', '#2F331F']]
+  } }
+] as const satisfies readonly { id: string; name: string; colors?: ThemeColors }[];
+export type ThemeId = typeof themes[number]['id'];
+export const theme = (value: unknown): ThemeId => themes.some(entry => entry.id === value) ? value as ThemeId : 'unqlock';
 export const modes: Mode[] = ['light', 'dark'];
 export const parts: Part[] = ['ink', 'tint'];
 const hex = /^#[0-9a-f]{6}$/i;
@@ -68,11 +130,14 @@ export function settings(value?: Stored): ColorSettings {
   return result;
 }
 
-// Resolved [ink, tint] per theme for every group, with `picked` listing what the user chose.
-export function palette(custom?: Stored): ResolvedFamily[] {
+// Resolved [ink, tint] per light or dark appearance for every group, from the preset theme with the colors
+// the user picked on top, with `picked` listing what the user chose.
+export function palette(custom?: Stored, themeId?: unknown): ResolvedFamily[] {
   const chosen = settings(custom);
+  const preset: Partial<ThemeColors> = (themes.find(entry => entry.id === theme(themeId)) as { colors?: ThemeColors }).colors || {};
   return families.map(family => {
-    const resolved: ResolvedFamily = { ...family, picked:chosen[family.id] || {} };
+    const [light, dark] = preset[family.id] || [family.light, family.dark];
+    const resolved: ResolvedFamily = { ...family, light:[...light], dark:[...dark], picked:chosen[family.id] || {} };
     for (const mode of modes) {
       const picked = chosen[family.id]?.[mode];
       if (!picked) continue;

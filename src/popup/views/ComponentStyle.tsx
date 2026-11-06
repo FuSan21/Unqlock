@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { defaultsOf, styleKeys } from '@/lib/appearance';
 import * as Colors from '@/lib/component-colors';
 import { AppearanceToggle } from '../components/AppearanceToggle';
+import { Select } from '../components/controls';
 import { Unavailable } from '../components/Unavailable';
 import { Note, Page, PageFooter, SettingsHeading } from '../components/layout';
 import { appearanceReason, useSettings } from '../settings';
@@ -39,12 +40,16 @@ function Swatch({ family, mode, part, value, reason, onPick }: SwatchProps) {
 // The color guide doubles as the color settings: each group has a foreground and a background
 // swatch per theme. Swatches show the resolved colors, so a derived partner shows what the builder will use.
 function ColorSettings() {
-  const { appearance, componentColors, save } = useSettings();
-  const palette = Colors.palette(componentColors);
+  const { appearance, componentColors, componentTheme, save } = useSettings();
+  const palette = Colors.palette(componentColors, componentTheme);
   const reason = appearanceReason('colors', appearance);
   const first = useRef(new Map<string, HTMLDivElement>());
   return (
     <div id="color-settings">
+      {/* A theme replaces every group's colors, so it clears the ones picked under the previous theme. */}
+      <Select id="color-theme" label="Theme" inline aria-describedby="color-theme-help" options={Colors.themes.map(entry => [entry.id, entry.name] as const)} value={componentTheme} reason={reason}
+        onChange={value => save({ componentTheme:value, componentColors:{} })} />
+      <Note id="color-theme-help">Red-green safe suits protanopia and deuteranopia, Blue-yellow safe tritanopia; both work best with Distinct icon shapes on. High contrast keeps 7:1 between each pair. Choosing a theme clears colors you picked below.</Note>
       <div className="color-row color-head" aria-hidden="true"><span></span><span>Light</span><span>Dark</span><span></span></div>
       <div className="color-row color-head color-parts" aria-hidden="true">
         <span></span>
@@ -110,7 +115,7 @@ export function ComponentStyle() {
       </fieldset>
       <Note>Follows Unqork’s light or dark appearance.<br />Available in builders across Unqork subdomains.</Note>
       <PageFooter resetId="reset-style" resetText="Reset style" statusId="style-status" status={status} busy={busy}
-        onReset={() => save({ appearance:{ ...appearance, ...defaultsOf(styleKeys) }, componentColors:{} })} />
+        onReset={() => save({ appearance:{ ...appearance, ...defaultsOf(styleKeys) }, componentColors:{}, componentTheme:'unqlock' })} />
     </Page>
   );
 }

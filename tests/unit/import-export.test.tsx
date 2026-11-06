@@ -11,6 +11,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
     rowLayout:{ enabled:true, icon:'left', name:'left', type:'middle', chip:'right', actions:'right' },
     canvasToolbar:{ search:'always' },
     componentColors:{ grids:{ light:{ ink:'#0EA5E9' }, dark:{ tint:'#0c4a6e', ink:7 } }, inputs:{ light:{ ink:'not a color' } } },
+    componentTheme:'calm',
     builderPanels:{ agent:{ visibility:'always', sizing:'custom', width:420 } },
     panelWidth_explore:333,
     navigationTabs:'hidden',
@@ -70,6 +71,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   expect(exported.settings.rowLayout.type).toBe('middle');
   expect(exported.settings.canvasToolbar).toEqual({ search:'always', sort:'native', results:'always' });
   expect(exported.settings.componentColors).toEqual({ grids:{ light:{ ink:'#0EA5E9' }, dark:{ tint:'#0C4A6E' } } });
+  expect(exported.settings.componentTheme).toBe('calm');
   expect(exported.settings.builderPanels.agent.visibility).toBe('always');
   expect(exported.settings.builderPanels.tray.visibility).toBe('native');
   expect(exported.settings.panelWidths).toEqual({ agent:null, explore:333, properties:null, tray:null });
@@ -92,7 +94,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
 
   // Invalid input is rejected before anything is written.
   const paste = (text: string) => { type('import-text', text); click('import-review'); };
-  for (const [text, message] of [['', /Paste exported settings/], ['{', /not valid JSON/], ['{"a":1}', /not an Unqlock settings export/], ['{"unqlock":2,"settings":{}}', /newer version/], ['{"unqlock":1,"settings":{}}', /no settings/], ['{"unqlock":1,"settings":{"floating":[]}}', /floating value must be an object/], ['{"unqlock":1,"settings":{"canvasLabels":"off"}}', /canvasLabels value must be/], ['{"unqlock":1,"settings":{"navigationTabsCollapsed":"yes"}}', /navigationTabsCollapsed value must be true or false/], ['{"unqlock":1,"settings":{"navigationTabs":true}}', /navigationTabs value must be/], ['{"unqlock":1,"settings":{"historyPromotions":1}}', /historyPromotions value must be true or false/]] as const) {
+  for (const [text, message] of [['', /Paste exported settings/], ['{', /not valid JSON/], ['{"a":1}', /not an Unqlock settings export/], ['{"unqlock":2,"settings":{}}', /newer version/], ['{"unqlock":1,"settings":{}}', /no settings/], ['{"unqlock":1,"settings":{"floating":[]}}', /floating value must be an object/], ['{"unqlock":1,"settings":{"canvasLabels":"off"}}', /canvasLabels value must be/], ['{"unqlock":1,"settings":{"componentTheme":"neon"}}', /componentTheme value must be/], ['{"unqlock":1,"settings":{"navigationTabsCollapsed":"yes"}}', /navigationTabsCollapsed value must be true or false/], ['{"unqlock":1,"settings":{"navigationTabs":true}}', /navigationTabs value must be/], ['{"unqlock":1,"settings":{"historyPromotions":1}}', /historyPromotions value must be true or false/]] as const) {
     paste(text);
     expect(importStatus()).toMatch(message);
     expect(byId('import-preview').hidden).toBe(true);
@@ -110,6 +112,7 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   incoming.settings.rowLayout.enabled = false;
   incoming.settings.canvasToolbar = { search:'native', sort:'always' };
   incoming.settings.componentColors = { logic:{ dark:{ ink:'#7c3aed' } } };
+  incoming.settings.componentTheme = 'redgreen';
   incoming.settings.builderPanels.agent = { visibility:'start', sizing:'native', width:null };
   incoming.settings.navigationTabs = 'native';
   incoming.settings.canvasLabels = 'different';
@@ -148,7 +151,9 @@ test.each(apiNames)('export by copy and download, review and import by paste and
   expect((store.rowLayout as { enabled: boolean }).enabled).toBe(true);
   expect(store.canvasToolbar).toEqual(original.canvasToolbar);
   expect(store.componentColors).toEqual({ logic:{ dark:{ ink:'#7C3AED' } } });
+  expect(store.componentTheme).toBe('redgreen');
   expect(query<HTMLInputElement>('[data-color="logic-dark-ink"]').value).toBe('#7c3aed');
+  expect(query<HTMLSelectElement>('#color-theme').value).toBe('redgreen');
   expect(store.builderPanels).toEqual(original.builderPanels);
   expect(store.panelWidth_explore).toBe(333);
   expect(store.navigationTabs).toBe('hidden');

@@ -3,7 +3,7 @@ h2 { font-size:14px; margin:0 0 12px; }
 .settings-heading { font-size:12px; margin:16px 0 4px; padding-top:12px; border-top:1px solid var(--line); color:var(--muted); }
 .feature-entry + .feature-entry { margin-top:6px; }
 /* Text fields and selects. Each selector keeps its own specificity; their sizes and fonts follow below. */
-#quick-page input[type="text"], #quick-page textarea, #quick-page select, #row-preset, #environment-page input[type="text"], #environment-page select, #floating-corner, .panel-settings-card input[type="number"], .transfer-text { border:1px solid var(--line); border-radius:6px; background:var(--paper); color:var(--ink); font:inherit; }
+#quick-page input[type="text"], #quick-page textarea, #quick-page select, #row-preset, #color-theme, #environment-page input[type="text"], #environment-page select, #floating-corner, .panel-settings-card input[type="number"], .transfer-text { border:1px solid var(--line); border-radius:6px; background:var(--paper); color:var(--ink); font:inherit; }
 #quick-page input[type="text"], #quick-page textarea, #quick-page select { width:100%; height:auto; padding:8px; }
 #quick-page textarea { resize:vertical; font:12px/1.6 Consolas,monospace; min-height:80px; }
 .debug-subtitle { font-size:12px; margin-bottom:18px; }
@@ -14,7 +14,7 @@ h2 { font-size:14px; margin:0 0 12px; }
 #panel-inspect > button, #panel-execute > button { width:100%; }
 .value-types { margin-top:12px; }
 .value-types legend { margin-bottom:6px; }
-#row-preset { width:184px; max-width:60%; padding:6px 8px; }
+#row-preset, #color-theme { width:184px; max-width:60%; padding:6px 8px; }
 .row-section { margin-top:8px; }
 .row-section legend { font-size:12px; color:var(--muted); margin-bottom:4px; }
 .row-section .segments input + span { padding:4px; font-size:12px; }
