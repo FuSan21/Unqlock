@@ -1,4 +1,4 @@
-## New in 1.10.0
+## New in 1.9.1
 
 - **Color themes:** a **Theme** choice above the color swatches in **Component style** swaps every group's colors at once: **Calm**, with quieter backgrounds, **High contrast**, and two themes for color vision deficiency, **Red-green safe** for protanopia and deuteranopia and **Blue-yellow safe** for tritanopia, which keep groups apart that the default colors make look alike. Colors you pick still apply on top.
 

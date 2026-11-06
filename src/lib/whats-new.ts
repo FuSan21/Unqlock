@@ -18,7 +18,7 @@ export interface Release {
 }
 
 export const releases: Release[] = [
-  { version:'1.10.0', items:[
+  { version:'1.9.1', date:'2026-11-06', items:[
     { title:'Color themes', text:"a **Theme** choice above the color swatches in **Component style** swaps every group's colors at once: **Calm**, with quieter backgrounds, **High contrast**, and two themes for color vision deficiency, **Red-green safe** for protanopia and deuteranopia and **Blue-yellow safe** for tritanopia, which keep groups apart that the default colors make look alike. Colors you pick still apply on top.", page:'style-page' }
   ] },
   { version:'1.9.0', date:'2026-11-05', items:[
