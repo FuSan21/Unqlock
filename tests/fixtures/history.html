@@ -72,6 +72,8 @@
     restored.forEach(row);
     loaded.memoizedState = restored;
   };
+  // Unqork selects the newest save and loads its detail when History opens, without changing any row.
+  window.loadDetail = (id, source) => { detail.memoizedState = { _id:id, form:'module', status:'restored', sourceArchiveId:source }; };
   window.select = (id, source) => {
     detail.memoizedState = { _id:id, form:'module', status:'restored', sourceArchiveId:source };
     for (const button of list.querySelectorAll('button')) button.toggleAttribute('aria-current', button.__reactFiber$fixture.return.return.memoizedProps.revision._id === id);

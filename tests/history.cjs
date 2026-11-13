@@ -141,8 +141,13 @@ async function run(firefoxMode) {
     assert(Math.abs(hovered.lines[0].top - middle(hovered.dot.restoredNamed)) <= 2 && Math.abs(hovered.lines[0].bottom - middle(hovered.dot.named)) <= 2, JSON.stringify(hovered));
     await page.mouse.move(600, 5);
     await guidesWhen(0, found => found.source === null);
-    await page.evaluate(() => window.select('renamed', 'named'));
+    // A detail that loads without changing a row is read when its badge is hovered.
+    await page.evaluate(() => window.loadDetail('renamed', 'named'));
+    await page.hover('[data-unqlock-restored-badge="renamed"]');
+    await guidesWhen(1, found => found.lines[0].active && found.source === 'Sprint build');
     await badgesWhen([['renamed', sprint], ...marked.slice(1)]);
+    await page.mouse.move(600, 5);
+    await guidesWhen(0);
     // Always draws every guide whose two saves are listed, none of them hovered.
     await set({ historyRestores:'always' });
     await guidesWhen(5, found => found.lines.every(line => !line.active));
@@ -175,7 +180,7 @@ async function run(firefoxMode) {
       await guidesWhen(0);
     }
     assert.deepEqual(errors, []);
-    console.log('PASS: History promotion badges and tooltips, environment names in the badge on the line they fit, rows reused by the filter, added rows, turning them off and on, scope, restored-save badges, sources by name, date and detail, hover and Always guides, and popup settings (' + (firefoxMode ? 'Firefox' : 'Chrome extension') + ').');
+    console.log('PASS: History promotion badges and tooltips, environment names in the badge on the line they fit, rows reused by the filter, added rows, turning them off and on, scope, restored-save badges, sources by name, date and detail, a detail loaded without a row change, hover and Always guides, and popup settings (' + (firefoxMode ? 'Firefox' : 'Chrome extension') + ').');
   } finally { await close(context); }
 }
 run(process.argv.includes('--firefox')).catch(error => { console.error(error); process.exitCode = 1; });

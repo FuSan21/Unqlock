@@ -34,6 +34,7 @@ export default defineContentScript({
       // Every save seen on this page, by ID, and the sources the selected saves' details named.
       const seen = new Map<string, Restores.Save>();
       const known = new Map<string, string>();
+      const rechecked = new Set<string>();
       // The restored rows the last pass found, with their sources, and the badge being hovered.
       let guides: { id: string; row: Element; source: string | null }[] = [];
       let hovered: string | null = null;
@@ -129,6 +130,12 @@ export default defineContentScript({
           }
           if (row.getAttribute(restoredAttribute) !== (source.id ?? '')) row.setAttribute(restoredAttribute, source.id ?? '');
           found.push({ id:save.id, row, source:source.id });
+          // Unqork selects the newest save and loads its detail on its own, after the rows render and without
+          // changing them, so a save whose source is not known yet is looked at again a few times.
+          if (!source.id && !rechecked.has(save.id)) {
+            rechecked.add(save.id);
+            for (const delay of [300, 1000, 3000]) setTimeout(schedule, delay);
+          }
         }
         guides = found;
         // Pills are placed once the restored badges are in, which take room on the name line.
@@ -238,7 +245,11 @@ export default defineContentScript({
       // A badge's hover, as the pointer enters or leaves it.
       document.addEventListener('pointerover', event => {
         const id = (event.target as Element).closest?.('[' + badgeAttribute + ']')?.getAttribute(badgeAttribute) ?? null;
-        if (id !== hovered) { hovered = id; scheduleDraw(); }
+        if (id === hovered) return;
+        hovered = id;
+        // Hovering a badge reads the History container again, for a detail that has loaded since.
+        if (id) schedule();
+        else scheduleDraw();
       }, true);
       document.addEventListener('pointerout', event => {
         if (!event.relatedTarget && hovered) { hovered = null; scheduleDraw(); }
