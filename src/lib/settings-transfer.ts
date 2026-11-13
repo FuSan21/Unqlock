@@ -50,7 +50,7 @@ export function create(stored: Stored, { version, now = new Date() }: { version:
       panelWidths: panelWidths(stored),
       navigationTabs: Panels.tabsMode(stored[Panels.tabsKey]),
       navigationTabsCollapsed: Panels.tabsCollapsed(stored[Panels.tabsCollapsedKey]),
-      historyPromotions: Panels.promotions(stored[Panels.promotionsKey]),
+      historyPromotions: Panels.promotionsMode(stored[Panels.promotionsKey]),
       historyRestores: Panels.restoresMode(stored[Panels.restoresKey]),
       environment: Environment.settings(stored.environment),
       floating: Environment.floatingSettings(stored.floating)
@@ -78,7 +78,9 @@ export function parse(text: unknown): Parsed {
   if (Object.hasOwn(settings, Panels.restoresKey) && !(Panels.restoresModes as readonly unknown[]).includes(settings[Panels.restoresKey])) throw new Error('The historyRestores value must be ' + choices(Panels.restoresModes) + '.');
   if (Object.hasOwn(settings, Colors.themeKey) && Colors.theme(settings[Colors.themeKey]) !== settings[Colors.themeKey]) throw new Error('The componentTheme value must be ' + choices(Colors.themes.map(entry => entry.id)) + '.');
   if (Object.hasOwn(settings, Labels.key) && Labels.mode(settings[Labels.key]) !== settings[Labels.key]) throw new Error('The canvasLabels value must be ' + choices(Labels.modes.map(([id]) => id)) + '.');
-  for (const key of [Panels.tabsCollapsedKey, Panels.promotionsKey]) {
+  // Exports before Environment hold true or false for promotion badges.
+  if (Object.hasOwn(settings, Panels.promotionsKey) && typeof settings[Panels.promotionsKey] !== 'boolean' && !(Panels.promotionsModes as readonly unknown[]).includes(settings[Panels.promotionsKey])) throw new Error('The historyPromotions value must be ' + choices(Panels.promotionsModes) + '.');
+  for (const key of [Panels.tabsCollapsedKey]) {
     if (Object.hasOwn(settings, key) && typeof settings[key] !== 'boolean') throw new Error('The ' + key + ' value must be true or false.');
   }
   const appearance = settings.appearance || {};
@@ -136,7 +138,7 @@ export function apply(parsed: Parsed, chosen: SectionId[], stored: Stored) {
     for (const id of Panels.panelIds) update[Panels.rememberedKey(id)] = Panels.width(settings.panelWidths?.[id]);
     update[Panels.tabsKey] = Panels.tabsMode(settings[Panels.tabsKey]);
     update[Panels.tabsCollapsedKey] = Panels.tabsCollapsed(settings[Panels.tabsCollapsedKey]);
-    update[Panels.promotionsKey] = Panels.promotions(settings[Panels.promotionsKey]);
+    update[Panels.promotionsKey] = Panels.promotionsMode(settings[Panels.promotionsKey]);
     update[Panels.restoresKey] = Panels.restoresMode(settings[Panels.restoresKey]);
   }
   if (selected('launcher') && settings.floating) update.floating = Environment.floatingSettings(settings.floating);

@@ -1,7 +1,7 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
 import { whenIde } from '@/lib/builder-route';
 import { frameScheduler } from '@/lib/frame';
-import { describe, formatDate, promotionsOf } from '@/lib/history-promotions';
+import { describe, envLabel, formatDate, promotionsOf } from '@/lib/history-promotions';
 import * as Restores from '@/lib/history-restores';
 import { ancestors, currentFiber, type Fiber } from '@/lib/react-fiber';
 
@@ -21,6 +21,8 @@ export default defineContentScript({
       const rowSelector = 'li > div.group > button[aria-label]';
       const rootAttribute = 'data-unqlock-history-promotions';
       const promotedAttribute = 'data-unqlock-promoted';
+      // Under Environment, the name line holds the badge's text for style.css to show with attr().
+      const envAttribute = 'data-unqlock-promoted-env';
       const restoresAttribute = 'data-unqlock-history-restores';
       const restoredAttribute = 'data-unqlock-restored';
       const badgeAttribute = 'data-unqlock-restored-badge';
@@ -78,17 +80,20 @@ export default defineContentScript({
 
       function render() {
         const on = document.documentElement.hasAttribute(rootAttribute);
+        const named = document.documentElement.getAttribute(rootAttribute) === 'env';
         const restores = document.documentElement.getAttribute(restoresAttribute);
         const buttons = [...document.querySelectorAll(rowSelector)];
         if (restores && buttons.length) readContainer(buttons[0]).forEach(remember);
         const found: typeof guides = [];
         const rendered = restores ? renderedRows() : new Map<string, Element>();
+        const pills: [Element, string | null][] = [];
         for (const button of buttons) {
           const row = button.parentElement!;
           const revision = revisionOf(button);
           const marked = row.getAttribute(promotedAttribute);
           const promotions = on ? promotionsOf(revision) : [];
           const value = promotions.length ? describe(promotions) : null;
+          pills.push([row, named && promotions.length ? envLabel(promotions, location.hostname) : null]);
           if (value !== marked) {
             // The tooltip is removed only while it is still the one written here.
             if (marked !== null && button.getAttribute('title') === marked) button.removeAttribute('title');
@@ -126,8 +131,44 @@ export default defineContentScript({
           found.push({ id:save.id, row, source:source.id });
         }
         guides = found;
+        // Pills are placed once the restored badges are in, which take room on the name line.
+        if (named) for (const [row] of pills) resized.observe(row);
+        else resized.disconnect();
+        for (const [row, env] of pills) placePill(row, env);
         draw();
       }
+
+      // Under Environment the pill goes after the name line's badges when the whole name, every badge and the
+      // pill fit; otherwise after the author line, so the name, star and restored badge keep the first line.
+      // The fit is measured from the name's full width and the pill's text, not from the current placement,
+      // so it does not flip back and forth.
+      const measure = document.createElement('canvas').getContext('2d');
+      function placePill(row: Element, env: string | null) {
+        const lines = [...row.querySelectorAll(':scope > .flex-1 > *')];
+        const [first, second] = lines;
+        let target: Element | null = null;
+        if (env !== null && first) {
+          target = first;
+          if (second && measure) {
+            const style = getComputedStyle(first);
+            const gap = parseFloat(style.columnGap) || 0;
+            measure.font = '500 12px ' + style.fontFamily;
+            // 23px before the text, for the rocket, 8px after; at most 180px, as style.css draws it.
+            const pill = Math.min(180, Math.ceil(measure.measureText(env).width) + 31);
+            const kids = [...first.children];
+            const needed = kids.reduce((sum, kid, index) => sum + (index === 0 ? kid.scrollWidth : kid.getBoundingClientRect().width), 0) + gap * kids.length + pill;
+            if (needed > first.clientWidth) target = second;
+          }
+        }
+        for (const line of lines) {
+          const value = line === target ? env : null;
+          if (line.getAttribute(envAttribute) === value) continue;
+          if (value === null) line.removeAttribute(envAttribute);
+          else line.setAttribute(envAttribute, value);
+        }
+      }
+      // A narrower or wider History panel changes what fits.
+      const resized = new ResizeObserver(() => schedule());
 
       // The rendered rows by save. A collapsed month renders none of its rows.
       function renderedRows() {

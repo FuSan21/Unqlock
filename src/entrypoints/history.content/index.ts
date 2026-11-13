@@ -16,7 +16,9 @@ export default defineContentScript({
     // defaults apply.
     whenIde(() => watchLocal([Panels.promotionsKey, Panels.restoresKey], values => {
       const root = document.documentElement;
-      root.toggleAttribute('data-unqlock-history-promotions', Panels.promotions(values[Panels.promotionsKey]));
+      const promotions = Panels.promotionsMode(values[Panels.promotionsKey]);
+      if (promotions === 'native') root.removeAttribute('data-unqlock-history-promotions');
+      else root.setAttribute('data-unqlock-history-promotions', promotions);
       const restores = Panels.restoresMode(values[Panels.restoresKey]);
       if (restores === 'native') root.removeAttribute('data-unqlock-history-restores');
       else root.setAttribute('data-unqlock-history-restores', restores);

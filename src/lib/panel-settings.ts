@@ -43,9 +43,14 @@ export const tabsMode = oneOf(tabsModes, 'native');
 // bar to show, so it ignores this.
 export const tabsCollapsedKey = 'navigationTabsCollapsed';
 export const tabsCollapsed = flag;
-// A badge on each save in the builder's History that was promoted to another environment. On unless turned off.
+// A badge on each save in the builder's History that was promoted to another environment: Default shows History
+// as Unqork does, Icon draws a rocket and Environment the rocket with the environments' names. Icon unless changed.
+// Versions before Environment stored true or false, which read as Icon and Default.
+export const promotionsModes = ['native', 'icon', 'env'] as const;
+export type PromotionsMode = typeof promotionsModes[number];
 export const promotionsKey = 'historyPromotions';
-export const promotions = (value: unknown) => value !== false;
+const promotionsChoice = oneOf(promotionsModes, 'icon');
+export const promotionsMode = (value: unknown): PromotionsMode => value === false ? 'native' : value === true ? 'icon' : promotionsChoice(value);
 // Restored saves in History: Default shows them as Unqork does, On hover marks each with a badge whose hover
 // draws a guide to the save it was restored from, and Always draws every guide. On hover unless changed.
 export const restoresModes = ['native', 'hover', 'always'] as const;

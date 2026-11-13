@@ -14,6 +14,7 @@
   .flex-1 { flex:1; min-width:0; }
   .flex-1 > div:first-child { display:flex; align-items:center; gap:6px; }
   .truncate { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .mt-0\.5 { display:flex; align-items:center; gap:6px; margin-top:2px; font-size:12px; }
   .size-3 { width:12px; height:12px; box-sizing:border-box; border:2px solid #999; border-radius:50%; }
   #viewport { height:640px; overflow:auto; }
 </style>
@@ -39,7 +40,7 @@
   function row(save) {
     const item = document.createElement('li');
     item.innerHTML = '<div class="group relative isolate flex w-full"><button type="button"></button><div class="flex shrink-0 pt-0.5"><div class="size-3 rounded-full"></div></div>'
-      + '<div class="flex-1 min-w-0"><div class="flex items-center gap-1.5"><span class="text-sm font-medium truncate"></span></div><div class="mt-0.5 text-xs"><span class="truncate"></span></div></div></div>';
+      + '<div class="flex-1 min-w-0"><div class="flex items-center gap-1.5"><span class="text-sm font-medium truncate"></span></div><div class="mt-0.5 flex items-center gap-1.5 text-xs"><span class="truncate"></span></div></div></div>';
     list.append(item);
     show(item, save);
     return item;
@@ -75,5 +76,7 @@
     detail.memoizedState = { _id:id, form:'module', status:'restored', sourceArchiveId:source };
     for (const button of list.querySelectorAll('button')) button.toggleAttribute('aria-current', button.__reactFiber$fixture.return.return.memoizedProps.revision._id === id);
   };
+  // The History panel's width, which decides whether a pill fits on the name line.
+  window.width = px => document.querySelectorAll('.group').forEach(group => group.style.width = px + 'px');
   window.more = () => row({ _id:'later', name:'5/13/2026, 3:29 AM', author:'Clara', promotions:{ out:[{ targetEnv:'org-qa-qa', user:'clara', timestamp:'2026-05-13T19:58:37.382Z' }] } });
 </script>

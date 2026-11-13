@@ -1,13 +1,25 @@
 /* A promoted save in the builder's History gets Lucide's rocket in a green circle after its name, Current badge
    and star, the size of Unqork's own badges. The history bridge marks the row; its button holds the details as a
    tooltip. The icon is drawn in each theme's color, since an image cannot take the text color. */
-:root[data-unqlock-history-promotions] [data-unqlock-promoted] > .flex-1 > :first-child::after {
+:root[data-unqlock-history-promotions="icon"] [data-unqlock-promoted] > .flex-1 > :first-child::after,
+:root[data-unqlock-history-promotions="env"] [data-unqlock-promoted] > .flex-1 > [data-unqlock-promoted-env]::after {
   content:""; flex:none; width:20px; height:20px; border-radius:9999px;
   background:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23047857%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4.5%2016.5c-1.5%201.26-2%205-2%205s3.74-.5%205-2c.71-.84.7-2.13-.09-2.91a2.18%202.18%200%200%200-2.91-.09z%22%2F%3E%3Cpath%20d%3D%22m12%2015-3-3a22%2022%200%200%201%202-3.95A12.88%2012.88%200%200%201%2022%202c0%202.72-.78%207.5-6%2011a22.35%2022.35%200%200%201-4%202z%22%2F%3E%3Cpath%20d%3D%22M9%2012H4s.55-3.03%202-4c1.62-1.08%205%200%205%200%22%2F%3E%3Cpath%20d%3D%22M12%2015v5s3.03-.55%204-2c1.08-1.62%200-5%200-5%22%2F%3E%3C%2Fsvg%3E") center / 12px no-repeat, rgb(16 185 129 / .14);
 }
-:root.dark[data-unqlock-history-promotions] [data-unqlock-promoted] > .flex-1 > :first-child::after {
+:root.dark[data-unqlock-history-promotions="icon"] [data-unqlock-promoted] > .flex-1 > :first-child::after,
+:root.dark[data-unqlock-history-promotions="env"] [data-unqlock-promoted] > .flex-1 > [data-unqlock-promoted-env]::after {
   background:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236ee7b7%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4.5%2016.5c-1.5%201.26-2%205-2%205s3.74-.5%205-2c.71-.84.7-2.13-.09-2.91a2.18%202.18%200%200%200-2.91-.09z%22%2F%3E%3Cpath%20d%3D%22m12%2015-3-3a22%2022%200%200%201%202-3.95A12.88%2012.88%200%200%201%2022%202c0%202.72-.78%207.5-6%2011a22.35%2022.35%200%200%201-4%202z%22%2F%3E%3Cpath%20d%3D%22M9%2012H4s.55-3.03%202-4c1.62-1.08%205%200%205%200%22%2F%3E%3Cpath%20d%3D%22M12%2015v5s3.03-.55%204-2c1.08-1.62%200-5%200-5%22%2F%3E%3C%2Fsvg%3E") center / 12px no-repeat, rgb(16 185 129 / .18);
 }
+
+/* Under Environment the badge is a pill: the rocket, then the environments' names, in the rocket's green, cut short
+   with an ellipsis; the row's tooltip keeps every detail. The bridge puts the names on the name line when the
+   whole name, its badges and the pill fit there, and otherwise on the author line below. */
+:root[data-unqlock-history-promotions="env"] [data-unqlock-promoted] > .flex-1 > [data-unqlock-promoted-env]::after {
+  content:attr(data-unqlock-promoted-env); width:auto; min-width:0; max-width:180px; box-sizing:border-box; padding:0 8px 0 23px;
+  background-position:7px center; font-size:12px; font-weight:500; line-height:20px; color:#047857;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:0 1 auto; display:inline-block; vertical-align:middle;
+}
+:root.dark[data-unqlock-history-promotions="env"] [data-unqlock-promoted] > .flex-1 > [data-unqlock-promoted-env]::after { color:#6ee7b7; background-position:7px center; }
 
 /* A restored save gets Lucide's history icon in a blue circle, the history bridge's own element so that it can be
    hovered above the row's full-size button. Hovering it, or Always, draws a guide in the bridge's fixed layer:

@@ -91,6 +91,7 @@ test.each(apiNames)('navigation tabs switch loads, saves and resets with all pan
 });
 
 test.each(apiNames)('promotion badges in History load, save and reset with all panels (%s)', async apiName => {
+  // Versions before Environment stored a switch, which reads as Default when off.
   const memory = memoryStorage({ historyPromotions:false });
   const saved: Record<string, any> = memory.data;
   await renderPopup(apiName, {
@@ -99,19 +100,21 @@ test.each(apiNames)('promotion badges in History load, save and reset with all p
     runtime:{ getManifest:() => ({ version:'1.0.0' }), sendMessage:async () => ({ ok:true, config:{}, missingOrigins:[] }) }
   });
   click('open-panels'); await settle();
-  const badges = () => document.querySelector<HTMLInputElement>('input[name="history-promotions"]')!;
-  expect(badges().checked).toBe(false);
-  expect(badges().getAttribute('aria-describedby')).toBe('history-promotions-help');
-  click(badges());
-  await waitFor(() => expect(saved.historyPromotions).toBe(true));
+  const option = (value: string) => document.querySelector<HTMLInputElement>('input[name="history-promotions"][value="' + value + '"]')!;
+  expect(option('native').checked).toBe(true);
+  click(option('env'));
+  await waitFor(() => expect(saved.historyPromotions).toBe('env'));
+  expect(byId('panels-status').textContent).toMatch(/names the environments/);
+  click(option('icon'));
+  await waitFor(() => expect(saved.historyPromotions).toBe('icon'));
   expect(byId('panels-status').textContent).toMatch(/marks promoted saves/);
-  click(badges());
-  await waitFor(() => expect(saved.historyPromotions).toBe(false));
+  click(option('native'));
+  await waitFor(() => expect(saved.historyPromotions).toBe('native'));
   expect(byId('panels-status').textContent).toMatch(/as Unqork does/);
-  // On is the default, which Reset all builder panels restores.
+  // Icon is the default, which Reset all builder panels restores.
   click('panels-reset');
-  await waitFor(() => expect(saved.historyPromotions).toBe(true));
-  expect(badges().checked).toBe(true);
+  await waitFor(() => expect(saved.historyPromotions).toBe('icon'));
+  expect(option('icon').checked).toBe(true);
 });
 
 test.each(apiNames)('restored saves in History load, save and reset with all panels (%s)', async apiName => {

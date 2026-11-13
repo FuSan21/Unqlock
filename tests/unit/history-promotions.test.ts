@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { describe, promotionsOf } from '@/lib/history-promotions';
+import { describe, envLabel, promotionsOf, shortEnv } from '@/lib/history-promotions';
 
 const utc = new Intl.DateTimeFormat('en-US', { year:'numeric', month:'numeric', day:'numeric', hour:'numeric', minute:'2-digit', timeZone:'UTC' });
 const format = (time: number) => utc.format(time);
@@ -22,4 +22,18 @@ test('a save without promotions, or with entries it cannot read, has none', () =
   }
   // A missing user or date leaves that part out.
   expect(describe(promotionsOf({ promotions:{ out:[{ targetEnv:'org-uat', timestamp:'later' }] } }), format)).toBe('Promoted to org-uat');
+});
+
+test('names environments without the prefix they share with the builder host, each once', () => {
+  expect(shortEnv('american-equity-qa-qa', 'american-equity-staging.unqork.io')).toBe('qa-qa');
+  expect(shortEnv('org-uat', 'org-qa-staging.unqork.io')).toBe('uat');
+  // Nothing shared, or nothing left after the prefix, keeps the whole name.
+  expect(shortEnv('org-qa-qa', 'history-fixture.unqork.io')).toBe('org-qa-qa');
+  expect(shortEnv('org', 'org-staging.unqork.io')).toBe('org');
+  const list = promotionsOf({ promotions:{ out:[
+    { targetEnv:'org-qa-qa', user:'a', timestamp:'2026-07-06T19:53:23.000Z' },
+    { targetEnv:'org-uat', user:'b', timestamp:'2026-07-08T10:00:00.000Z' },
+    { targetEnv:'org-qa-qa', user:'c', timestamp:'2026-07-09T10:00:00.000Z' }
+  ] } });
+  expect(envLabel(list, 'org-staging.unqork.io')).toBe('qa-qa · uat');
 });

@@ -65,6 +65,28 @@ async function run(firefoxMode) {
     await set({ historyPromotions:true });
     await rowsWhen([plain('10/14/2026, 8:00 AM'), plain('Release notes'), promoted, ['5/13/2026, 3:29 AM', true, 'Promoted to org-qa-qa by clara, 5/13/2026, 7:58 PM']]);
 
+    // Environment writes the environments into the badge, each once, beside the rocket; the tooltip is unchanged.
+    // The pill stays on the name line while the whole name, its badges and the pill fit, else it goes below.
+    const envs = () => page.$$eval('#history li:not([hidden]) .flex-1', items => items.map(item => {
+      const [name, author] = [...item.children].map(line => getComputedStyle(line, '::after').content);
+      return author !== 'none' ? [2, author] : name !== 'none' ? [1, name] : null;
+    }));
+    const envsWhen = async expected => {
+      const until = Date.now() + 5000;
+      while (JSON.stringify(await envs()) !== JSON.stringify(expected) && Date.now() < until) await frames();
+      assert.deepEqual(await envs(), expected);
+    };
+    await envsWhen([null, null, [1, '""'], [1, '""']]);
+    await set({ historyPromotions:'env' });
+    await page.evaluate(() => window.width(600));
+    await envsWhen([null, null, [1, '"org-qa-qa"'], [1, '"org-qa-qa"']]);
+    await page.evaluate(() => window.width(200));
+    await envsWhen([null, null, [2, '"org-qa-qa"'], [2, '"org-qa-qa"']]);
+    assert.deepEqual((await rows())[2], ['10/14/2026, 8:12 AM', false, promoted[2]]);
+    await page.evaluate(() => window.width(280));
+    await set({ historyPromotions:'icon' });
+    await envsWhen([null, null, [1, '""'], [1, '""']]);
+
     // Outside /ide/ nothing runs.
     await load('/login');
     assert.equal(await page.evaluate(() => document.documentElement.hasAttribute('data-unqlock-history-promotions')), false);
@@ -135,13 +157,13 @@ async function run(firefoxMode) {
       await popup.reload();
       await popup.locator('#open-panels').click();
       await popup.locator('#panels-fields:not([disabled])').waitFor();
-      const badges = popup.getByLabel('Promotion badges', { exact:true });
-      assert(await badges.isChecked());
-      await badges.uncheck();
-      await storedWhen(values => values.historyPromotions === false);
+      const promotionOption = value => popup.locator('input[name="history-promotions"][value="' + value + '"]');
+      assert(await promotionOption('icon').isChecked());
+      await promotionOption('native').check();
+      await storedWhen(values => values.historyPromotions === 'native');
       await rowsWhen([plain('Release notes'), plain('10/14/2026, 8:12 AM'), plain('10/14/2026, 8:00 AM'), plain('7/1/2026, 7:20 PM')]);
       await popup.locator('#panels-reset').click();
-      await storedWhen(values => values.historyPromotions === true);
+      await storedWhen(values => values.historyPromotions === 'icon');
       await rowsWhen([plain('Release notes'), promoted, plain('10/14/2026, 8:00 AM'), twice]);
       await page.evaluate(() => window.restores());
       await badgesWhen(marked);
@@ -153,7 +175,7 @@ async function run(firefoxMode) {
       await guidesWhen(0);
     }
     assert.deepEqual(errors, []);
-    console.log('PASS: History promotion badges and tooltips, rows reused by the filter, added rows, turning them off and on, scope, restored-save badges, sources by name, date and detail, hover and Always guides, and popup settings (' + (firefoxMode ? 'Firefox' : 'Chrome extension') + ').');
+    console.log('PASS: History promotion badges and tooltips, environment names in the badge on the line they fit, rows reused by the filter, added rows, turning them off and on, scope, restored-save badges, sources by name, date and detail, hover and Always guides, and popup settings (' + (firefoxMode ? 'Firefox' : 'Chrome extension') + ').');
   } finally { await close(context); }
 }
 run(process.argv.includes('--firefox')).catch(error => { console.error(error); process.exitCode = 1; });

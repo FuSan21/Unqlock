@@ -1,6 +1,7 @@
 ## New in 1.10.0
 
 - **Restored saves in History:** a save made by restoring an earlier one now shows a blue history badge after its name in a module's **History**. Hover it to see which save it came from, and a guide in the list connects the two. **Restored saves**, under the **History** card in **Builder panels**, is **On hover** by default; **Always** draws every guide at once.
+- **Environments on promotion badges:** **Promotion badges** in **Builder panels** is now a choice: **Icon**, the rocket as before, **Environment**, which writes the environments a save was promoted to into its badge, such as *qa-qa · uat*, or **Default**, without badges.
 
 ## New in 1.9.1
 
