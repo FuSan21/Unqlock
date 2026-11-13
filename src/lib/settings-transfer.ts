@@ -32,7 +32,7 @@ function panelWidths(stored: Stored) {
 }
 
 // The storage keys an export reads and an import may replace.
-export const storedKeys = ['appearance', 'rowLayout', 'canvasToolbar', Labels.key, 'componentColors', Colors.themeKey, 'builderPanels', Panels.tabsKey, Panels.tabsCollapsedKey, Panels.promotionsKey, 'environment', 'floating', ...Panels.panelIds.map(Panels.rememberedKey)];
+export const storedKeys = ['appearance', 'rowLayout', 'canvasToolbar', Labels.key, 'componentColors', Colors.themeKey, 'builderPanels', Panels.tabsKey, Panels.tabsCollapsedKey, Panels.promotionsKey, Panels.restoresKey, 'environment', 'floating', ...Panels.panelIds.map(Panels.rememberedKey)];
 
 export function create(stored: Stored, { version, now = new Date() }: { version: string; now?: Date }) {
   return {
@@ -51,6 +51,7 @@ export function create(stored: Stored, { version, now = new Date() }: { version:
       navigationTabs: Panels.tabsMode(stored[Panels.tabsKey]),
       navigationTabsCollapsed: Panels.tabsCollapsed(stored[Panels.tabsCollapsedKey]),
       historyPromotions: Panels.promotions(stored[Panels.promotionsKey]),
+      historyRestores: Panels.restoresMode(stored[Panels.restoresKey]),
       environment: Environment.settings(stored.environment),
       floating: Environment.floatingSettings(stored.floating)
     }
@@ -74,6 +75,7 @@ export function parse(text: unknown): Parsed {
     if (Object.hasOwn(settings, key) && !isObject(settings[key])) throw new Error('The ' + key + ' value must be an object.');
   }
   if (Object.hasOwn(settings, Panels.tabsKey) && !(Panels.tabsModes as readonly unknown[]).includes(settings[Panels.tabsKey])) throw new Error('The navigationTabs value must be ' + choices(Panels.tabsModes) + '.');
+  if (Object.hasOwn(settings, Panels.restoresKey) && !(Panels.restoresModes as readonly unknown[]).includes(settings[Panels.restoresKey])) throw new Error('The historyRestores value must be ' + choices(Panels.restoresModes) + '.');
   if (Object.hasOwn(settings, Colors.themeKey) && Colors.theme(settings[Colors.themeKey]) !== settings[Colors.themeKey]) throw new Error('The componentTheme value must be ' + choices(Colors.themes.map(entry => entry.id)) + '.');
   if (Object.hasOwn(settings, Labels.key) && Labels.mode(settings[Labels.key]) !== settings[Labels.key]) throw new Error('The canvasLabels value must be ' + choices(Labels.modes.map(([id]) => id)) + '.');
   for (const key of [Panels.tabsCollapsedKey, Panels.promotionsKey]) {
@@ -85,7 +87,7 @@ export function parse(text: unknown): Parsed {
     // The home switch travels in every export but is not part of Component style.
     style: Object.keys(appearance).some(key => key !== 'enabled' && !isLayoutKey(key)) || Boolean(settings.componentColors) || Object.hasOwn(settings, Colors.themeKey),
     layout: Object.keys(appearance).some(isLayoutKey) || Boolean(settings.rowLayout || settings.canvasToolbar) || Object.hasOwn(settings, Labels.key),
-    panels: Boolean(settings.builderPanels || settings.panelWidths) || [Panels.tabsKey, Panels.tabsCollapsedKey, Panels.promotionsKey].some(key => Object.hasOwn(settings, key)),
+    panels: Boolean(settings.builderPanels || settings.panelWidths) || [Panels.tabsKey, Panels.tabsCollapsedKey, Panels.promotionsKey, Panels.restoresKey].some(key => Object.hasOwn(settings, key)),
     environments: Boolean(settings.environment) && ['groups', 'blockProduction', 'autoDiscover'].some(key => Object.hasOwn(settings.environment as object, key)),
     launcher: Boolean(settings.floating) || Object.hasOwn(settings.environment || {}, 'badge')
   };
@@ -135,6 +137,7 @@ export function apply(parsed: Parsed, chosen: SectionId[], stored: Stored) {
     update[Panels.tabsKey] = Panels.tabsMode(settings[Panels.tabsKey]);
     update[Panels.tabsCollapsedKey] = Panels.tabsCollapsed(settings[Panels.tabsCollapsedKey]);
     update[Panels.promotionsKey] = Panels.promotions(settings[Panels.promotionsKey]);
+    update[Panels.restoresKey] = Panels.restoresMode(settings[Panels.restoresKey]);
   }
   if (selected('launcher') && settings.floating) update.floating = Environment.floatingSettings(settings.floating);
   let environment: Environment.EnvironmentSettings | null = null;

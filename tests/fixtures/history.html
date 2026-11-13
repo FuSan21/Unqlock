@@ -5,15 +5,19 @@
      full-size button labelled with the save's name, a dot, the name line (name, Current badge, star) and the author
      line. React keeps the save's record as the `revision` prop two levels above the button; a stand-in fiber holds
      it here. The save-type filter re-renders rows in place, so `filter` relabels them, and `more` adds a row as
-     opening a month group does. -->
+     opening a month group does. The History container, which takes the module's ID, keeps the loaded saves and
+     the selected save's detail, whose `sourceArchiveId` names a restored save's source, among its hooks; `restores`
+     shows a module's saves with restores in it, as captured, and `select` loads a save's detail. -->
 <style>
   .group { position:relative; display:flex; align-items:flex-start; gap:12px; width:280px; padding:12px; border:1px solid #ccc; }
   .group > button { position:absolute; inset:0; z-index:0; background:none; border:0; }
   .flex-1 { flex:1; min-width:0; }
   .flex-1 > div:first-child { display:flex; align-items:center; gap:6px; }
   .truncate { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .size-3 { width:12px; height:12px; box-sizing:border-box; border:2px solid #999; border-radius:50%; }
+  #viewport { height:640px; overflow:auto; }
 </style>
-<ul id="history"></ul>
+<div id="viewport" data-slot="scroll-area-viewport"><ul id="history"></ul></div>
 <script>
   const saves = [
     { _id:'current', name:'Release notes', author:'Ada', isCurrent:true },
@@ -28,6 +32,10 @@
     ] } }
   ];
   const list = document.getElementById('history');
+  // The container's hooks: the selected save's detail, then the loaded saves.
+  const loaded = { memoizedState:[], next:null };
+  const detail = { memoizedState:null, next:loaded };
+  const container = { memoizedProps:{ moduleId:'module' }, memoizedState:detail, return:null };
   function row(save) {
     const item = document.createElement('li');
     item.innerHTML = '<div class="group relative isolate flex w-full"><button type="button"></button><div class="flex shrink-0 pt-0.5"><div class="size-3 rounded-full"></div></div>'
@@ -42,9 +50,30 @@
     button.setAttribute('aria-label', save.name);
     item.querySelector('.text-sm').textContent = save.name;
     item.querySelector('.mt-0\\.5 .truncate').textContent = save.author;
-    button.__reactFiber$fixture = { memoizedProps:{ type:'button' }, return:{ memoizedProps:{ className:'group' }, return:{ memoizedProps:{ revision:save, isSelected:false } } } };
+    button.__reactFiber$fixture = { memoizedProps:{ type:'button' }, return:{ memoizedProps:{ className:'group' }, return:{ memoizedProps:{ revision:save, isSelected:false }, return:container } } };
   }
   saves.forEach(row);
   window.filter = ids => [...list.children].forEach((item, index) => ids[index] ? (item.hidden = false, show(item, saves.find(save => save._id === ids[index]))) : item.hidden = true);
+  // One module's saves, newest first: a restore renamed afterwards, a restore of a named save, a chain of restores
+  // of an unnamed save, one restored by someone in UTC−6 and one whose source is no longer listed.
+  const restored = [
+    { _id:'renamed', archiveName:'Sprint build', status:'restored', created:'2026-11-13T17:31:50.504Z', notes:'Ticket 7, more' },
+    { _id:'restoredNamed', archiveName:'(Restored) Sprint build', status:'restored', created:'2026-11-13T02:20:18.139Z', notes:'Ticket 7' },
+    { _id:'named', archiveName:'Sprint build', status:'', created:'2026-11-12T21:31:28.285Z', notes:'Ticket 7' },
+    { _id:'chain2', archiveName:'(Restored) (Restored) 11/12/2026, 7:29 PM', status:'restored', created:'2026-11-12T20:37:15.794Z', notes:'' },
+    { _id:'elsewhere', archiveName:'(Restored) 11/12/2026, 1:29 PM', status:'restored', created:'2026-11-12T20:30:00.000Z', notes:'' },
+    { _id:'chain1', archiveName:'(Restored) 11/12/2026, 7:29 PM', status:'restored', created:'2026-11-12T20:06:59.064Z', notes:'' },
+    { _id:'dated', name:'11/12/2026, 7:29 PM', status:'', created:'2026-11-12T19:29:10.000Z', notes:'' },
+    { _id:'gone', archiveName:'(Restored) Deleted save', status:'restored', created:'2026-09-01T10:00:00.000Z', notes:'' }
+  ].map(save => ({ form:'module', author:'Ada', name:save.archiveName, ...save }));
+  window.restores = () => {
+    list.replaceChildren();
+    restored.forEach(row);
+    loaded.memoizedState = restored;
+  };
+  window.select = (id, source) => {
+    detail.memoizedState = { _id:id, form:'module', status:'restored', sourceArchiveId:source };
+    for (const button of list.querySelectorAll('button')) button.toggleAttribute('aria-current', button.__reactFiber$fixture.return.return.memoizedProps.revision._id === id);
+  };
   window.more = () => row({ _id:'later', name:'5/13/2026, 3:29 AM', author:'Clara', promotions:{ out:[{ targetEnv:'org-qa-qa', user:'clara', timestamp:'2026-05-13T19:58:37.382Z' }] } });
 </script>

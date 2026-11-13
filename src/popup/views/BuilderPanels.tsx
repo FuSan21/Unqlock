@@ -11,6 +11,7 @@ type PanelId = Panels.PanelId;
 const visibilityOptions = [['native', 'Default'], ['start', 'Start collapsed'], ['always', 'Always collapsed']] as const;
 const sizingOptions = [['native', 'Default'], ['custom', 'Custom'], ['remember', 'Remember last']] as const;
 const tabsOptions = [['native', 'Default'], ['wrapped', 'Multi-line'], ['hidden', 'Hidden']] as const;
+const restoresOptions = [['native', 'Default'], ['hover', 'On hover'], ['always', 'Always']] as const;
 const collapseReason = 'Choose Default or Multi-line to collapse the tab bar.';
 const lockedReason = 'Choose another visibility option to change this panel’s size.';
 const builderUrl = /^https:\/\/[^/]+\/ide\/builder\/workspaces\/[^/]+\/modules\//;
@@ -63,6 +64,7 @@ export function BuilderPanels() {
   const [tabs, setTabs] = useState<Panels.TabsMode>('native');
   const [collapsed, setCollapsed] = useState(false);
   const [promotions, setPromotions] = useState(true);
+  const [restores, setRestores] = useState<Panels.RestoresMode>('hover');
   const [widths, setWidths] = useState<Partial<Record<PanelId, number | null>>>({});
   const [sizingErrors, setSizingErrors] = useState<Partial<Record<PanelId, string>>>({});
   const [remembered, setRemembered] = useState<Stored>({});
@@ -100,12 +102,12 @@ export function BuilderPanels() {
     const cleared = id ? [id] : Panels.panelIds;
     if (reset) for (const key of cleared) update[Panels.rememberedKey(key)] = null;
     // Reset all builder panels brings the tab bar and History's defaults back too.
-    if (!id) Object.assign(update, { [Panels.tabsKey]:'native', [Panels.tabsCollapsedKey]:false, [Panels.promotionsKey]:true });
+    if (!id) Object.assign(update, { [Panels.tabsKey]:'native', [Panels.tabsCollapsedKey]:false, [Panels.promotionsKey]:true, [Panels.restoresKey]:'hover' });
     await api.storage.local.set(update);
     if (reset) setRemembered((previous: Stored) => ({ ...previous, ...Object.fromEntries(cleared.map(key => [Panels.rememberedKey(key), null])) }));
     if (pendingSaves.current === 1) {
       setConfig(next);
-      if (!id) { setTabs('native'); setCollapsed(false); setPromotions(true); }
+      if (!id) { setTabs('native'); setCollapsed(false); setPromotions(true); setRestores('hover'); }
       setStatus('Saved. Start collapsed applies on the next module visit. Widths fit the available space.');
     }
   }
@@ -128,7 +130,7 @@ export function BuilderPanels() {
 
   function save(id: PanelId | null, patch: Partial<Panels.PanelPreference> | null, reset = false) {
     setConfig(previous => id ? { ...previous, [id]:{ ...previous[id], ...patch } } : Panels.settings());
-    if (!id) { setTabs('native'); setCollapsed(false); setPromotions(true); }
+    if (!id) { setTabs('native'); setCollapsed(false); setPromotions(true); setRestores('hover'); }
     return enqueue(() => persist(id, patch, reset));
   }
 
@@ -155,16 +157,22 @@ export function BuilderPanels() {
     return saveSetting(Panels.promotionsKey, value, value ? 'Saved. History marks promoted saves.' : 'Saved. History shows saves as Unqork does.');
   }
 
+  function saveRestores(mode: Panels.RestoresMode) {
+    setRestores(mode);
+    return saveSetting(Panels.restoresKey, mode, mode === 'native' ? 'Saved. History shows restored saves as Unqork does.' : mode === 'always' ? 'Saved. History draws a guide from each restored save to its source.' : 'Saved. Hover a restored save’s badge to see its source.');
+  }
+
   usePageOpen('panels-page', async () => {
     setLoading(true);
     setStatus('Loading panel settings…');
     target.current = null;
     try {
-      const result = await api.storage.local.get(['builderPanels', Panels.tabsKey, Panels.tabsCollapsedKey, Panels.promotionsKey, ...Panels.panelIds.map(Panels.rememberedKey)]);
+      const result = await api.storage.local.get(['builderPanels', Panels.tabsKey, Panels.tabsCollapsedKey, Panels.promotionsKey, Panels.restoresKey, ...Panels.panelIds.map(Panels.rememberedKey)]);
       setConfig(Panels.settings(result.builderPanels));
       setTabs(Panels.tabsMode(result[Panels.tabsKey]));
       setCollapsed(Panels.tabsCollapsed(result[Panels.tabsCollapsedKey]));
       setPromotions(Panels.promotions(result[Panels.promotionsKey]));
+      setRestores(Panels.restoresMode(result[Panels.restoresKey]));
       setRemembered(result);
       try { await measure(); } catch { setWidths({}); }
       setLoading(false);
@@ -202,6 +210,9 @@ export function BuilderPanels() {
           <Card title="History">
             <Toggle name="history-promotions" label="Promotion badges" checked={promotions} aria-describedby="history-promotions-help" onChange={savePromotions} />
             <Note id="history-promotions-help">Marks each save in a module’s History that was promoted to another environment. Hover a save to see where, by whom and when.</Note>
+            <Segmented name="history-restores" legend="Restored saves" label="Restored saves" describedBy="history-restores-help" options={restoresOptions} value={restores}
+              onChange={saveRestores} />
+            <Note id="history-restores-help">Marks each restored save with a badge naming the save it came from. On hover draws a guide to that save while you hover the badge; Always draws every guide.</Note>
           </Card>
           {Panels.panelIds.map(id => {
             const meta = Panels.panels[id];

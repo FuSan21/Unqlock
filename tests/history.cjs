@@ -70,6 +70,66 @@ async function run(firefoxMode) {
     assert.equal(await page.evaluate(() => document.documentElement.hasAttribute('data-unqlock-history-promotions')), false);
     assert.deepEqual((await rows()).map(row => row[1]), [false, false, false, false]);
 
+    // Restored saves: a badge on each, On hover by default, naming its source; hovering it draws one guide from its
+    // dot to its source's and rings the source; selecting a save that names its source corrects the guess.
+    const badges = () => page.$$eval('[data-unqlock-restored-badge]', items => items.map(badge => {
+      const style = getComputedStyle(badge);
+      return [badge.getAttribute('data-unqlock-restored-badge'), style.width === '20px' && style.backgroundImage.includes('data:image/svg+xml') ? badge.getAttribute('title') : null];
+    }));
+    const badgesWhen = async expected => {
+      const until = Date.now() + 5000;
+      while (JSON.stringify(await badges()) !== JSON.stringify(expected) && Date.now() < until) await frames();
+      assert.deepEqual(await badges(), expected);
+    };
+    // Each guide's top and bottom against the rows' dots, whether it is the hovered one, and the ringed source.
+    const guides = () => page.evaluate(() => {
+      const dot = id => [...document.querySelectorAll('#history button')].find(button => button.__reactFiber$fixture.return.return.memoizedProps.revision._id === id).nextElementSibling.firstElementChild.getBoundingClientRect();
+      const lines = [...document.querySelectorAll('[data-unqlock-restore-guides] > div')].map(line => {
+        const box = line.getBoundingClientRect();
+        return { top:box.top, bottom:box.bottom, active:line.hasAttribute('data-active') };
+      });
+      const source = document.querySelector('[data-unqlock-restore-source] > button')?.getAttribute('aria-label') ?? null;
+      return { lines, source, dot:{ restoredNamed:dot('restoredNamed'), named:dot('named') } };
+    });
+    const guidesWhen = async (count, check = () => true) => {
+      const until = Date.now() + 5000;
+      let found = await guides();
+      while ((found.lines.length !== count || !check(found)) && Date.now() < until) { await frames(); found = await guides(); }
+      assert.equal(found.lines.length, count);
+      assert(check(found), JSON.stringify(found));
+      return found;
+    };
+    const sprint = 'Restored from “Sprint build”, saved 11/12/2026, 9:31 PM';
+    const marked = [
+      ['renamed', 'Restored from an earlier save. Select this save to find which one'],
+      ['restoredNamed', sprint],
+      ['chain2', 'Restored from “(Restored) 11/12/2026, 7:29 PM”, saved 11/12/2026, 8:06 PM'],
+      ['elsewhere', 'Probably restored from “11/12/2026, 7:29 PM”'],
+      ['chain1', 'Restored from “11/12/2026, 7:29 PM”'],
+      ['gone', 'Restored from “Deleted save”, which is not in the list']
+    ];
+    await load();
+    assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-unqlock-history-restores')), 'hover');
+    await page.evaluate(() => window.restores());
+    await badgesWhen(marked);
+    await guidesWhen(0);
+    await page.hover('[data-unqlock-restored-badge="restoredNamed"]');
+    const hovered = await guidesWhen(1, found => found.lines[0].active && found.source === 'Sprint build');
+    const middle = box => box.top + box.height / 2;
+    assert(Math.abs(hovered.lines[0].top - middle(hovered.dot.restoredNamed)) <= 2 && Math.abs(hovered.lines[0].bottom - middle(hovered.dot.named)) <= 2, JSON.stringify(hovered));
+    await page.mouse.move(600, 5);
+    await guidesWhen(0, found => found.source === null);
+    await page.evaluate(() => window.select('renamed', 'named'));
+    await badgesWhen([['renamed', sprint], ...marked.slice(1)]);
+    // Always draws every guide whose two saves are listed, none of them hovered.
+    await set({ historyRestores:'always' });
+    await guidesWhen(5, found => found.lines.every(line => !line.active));
+    await set({ historyRestores:'native' });
+    await badgesWhen([]);
+    await guidesWhen(0);
+    await set({ historyRestores:'hover' });
+    await badgesWhen([['renamed', sprint], ...marked.slice(1)]);
+
     if (popup) {
       await load();
       await popup.reload();
@@ -83,9 +143,17 @@ async function run(firefoxMode) {
       await popup.locator('#panels-reset').click();
       await storedWhen(values => values.historyPromotions === true);
       await rowsWhen([plain('Release notes'), promoted, plain('10/14/2026, 8:00 AM'), twice]);
+      await page.evaluate(() => window.restores());
+      await badgesWhen(marked);
+      await popup.locator('input[name="history-restores"][value="always"]').check();
+      await storedWhen(values => values.historyRestores === 'always');
+      await guidesWhen(4);
+      await popup.locator('#panels-reset').click();
+      await storedWhen(values => values.historyRestores === 'hover');
+      await guidesWhen(0);
     }
     assert.deepEqual(errors, []);
-    console.log('PASS: History promotion badges and tooltips, rows reused by the filter, added rows, turning them off and on, scope and popup settings (' + (firefoxMode ? 'Firefox' : 'Chrome extension') + ').');
+    console.log('PASS: History promotion badges and tooltips, rows reused by the filter, added rows, turning them off and on, scope, restored-save badges, sources by name, date and detail, hover and Always guides, and popup settings (' + (firefoxMode ? 'Firefox' : 'Chrome extension') + ').');
   } finally { await close(context); }
 }
 run(process.argv.includes('--firefox')).catch(error => { console.error(error); process.exitCode = 1; });

@@ -11,10 +11,15 @@ export default defineContentScript({
   // Don't broadcast WXT's start-up message to the page's own message listeners.
   noScriptStartedPostMessage: true,
   main() {
-    // The history bridge in MAIN marks promoted saves only while this attribute is on the root, and
-    // style.css draws their badge; neither can read extension storage itself. Without storage, the default applies.
-    whenIde(() => watchLocal([Panels.promotionsKey], values => {
-      document.documentElement.toggleAttribute('data-unqlock-history-promotions', Panels.promotions(values[Panels.promotionsKey]));
+    // The history bridge in MAIN marks promoted and restored saves only while these attributes are on the root,
+    // and style.css draws their badges; neither can read extension storage itself. Without storage, the
+    // defaults apply.
+    whenIde(() => watchLocal([Panels.promotionsKey, Panels.restoresKey], values => {
+      const root = document.documentElement;
+      root.toggleAttribute('data-unqlock-history-promotions', Panels.promotions(values[Panels.promotionsKey]));
+      const restores = Panels.restoresMode(values[Panels.restoresKey]);
+      if (restores === 'native') root.removeAttribute('data-unqlock-history-restores');
+      else root.setAttribute('data-unqlock-history-restores', restores);
     }));
   }
 });

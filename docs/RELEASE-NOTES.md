@@ -1,3 +1,7 @@
+## New in 1.10.0
+
+- **Restored saves in History:** a save made by restoring an earlier one now shows a blue history badge after its name in a module's **History**. Hover it to see which save it came from, and a guide in the list connects the two. **Restored saves**, under the **History** card in **Builder panels**, is **On hover** by default; **Always** draws every guide at once.
+
 ## New in 1.9.1
 
 - **Color themes:** a **Theme** choice above the color swatches in **Component style** swaps every group's colors at once: **Calm**, with quieter backgrounds, **High contrast**, and two themes for color vision deficiency, **Red-green safe** for protanopia and deuteranopia and **Blue-yellow safe** for tritanopia, which keep groups apart that the default colors make look alike. Colors you pick still apply on top.

@@ -46,3 +46,9 @@ export const tabsCollapsed = flag;
 // A badge on each save in the builder's History that was promoted to another environment. On unless turned off.
 export const promotionsKey = 'historyPromotions';
 export const promotions = (value: unknown) => value !== false;
+// Restored saves in History: Default shows them as Unqork does, On hover marks each with a badge whose hover
+// draws a guide to the save it was restored from, and Always draws every guide. On hover unless changed.
+export const restoresModes = ['native', 'hover', 'always'] as const;
+export type RestoresMode = typeof restoresModes[number];
+export const restoresKey = 'historyRestores';
+export const restoresMode = oneOf(restoresModes, 'hover');

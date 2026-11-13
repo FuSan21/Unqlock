@@ -113,3 +113,26 @@ test.each(apiNames)('promotion badges in History load, save and reset with all p
   await waitFor(() => expect(saved.historyPromotions).toBe(true));
   expect(badges().checked).toBe(true);
 });
+
+test.each(apiNames)('restored saves in History load, save and reset with all panels (%s)', async apiName => {
+  const memory = memoryStorage({ historyRestores:'native' });
+  const saved: Record<string, any> = memory.data;
+  await renderPopup(apiName, {
+    storage:memory.storage,
+    tabs:{ query:async () => [{ id:1, url:builder }], sendMessage:async () => ({ widths:{} }) },
+    runtime:{ getManifest:() => ({ version:'1.0.0' }), sendMessage:async () => ({ ok:true, config:{}, missingOrigins:[] }) }
+  });
+  click('open-panels'); await settle();
+  const option = (value: string) => document.querySelector<HTMLInputElement>('input[name="history-restores"][value="' + value + '"]')!;
+  expect(option('native').checked).toBe(true);
+  click(option('always'));
+  await waitFor(() => expect(saved.historyRestores).toBe('always'));
+  expect(byId('panels-status').textContent).toMatch(/guide from each restored save/);
+  click(option('native'));
+  await waitFor(() => expect(saved.historyRestores).toBe('native'));
+  expect(byId('panels-status').textContent).toMatch(/as Unqork does/);
+  // On hover is the default, which Reset all builder panels restores.
+  click('panels-reset');
+  await waitFor(() => expect(saved.historyRestores).toBe('hover'));
+  expect(option('hover').checked).toBe(true);
+});

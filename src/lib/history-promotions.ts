@@ -21,10 +21,12 @@ export function promotionsOf(revision: unknown): Promotion[] {
   return [...found.values()].sort((a, b) => (a.time ?? 0) - (b.time ?? 0));
 }
 
-// The format of Unqork's own History dates, such as 10/21/2026, 5:29 PM in English.
+// The format of Unqork's own History dates, such as 10/21/2026, 5:29 PM in English: its formatDate is
+// toLocaleString with these options, which also labels an unnamed save.
 const dateFormat = new Intl.DateTimeFormat(undefined, { year:'numeric', month:'numeric', day:'numeric', hour:'numeric', minute:'2-digit' });
+export const formatDate = (time: number) => dateFormat.format(time);
 
 // One line per promotion, for the row's tooltip.
-export function describe(list: Promotion[], format = (time: number) => dateFormat.format(time)) {
+export function describe(list: Promotion[], format = formatDate) {
   return list.map(({ env, user, time }) => 'Promoted to ' + env + (user ? ' by ' + user : '') + (time === null ? '' : ', ' + format(time))).join('\n');
 }
